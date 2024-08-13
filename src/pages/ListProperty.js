@@ -34,6 +34,7 @@ const ListProperty = () => {
 			"hotelState",
 			"hotelCity",
 			"propertyType",
+			"hotelFloors",
 		];
 		for (let field of requiredFields) {
 			if (!values[field]) {
@@ -52,6 +53,8 @@ const ListProperty = () => {
 		// Validate the form
 		if (!validateForm()) return;
 
+		window.scrollTo({ top: 200, behavior: "smooth" });
+
 		const {
 			name,
 			email,
@@ -64,6 +67,7 @@ const ListProperty = () => {
 			hotelState,
 			hotelCity,
 			propertyType,
+			hotelFloors,
 		} = values;
 
 		// Check for two words in name
@@ -114,6 +118,7 @@ const ListProperty = () => {
 				hotelState,
 				hotelCity,
 				propertyType,
+				hotelFloors,
 			});
 
 			setLoading(false); // Hide loading spinner

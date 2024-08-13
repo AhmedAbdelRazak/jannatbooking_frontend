@@ -109,6 +109,7 @@ export const defaultUserValues = {
 	redirectToReferrer: "",
 	loading: false,
 	propertyType: "Hotel",
+	hotelFloors: 1,
 };
 
 export const defaultRoomValues = {

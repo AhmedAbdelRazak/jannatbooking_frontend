@@ -31,7 +31,7 @@ const ListYourProperty = ({ handleChange, clickSubmit, values }) => {
 								<Col xs={24} md={12}>
 									<Form.Item
 										name='name'
-										label='User Name (Hotel Manager/ Owner)'
+										label='User Name (Manager/ Owner/ Agent)'
 										rules={[
 											{
 												required: true,
@@ -204,6 +204,25 @@ const ListYourProperty = ({ handleChange, clickSubmit, values }) => {
 								</Col>
 								<Col xs={24} md={12}>
 									<Form.Item
+										name='hotelFloors'
+										label='How Many Floors?'
+										rules={[
+											{
+												required: true,
+												message:
+													"Please input how many floors your property has?",
+											},
+										]}
+									>
+										<Input
+											value={values.hotelFloors}
+											onChange={handleChange("hotelFloors")}
+											placeholder='How Many Floors'
+										/>
+									</Form.Item>
+								</Col>
+								<Col xs={24} md={12}>
+									<Form.Item
 										name='password'
 										label='Password'
 										rules={[
@@ -221,7 +240,6 @@ const ListYourProperty = ({ handleChange, clickSubmit, values }) => {
 										/>
 									</Form.Item>
 								</Col>
-								<Col xs={24} md={12}></Col>
 								<Col xs={24} md={12}>
 									<Form.Item
 										name='password2'
