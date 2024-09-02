@@ -184,3 +184,103 @@ export const updateSeenStatusForClient = async (caseId) => {
 			console.error("API error: ", err);
 		});
 };
+
+export const updateSeenByCustomer = async (caseId) => {
+	return fetch(
+		`${process.env.REACT_APP_API_URL}/support-cases-customer/${caseId}/seen`,
+		{
+			method: "PUT",
+			headers: {
+				Accept: "application/json",
+				"Content-Type": "application/json",
+			},
+		}
+	)
+		.then((response) => response.json())
+		.catch((err) => {
+			console.error("API error: ", err);
+		});
+};
+
+export const getUnseenMessagesDetailsByCustomer = async (token) => {
+	try {
+		const response = await fetch(
+			`${process.env.REACT_APP_API_URL}/support-cases-customer/unseen/details`,
+			{
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${token}`,
+				},
+			}
+		);
+		return await response.json();
+	} catch (error) {
+		console.error("Error fetching unseen messages count", error);
+		throw error;
+	}
+};
+
+export const getUnseenMessagesCountByCustomer = async (caseId) => {
+	return fetch(
+		`${process.env.REACT_APP_API_URL}/support-cases-customer/${caseId}/unseen-count`,
+		{
+			method: "GET",
+			headers: {
+				Accept: "application/json",
+				"Content-Type": "application/json",
+			},
+		}
+	)
+		.then((response) => response.json())
+		.catch((err) => {
+			console.error("API error: ", err);
+		});
+};
+
+export const gettingJannatWebsiteData = (token) => {
+	return fetch(`${process.env.REACT_APP_API_URL}/janat-website-document`, {
+		method: "GET",
+		headers: {
+			// content type?
+			"Content-Type": "application/json",
+			Accept: "application/json",
+			Authorization: `Bearer ${token}`,
+		},
+	})
+		.then((response) => {
+			return response.json();
+		})
+		.catch((err) => console.log(err));
+};
+
+export const gettingActiveHotels = (token) => {
+	return fetch(`${process.env.REACT_APP_API_URL}/active-hotels`, {
+		method: "GET",
+		headers: {
+			// content type?
+			"Content-Type": "application/json",
+			Accept: "application/json",
+			Authorization: `Bearer ${token}`,
+		},
+	})
+		.then((response) => {
+			return response.json();
+		})
+		.catch((err) => console.log(err));
+};
+
+export const gettingDistinctRoomTypes = (token) => {
+	return fetch(`${process.env.REACT_APP_API_URL}/distinct-rooms`, {
+		method: "GET",
+		headers: {
+			// content type?
+			"Content-Type": "application/json",
+			Accept: "application/json",
+			Authorization: `Bearer ${token}`,
+		},
+	})
+		.then((response) => {
+			return response.json();
+		})
+		.catch((err) => console.log(err));
+};

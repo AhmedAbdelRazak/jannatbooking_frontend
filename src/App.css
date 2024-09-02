@@ -27,6 +27,69 @@ body {
 	--mainBlack: #222;
 	--mainTransition: all 0.3s ease-in-out;
 	--mainSpacing: 0.3rem;
+
+	/* Primary Colors */
+	--primary-color: #a8a8a8;
+	--primary-color-light: #d0d0d0;
+	--primary-color-lighter: #e8e8e8;
+	--primary-color-dark: #8f8f8f;
+	--primary-color-darker: #707070;
+
+	/* Secondary Colors */
+	--secondary-color: #c98686;
+	--secondary-color-light: #f3b1b1;
+	--secondary-color-lighter: #f9d4d4;
+	--secondary-color-dark: #a36464;
+	--secondary-color-darker: #733b3b;
+
+	/* Neutral Colors */
+	--neutral-light: #f7f4ef;
+	--neutral-light2: #e2e6f0;
+	--neutral-light3: #f0e2e6;
+	--neutral-medium: #cfc9b9;
+	--neutral-dark: #efefef;
+	--neutral-dark2: #a8a8a8;
+	--neutral-darker: #707070;
+
+	/* Accent Colors */
+	--accent-color-1: #d4af37;
+	--accent-color-1-light: #f3e6c0;
+	--accent-color-1-dark: #b6902e;
+	--accent-color-2: #b5a880;
+	--accent-color-2-light: #d7ccb0;
+	--accent-color-2-dark: #928064;
+	--accent-color-3: #c2c2c2;
+	--accent-color-3-light: #e0e0e0;
+	--accent-color-3-dark: #9e9e9e;
+
+	/* Text Colors */
+	--text-color-primary: #707070;
+	--text-color-secondary: #a8a8a8;
+	--text-color-light: #f0ece2;
+	--text-color-dark: #535353;
+
+	/* Background Colors */
+	--background-light: #f7f4ef;
+	--background-dark: #3f3f3f;
+	--background-accent: #d4af37;
+
+	/* Button Colors */
+	--button-bg-primary: #a8a8a8;
+	--button-bg-primary-light: #d0d0d0;
+	--button-bg-secondary: #c98686;
+	--button-font-color: #f8edeb;
+
+	/* Border Colors */
+	--border-color-light: #f0ece2;
+	--border-color-dark: #707070;
+
+	/* Shadows */
+	--box-shadow-light: 0 2px 4px rgba(0, 0, 0, 0.1);
+	--box-shadow-dark: 0 2px 4px rgba(0, 0, 0, 0.3);
+
+	/* Transitions */
+	--main-transition: all 0.3s ease-in-out;
+	--main-spacing: 0.3rem;
 }
 
 ::placeholder {

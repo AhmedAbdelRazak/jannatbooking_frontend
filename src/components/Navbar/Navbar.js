@@ -3,11 +3,28 @@ import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
 import { Link } from "react-router-dom";
 import HeaderTopbar from "./HeaderTopbar";
+import { gettingJannatWebsiteData } from "../../apiCore";
 
 const Navbar = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
 	const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 	const [inTop, setInTop] = useState(true);
+	const [homePage, setHomePage] = useState({});
+
+	const gettingAllHomes = () => {
+		gettingJannatWebsiteData().then((data) => {
+			if (data.error) {
+				console.log(data.error);
+			} else {
+				setHomePage(data[data.length - 1]);
+			}
+		});
+	};
+
+	useEffect(() => {
+		gettingAllHomes();
+		// eslint-disable-next-line
+	}, []);
 
 	// Function to toggle the drawer
 	const toggleDrawer = () => setIsDrawerOpen(!isDrawerOpen);
@@ -28,6 +45,7 @@ const Navbar = () => {
 		};
 		// eslint-disable-next-line
 	}, [window.location.pathname]);
+
 	return (
 		<>
 			<HeaderTopbar />
@@ -63,7 +81,11 @@ const Navbar = () => {
 				</ArabicPhone>
 				<LogoSection>
 					<img
-						src='https://res.cloudinary.com/infiniteapps/image/upload/v1707282182/janat/1707282182070.png'
+						src={
+							homePage && homePage.janatLogo && homePage.janatLogo.url
+								? homePage.janatLogo.url
+								: "https://res.cloudinary.com/infiniteapps/image/upload/v1707282182/janat/1707282182070.png"
+						}
 						alt='infinite-apps.com'
 					/>
 				</LogoSection>
@@ -270,9 +292,13 @@ const NavbarWrapper = styled.div`
 `;
 
 const LogoSection = styled.div`
+	object-fit: cover;
+
 	/* Logo styling */
 	img {
-		width: 100%;
+		width: 222px;
+		height: 60px;
+		object-fit: cover;
 	}
 
 	@media (max-width: 1000px) {

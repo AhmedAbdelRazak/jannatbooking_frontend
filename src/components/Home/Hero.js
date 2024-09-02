@@ -6,24 +6,41 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 import "swiper/css/autoplay";
-
-import hero1 from "../../GeneralImages/slider/slide-1.jpg";
-import hero2 from "../../GeneralImages/slider/slide-2.jpg";
-import hero3 from "../../GeneralImages/slider/slide-3.jpg";
 import styled from "styled-components";
+import { useCartContext } from "../../cart_context";
 
 const Hero = (props) => {
-	const sliderItems = [
-		{
-			sImg: hero1,
-		},
-		{
-			sImg: hero2,
-		},
-		{
-			sImg: hero3,
-		},
+	const { homePage } = props;
+
+	const { chosenLanguage } = useCartContext();
+
+	// Default slider images
+	const defaultImages = [
+		{ sImg: require("../../GeneralImages/slider/slide-1.jpg").default },
+		{ sImg: require("../../GeneralImages/slider/slide-2.jpg").default },
+		{ sImg: require("../../GeneralImages/slider/slide-3.jpg").default },
 	];
+
+	// Custom slider images based on homePage data
+	const sliderItems = [];
+
+	// Check for first banner
+	if (homePage?.homeMainBanners?.[0]?.url) {
+		sliderItems.push({ sImg: homePage.homeMainBanners[0].url });
+	} else {
+		sliderItems.push(defaultImages[0]);
+	}
+
+	// Check for second banner
+	if (homePage?.homeMainBanners?.[1]?.url) {
+		sliderItems.push({ sImg: homePage.homeMainBanners[1].url });
+	}
+
+	// Check for third banner
+	if (homePage?.homeMainBanners?.[2]?.url) {
+		sliderItems.push({ sImg: homePage.homeMainBanners[2].url });
+	}
+
 	return (
 		<HeroWrapper>
 			<Swiper
@@ -41,32 +58,35 @@ const Hero = (props) => {
 					pauseOnMouseEnter: true,
 				}}
 			>
-				{sliderItems.map((item, slr) => {
-					return (
-						<SwiperSlide key={slr}>
-							<div
-								className='swiper-slide'
-								style={{ backgroundImage: `url(${item.sImg})` }}
-							>
-								<div className='slide-inner slide-bg-image'>
-									<div className='container-fluid'>
-										<div className='slide-content'>
-											<div data-swiper-parallax='100' className='slide-title'>
-												<h1>Find Your Perfect Place To Stay</h1>
-											</div>
-											<div className='clearfix'></div>
-											<div data-swiper-parallax='500' className='slide-btns'>
-												<Link to='/our-hotels' className='theme-btn'>
-													Book Now
-												</Link>
-											</div>
+				{sliderItems.map((item, slr) => (
+					<SwiperSlide key={slr}>
+						<div
+							className='swiper-slide'
+							style={{ backgroundImage: `url(${item.sImg})` }}
+						>
+							<div className='slide-inner slide-bg-image'>
+								<div className='container-fluid'>
+									<div className='slide-content'>
+										<div data-swiper-parallax='100' className='slide-title'>
+											<h1>
+												{" "}
+												{chosenLanguage === "Arabic"
+													? ""
+													: "Find Your Perfect Place To Stay"}{" "}
+											</h1>
+										</div>
+										<div className='clearfix'></div>
+										<div data-swiper-parallax='500' className='slide-btns'>
+											<Link to='/our-hotels' className='theme-btn'>
+												Book Now
+											</Link>
 										</div>
 									</div>
 								</div>
 							</div>
-						</SwiperSlide>
-					);
-				})}
+						</div>
+					</SwiperSlide>
+				))}
 			</Swiper>
 		</HeroWrapper>
 	);

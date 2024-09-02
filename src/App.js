@@ -12,6 +12,8 @@ import SingleHotelPage from "./pages/SingleHotelPage";
 import Navbar from "./components/Navbar/Navbar";
 import Footer from "./components/Footer/Footer";
 import ListProperty from "./pages/ListProperty";
+import ChatIcon from "./Chat/ChatIcon";
+import SingleHotelMain from "./pages/SingleHotelMain";
 
 const App = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
@@ -52,8 +54,20 @@ const App = () => {
 					<Route path='/signup' exact component={Signup} />
 					<Route path='/signin' exact component={Signin} />
 					<Route path='/list-property' exact component={ListProperty} />
+					<Route
+						path='/single-hotel/:hotelNameSlug'
+						exact
+						component={SingleHotelMain}
+					/>
 				</Switch>
 			</>
+
+			{window.location.pathname.includes("admin") ||
+			window.location.pathname.includes("management") ? null : (
+				<>
+					<ChatIcon />
+				</>
+			)}
 
 			<Footer />
 		</BrowserRouter>
