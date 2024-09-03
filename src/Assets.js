@@ -1,3 +1,43 @@
+import { WifiOutlined, CarOutlined, CoffeeOutlined } from "@ant-design/icons";
+import {
+	FaAirFreshener,
+	FaBed,
+	FaSmoking,
+	FaBan,
+	FaSwimmingPool,
+	FaDumbbell,
+	FaUtensils,
+	FaSpa,
+	FaConciergeBell,
+	FaTshirt,
+	FaDog,
+	FaBriefcase,
+	FaRunning,
+	FaCoffee,
+	FaWheelchair,
+	FaBicycle,
+	FaHotTub,
+	FaGolfBall,
+	FaTableTennis,
+	FaChild,
+	FaUmbrellaBeach,
+	FaWater,
+	FaRoad,
+	FaTree,
+	FaCity,
+	FaMountain,
+	FaMosque,
+	FaPrayingHands,
+	FaQuran, // Replacement for FaBookQuran
+	FaTv,
+	FaShoppingCart,
+	FaMapMarked,
+	FaHiking,
+	FaKaaba,
+	FaPray,
+	FaShuttleVan,
+} from "react-icons/fa";
+
 export const defaultHotelDetails = {
 	hotelAmenities: ["WiFi", "Pool", "Gym"],
 	hotelFloors: 0,
@@ -174,3 +214,60 @@ export const roomTypeColors = {
 	masterSuite: "#556B2F", // Dark Olive Green
 	familyRooms: "#A52A2A", // Brown
 };
+
+export const amenitiesList = [
+	// Basic Amenities
+	{ name: "WiFi", icon: <WifiOutlined /> },
+	{ name: "TV", icon: <FaTv /> }, // Replaced TvOutlined with FaTv
+	{ name: "Air Conditioning", icon: <FaAirFreshener /> },
+	{ name: "Mini Bar", icon: <FaBed /> },
+	{ name: "Smoking", icon: <FaSmoking /> },
+	{ name: "Non-Smoking", icon: <FaBan /> },
+	{ name: "Pool", icon: <FaSwimmingPool /> },
+	{ name: "Gym", icon: <FaDumbbell /> },
+	{ name: "Restaurant", icon: <FaUtensils /> },
+	{ name: "Bar", icon: <CoffeeOutlined /> },
+	{ name: "Spa", icon: <FaSpa /> },
+	{ name: "Room Service", icon: <FaConciergeBell /> },
+	{ name: "Laundry Service", icon: <FaTshirt /> },
+	{ name: "Free Parking", icon: <CarOutlined /> },
+	{ name: "Pet Friendly", icon: <FaDog /> },
+	{ name: "Business Center", icon: <FaBriefcase /> },
+	{ name: "Airport Shuttle", icon: <FaShuttleVan /> },
+	{ name: "Fitness Center", icon: <FaRunning /> },
+	{ name: "Breakfast Included", icon: <FaCoffee /> },
+	{ name: "Accessible Rooms", icon: <FaWheelchair /> },
+	{ name: "Bicycle Rental", icon: <FaBicycle /> },
+	{ name: "Sauna", icon: <FaHotTub /> },
+	{ name: "Hot Tub", icon: <FaHotTub /> },
+	{ name: "Golf Course", icon: <FaGolfBall /> },
+	{ name: "Tennis Court", icon: <FaTableTennis /> },
+	{ name: "Kids' Club", icon: <FaChild /> },
+	{ name: "Beachfront", icon: <FaUmbrellaBeach /> },
+];
+
+export const viewsList = [
+	// Views
+	{ name: "Sea View", icon: <FaWater /> },
+	{ name: "Street View", icon: <FaRoad /> },
+	{ name: "Garden View", icon: <FaTree /> },
+	{ name: "City View", icon: <FaCity /> },
+	{ name: "Mountain View", icon: <FaMountain /> },
+	{ name: "Holy Haram View", icon: <FaMosque /> },
+];
+
+export const extraAmenitiesList = [
+	// Additional Amenities for Makkah, KSA
+	{ name: "Prayer Mat", icon: <FaPrayingHands /> },
+	{ name: "Holy Quran", icon: <FaQuran /> }, // Replaced FaBookQuran with FaQuran
+	{ name: "Islamic Television Channels", icon: <FaTv /> },
+	{ name: "Shuttle Service to Haram", icon: <FaShuttleVan /> },
+	{ name: "Nearby Souks/Markets", icon: <FaShoppingCart /> },
+	{ name: "Arabic Coffee & Dates Service", icon: <FaCoffee /> },
+	{ name: "Cultural Tours/Guides", icon: <FaMapMarked /> },
+	{ name: "Private Pilgrimage Services", icon: <FaHiking /> },
+	{ name: "Complimentary Zamzam Water", icon: <FaWater /> },
+	{ name: "Halal-certified Restaurant", icon: <FaUtensils /> },
+	{ name: "Hajj & Umrah Booking Assistance", icon: <FaKaaba /> },
+	{ name: "Dedicated Prayer Room", icon: <FaPray /> },
+];

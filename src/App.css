@@ -29,63 +29,63 @@ body {
 	--mainSpacing: 0.3rem;
 
 	/* Primary Colors */
-	--primary-color: #a8a8a8;
-	--primary-color-light: #d0d0d0;
-	--primary-color-lighter: #e8e8e8;
-	--primary-color-dark: #8f8f8f;
-	--primary-color-darker: #707070;
+	--primary-color: #303443; /* Base primary color */
+	--primary-color-light: #3e4358; /* Slightly lighter shade of primary */
+	--primary-color-lighter: #4c536c; /* Lighter shade */
+	--primary-color-dark: #1e2332; /* Darker shade */
+	--primary-color-darker: #171a26; /* Even darker shade */
 
 	/* Secondary Colors */
-	--secondary-color: #c98686;
-	--secondary-color-light: #f3b1b1;
-	--secondary-color-lighter: #f9d4d4;
-	--secondary-color-dark: #a36464;
-	--secondary-color-darker: #733b3b;
+	--secondary-color: #501500; /* Dark orange color */
+	--secondary-color-light: #733b29; /* Slightly lighter shade of dark orange */
+	--secondary-color-lighter: #a84636; /* Lighter shade */
+	--secondary-color-dark: #3a0f00; /* Darker shade */
+	--secondary-color-darker: #280a00; /* Even darker shade */
 
 	/* Neutral Colors */
-	--neutral-light: #f7f4ef;
-	--neutral-light2: #e2e6f0;
-	--neutral-light3: #f0e2e6;
-	--neutral-medium: #cfc9b9;
-	--neutral-dark: #efefef;
-	--neutral-dark2: #a8a8a8;
-	--neutral-darker: #707070;
+	--neutral-light: #fafafa; /* Light grey */
+	--neutral-light2: #f0f0f0; /* Slightly darker light grey */
+	--neutral-light3: #e8e8e8; /* Another light neutral shade */
+	--neutral-medium: #d4d4d4; /* Medium grey */
+	--neutral-dark: #5f5e5e; /* Dark grey */
+	--neutral-dark2: #444444; /* Another dark grey */
+	--neutral-darker: #222222; /* Main black */
 
 	/* Accent Colors */
-	--accent-color-1: #d4af37;
-	--accent-color-1-light: #f3e6c0;
-	--accent-color-1-dark: #b6902e;
-	--accent-color-2: #b5a880;
-	--accent-color-2-light: #d7ccb0;
-	--accent-color-2-dark: #928064;
-	--accent-color-3: #c2c2c2;
-	--accent-color-3-light: #e0e0e0;
-	--accent-color-3-dark: #9e9e9e;
+	--accent-color-1: #ffe3d9; /* Light orange */
+	--accent-color-1-light: #fff1eb; /* Lighter shade of accent */
+	--accent-color-1-dark: #cca298; /* Darker shade of accent */
+	--accent-color-2: #fff; /* Pure white */
+	--accent-color-2-light: #f7f7f7; /* Slightly off-white */
+	--accent-color-2-dark: #e0e0e0; /* Light grey for accents */
+	--accent-color-3: #303443; /* Reused primary color as an accent */
+	--accent-color-3-light: #4c536c; /* Lighter shade as an accent */
+	--accent-color-3-dark: #1e2332; /* Darker shade as an accent */
 
 	/* Text Colors */
-	--text-color-primary: #707070;
-	--text-color-secondary: #a8a8a8;
-	--text-color-light: #f0ece2;
-	--text-color-dark: #535353;
+	--text-color-primary: #222; /* Main black for primary text */
+	--text-color-secondary: #5f5e5e; /* Dark grey for secondary text */
+	--text-color-light: #fafafa; /* Light grey for lighter text */
+	--text-color-dark: #1e2332; /* Darker shade for text */
 
 	/* Background Colors */
-	--background-light: #f7f4ef;
-	--background-dark: #3f3f3f;
-	--background-accent: #d4af37;
+	--background-light: #fafafa; /* Light background */
+	--background-dark: #303443; /* Dark background */
+	--background-accent: #ffe3d9; /* Light orange for accent background */
 
 	/* Button Colors */
-	--button-bg-primary: #a8a8a8;
-	--button-bg-primary-light: #d0d0d0;
-	--button-bg-secondary: #c98686;
-	--button-font-color: #f8edeb;
+	--button-bg-primary: #303443; /* Primary button background */
+	--button-bg-primary-light: #4c536c; /* Lighter primary button */
+	--button-bg-secondary: #501500; /* Secondary button background */
+	--button-font-color: #fff; /* White font on buttons */
 
 	/* Border Colors */
-	--border-color-light: #f0ece2;
-	--border-color-dark: #707070;
+	--border-color-light: #e0e0e0; /* Light grey for borders */
+	--border-color-dark: #303443; /* Darker border color */
 
 	/* Shadows */
-	--box-shadow-light: 0 2px 4px rgba(0, 0, 0, 0.1);
-	--box-shadow-dark: 0 2px 4px rgba(0, 0, 0, 0.3);
+	--box-shadow-light: 0 2px 4px rgba(0, 0, 0, 0.1); /* Light shadow */
+	--box-shadow-dark: 0 2px 4px rgba(0, 0, 0, 0.3); /* Darker shadow */
 
 	/* Transitions */
 	--main-transition: all 0.3s ease-in-out;
