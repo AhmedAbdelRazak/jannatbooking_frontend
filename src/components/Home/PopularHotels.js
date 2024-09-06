@@ -60,6 +60,7 @@ const PopularHotels = ({ activeHotels }) => {
 				</div>
 
 				<div className='room-wrapper mt-5'>
+					{/* Outer Swiper - for hotel cards */}
 					<Swiper
 						modules={[Navigation, Pagination, Autoplay]}
 						spaceBetween={30}
@@ -106,33 +107,21 @@ const PopularHotels = ({ activeHotels }) => {
 											}
 										}}
 									>
-										<div className='hotel-image'>
-											<Swiper
-												modules={[Navigation, Pagination, Autoplay]}
-												pagination={{ clickable: true }}
-												loop={true}
-												autoplay={{
-													delay: 2000,
-													disableOnInteraction: false,
-												}}
-												speed={1000}
-											>
-												{hotel.hotelPhotos.map((photo, index) => (
-													<SwiperSlide
-														key={index}
-														onClick={() =>
-															(window.location.href = `/single-hotel/${hotel.hotelName
-																.replace(/\s+/g, "-")
-																.toLowerCase()}`)
-														}
-													>
-														<img
-															src={photo.url}
-															alt={`${hotel.hotelName} - ${index + 1}`}
-														/>
-													</SwiperSlide>
-												))}
-											</Swiper>
+										<div
+											className='hotel-image'
+											onClick={() =>
+												(window.location.href = `/single-hotel/${hotel.hotelName
+													.replace(/\s+/g, "-")
+													.toLowerCase()}`)
+											}
+										>
+											{/* Display only the first hotel image */}
+											<img
+												src={
+													hotel.hotelPhotos[0]?.url || "/placeholder-image.jpg"
+												}
+												alt={hotel.hotelName}
+											/>
 										</div>
 										<div className='hotel-details'>
 											<div
@@ -148,7 +137,6 @@ const PopularHotels = ({ activeHotels }) => {
 
 											<StarRatings
 												rating={4.6}
-												// rating={hotel.hotelRating}
 												starRatedColor='var(--orangeDark)'
 												numberOfStars={5}
 												name='rating'
@@ -322,7 +310,7 @@ const HotelCard = styled.div`
 	text-align: center;
 	cursor: pointer;
 	width: 100%;
-	max-width: 1200px; /* Set max width for the card */
+	max-width: 1200px;
 	margin: 0 auto 20px;
 
 	@media (min-width: 768px) {

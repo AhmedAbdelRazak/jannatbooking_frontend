@@ -284,3 +284,18 @@ export const gettingDistinctRoomTypes = (token) => {
 		})
 		.catch((err) => console.log(err));
 };
+
+export const gettingSingleHotel = (hotelSlug) => {
+	return fetch(`${process.env.REACT_APP_API_URL}/single-hotel/${hotelSlug}`, {
+		method: "GET",
+		headers: {
+			// content type?
+			"Content-Type": "application/json",
+			Accept: "application/json",
+		},
+	})
+		.then((response) => {
+			return response.json();
+		})
+		.catch((err) => console.log(err));
+};
