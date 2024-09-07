@@ -5,6 +5,7 @@ import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import { amenitiesList, extraAmenitiesList, viewsList } from "../../Assets";
+import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
 
 // Helper function to find the matching icon for each amenity
 const getIcon = (item) => {
@@ -40,29 +41,19 @@ const SingleHotel = ({ selectedHotel }) => {
 	};
 
 	// Slick settings for room photo carousels
-
-	// eslint-disable-next-line
-	const roomSliderSettings = {
+	const imageSettings = {
 		dots: true,
 		infinite: true,
-		speed: 500,
-		slidesToShow: 2,
+		speed: 1500,
+		slidesToShow: 1,
 		slidesToScroll: 1,
-		arrows: true,
-		responsive: [
-			{
-				breakpoint: 1024,
-				settings: {
-					slidesToShow: 2,
-				},
-			},
-			{
-				breakpoint: 768,
-				settings: {
-					slidesToShow: 1,
-				},
-			},
-		],
+		autoplay: true,
+		autoplaySpeed: 4000,
+	};
+
+	const formatAddress = (address) => {
+		const addressParts = address.split(",");
+		return addressParts.slice(1).join(", ").trim();
 	};
 
 	return (
@@ -84,7 +75,7 @@ const SingleHotel = ({ selectedHotel }) => {
 			{/* Hotel basic info */}
 			<HotelInfo>
 				<h1>{selectedHotel.hotelName}</h1>
-				<p>{selectedHotel.hotelAddress}</p>
+				<p>{formatAddress(selectedHotel.hotelAddress)}</p>
 				<StarRatings
 					rating={selectedHotel.hotelRating || 0}
 					starRatedColor='var(--orangeDark)'
@@ -94,6 +85,29 @@ const SingleHotel = ({ selectedHotel }) => {
 					starSpacing='3px'
 				/>
 				<p>Phone: {selectedHotel.phone}</p>
+				<LoadScript googleMapsApiKey={process.env.REACT_APP_MAPS_API_KEY}>
+					<GoogleMap
+						mapContainerStyle={{
+							width: "1000px",
+							height: "350px",
+							borderRadius: "10px",
+							marginTop: "15px",
+						}}
+						center={{
+							lat: parseFloat(selectedHotel.location.coordinates[1]),
+							lng: parseFloat(selectedHotel.location.coordinates[0]),
+						}}
+						zoom={14}
+					>
+						<Marker
+							position={{
+								lat: parseFloat(selectedHotel.location.coordinates[1]),
+								lng: parseFloat(selectedHotel.location.coordinates[0]),
+							}}
+							draggable={false}
+						/>
+					</GoogleMap>
+				</LoadScript>
 			</HotelInfo>
 
 			{/* Rooms section */}
@@ -103,15 +117,62 @@ const SingleHotel = ({ selectedHotel }) => {
 					{selectedHotel &&
 						selectedHotel.roomCountDetails &&
 						selectedHotel.roomCountDetails.map((room, index) => {
+							// Calculate average price
+							const prices = room.pricingRate.map((rate) => Number(rate.price));
+							const totalPrices = prices.reduce((sum, price) => sum + price, 0);
+							const averagePrice =
+								prices.length > 0 ? totalPrices / prices.length : 0;
+
 							return (
 								<RoomCard key={room._id || index}>
+									{/* Room Photos Carousel */}
+									{room && room.photos && room.photos.length > 1 ? (
+										<CarouselWrapper>
+											<Slider {...imageSettings}>
+												{room.photos.map((photo, index) => (
+													<div key={index}>
+														<RoomImage
+															src={photo.url}
+															alt={`${room.displayName} - ${index + 1}`}
+														/>
+													</div>
+												))}
+											</Slider>
+										</CarouselWrapper>
+									) : (
+										<RoomImage
+											src={room.photos[0] && room.photos[0].url}
+											alt={`${room.displayName} - ${index + 1}`}
+										/>
+									)}
+
 									{/* Room details */}
 									<div className='room-details'>
 										<h3>{room.displayName}</h3>
 										<p>
-											Price: {room.price.basePrice} {selectedHotel.currency}
+											Price:{" "}
+											{averagePrice
+												? averagePrice.toFixed(2)
+												: room.price.basePrice}{" "}
+											<span style={{ textTransform: "uppercase" }}>
+												{selectedHotel.currency}
+											</span>
+											/ Night{" "}
+											<div
+												style={{
+													fontWeight: "bold",
+													fontSize: "12px",
+													color: "darkred",
+												}}
+											>
+												(Price Varies Based On Selected Date Range)
+											</div>
 										</p>
-										<p>{room.description}</p>
+										<p>
+											{room.description.length > 200
+												? `${room.description.slice(0, 200)}...`
+												: room.description}
+										</p>
 
 										{/* Room amenities */}
 										<AmenitiesWrapper>
@@ -141,6 +202,7 @@ const SingleHotelWrapper = styled.div`
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	overflow: hidden;
 `;
 
 const HeroSection = styled.div`
@@ -157,6 +219,8 @@ const HeroSection = styled.div`
 	}
 
 	@media (max-width: 768px) {
+		margin-top: 70px;
+
 		img {
 			height: 400px;
 		}
@@ -167,11 +231,41 @@ const HeroSection = styled.div`
 			height: 300px;
 		}
 	}
+
+	.slick-slide {
+		padding: 10px;
+		box-sizing: border-box;
+	}
+
+	.slick-dots {
+		bottom: -30px;
+	}
+
+	.slick-prev:before,
+	.slick-next:before {
+		color: var(--text-color-dark);
+	}
+
+	.slick-dots li button:before {
+		color: var(--text-color-dark);
+	}
+
+	.slick-dots {
+		display: none !important;
+	}
+
+	@media (max-width: 900px) {
+		.slick-arrow,
+		.slick-prev {
+			display: none !important;
+		}
+	}
 `;
 
 const HotelInfo = styled.div`
 	margin: 20px 0;
 	text-align: center;
+	text-transform: capitalize;
 
 	h1 {
 		font-size: 36px;
@@ -207,6 +301,13 @@ const RoomsSection = styled.div`
 	margin-top: 20px;
 	max-width: 1200px;
 
+	img {
+		width: 100% !important;
+		height: 300px !important;
+		object-fit: cover;
+		border-radius: 10px;
+	}
+
 	h2 {
 		text-align: center;
 		color: var(--primaryBlue);
@@ -225,15 +326,18 @@ const RoomsSection = styled.div`
 
 const RoomGrid = styled.div`
 	display: grid;
-	grid-template-columns: repeat(3, 1fr);
+	grid-template-columns: repeat(
+		3,
+		minmax(0, 1fr)
+	); /* Use minmax to ensure flexibility */
 	gap: 20px;
 
 	@media (max-width: 1024px) {
-		grid-template-columns: repeat(2, 1fr);
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
 	@media (max-width: 768px) {
-		grid-template-columns: repeat(1, 1fr);
+		grid-template-columns: repeat(1, minmax(0, 1fr));
 	}
 `;
 
@@ -242,13 +346,6 @@ const RoomCard = styled.div`
 	border-radius: 10px;
 	padding: 20px;
 	background-color: white;
-
-	img {
-		width: 100%;
-		height: 200px;
-		object-fit: cover;
-		border-radius: 10px;
-	}
 
 	.room-details {
 		margin-top: 20px;
@@ -267,6 +364,21 @@ const RoomCard = styled.div`
 			margin-bottom: 10px;
 		}
 	}
+`;
+
+const CarouselWrapper = styled.div`
+	width: 100%;
+	height: 300px;
+	border-radius: 10px;
+	overflow: hidden;
+`;
+
+const RoomImage = styled.img`
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	border-radius: 10px;
+	overflow: hidden;
 `;
 
 const AmenitiesWrapper = styled.div`

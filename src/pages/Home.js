@@ -8,12 +8,14 @@ import {
 	gettingDistinctRoomTypes,
 	gettingJannatWebsiteData,
 } from "../apiCore";
+import { Spin } from "antd";
 
 const Home = () => {
 	const [homePage, setHomePage] = useState("");
 	const [activeHotels, setActiveHotels] = useState("");
 	const [generalRoomTypes, setGeneralRoomTypes] = useState("");
 	const [distinctRoomTypes, setDistinctRoomTypes] = useState("");
+	const [loading, setLoading] = useState(true);
 
 	const roomTypesMapping = [
 		{ value: "standardRooms", label: "Standard Rooms" },
@@ -32,6 +34,7 @@ const Home = () => {
 	];
 
 	const gettingAllHomes = () => {
+		setLoading(true);
 		gettingJannatWebsiteData().then((data) => {
 			if (data.error) {
 				console.log(data.error);
@@ -43,6 +46,7 @@ const Home = () => {
 						console.log(data2.error);
 					} else {
 						setActiveHotels(data2);
+						setLoading(false);
 					}
 				});
 
@@ -83,14 +87,18 @@ const Home = () => {
 				<Search distinctRoomTypes={distinctRoomTypes} />
 			) : null}
 
-			{activeHotels && generalRoomTypes ? (
+			{activeHotels && generalRoomTypes && !loading ? (
 				<div className='py-5' style={{ marginTop: "800px" }}>
 					<PopularHotels
 						activeHotels={activeHotels}
 						generalRoomTypes={generalRoomTypes}
 					/>
 				</div>
-			) : null}
+			) : (
+				<SpinWrapper>
+					<Spin size='large' />
+				</SpinWrapper>
+			)}
 		</HomeWrapper>
 	);
 };
@@ -99,4 +107,11 @@ export default Home;
 
 const HomeWrapper = styled.div`
 	min-height: 2000px;
+`;
+
+const SpinWrapper = styled.div`
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 200vh; // Full height of the viewport
 `;
