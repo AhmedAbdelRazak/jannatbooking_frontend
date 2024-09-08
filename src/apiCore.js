@@ -299,3 +299,18 @@ export const gettingSingleHotel = (hotelSlug) => {
 		})
 		.catch((err) => console.log(err));
 };
+
+export const gettingActiveHotelList = () => {
+	return fetch(`${process.env.REACT_APP_API_URL}/active-hotel-list`, {
+		method: "GET",
+		headers: {
+			// content type?
+			"Content-Type": "application/json",
+			Accept: "application/json",
+		},
+	})
+		.then((response) => {
+			return response.json();
+		})
+		.catch((err) => console.log(err));
+};
