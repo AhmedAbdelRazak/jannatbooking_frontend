@@ -187,7 +187,7 @@ export const updateSeenStatusForClient = async (caseId) => {
 
 export const updateSeenByCustomer = async (caseId) => {
 	return fetch(
-		`${process.env.REACT_APP_API_URL}/support-cases-customer/${caseId}/seen`,
+		`${process.env.REACT_APP_API_URL}/support-cases/${caseId}/seen/client`, // Correct path
 		{
 			method: "PUT",
 			headers: {

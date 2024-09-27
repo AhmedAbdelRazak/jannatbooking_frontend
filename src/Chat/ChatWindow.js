@@ -8,6 +8,7 @@ import {
 	getSupportCaseById,
 	updateSupportCase,
 	updateSeenByCustomer,
+	gettingActiveHotelList,
 } from "../apiCore";
 import socket from "./socket";
 import EmojiPicker from "emoji-picker-react";
@@ -17,12 +18,17 @@ import ReactGA from "react-ga4";
 const { Option } = Select;
 
 const ChatWindow = ({ closeChatWindow }) => {
+	const [activeHotels, setActiveHotels] = useState([]);
 	const [customerName, setCustomerName] = useState("");
 	const [customerEmail, setCustomerEmail] = useState("");
 	const [inquiryAbout, setInquiryAbout] = useState("");
 	const [orderNumber, setOrderNumber] = useState("");
 	const [productName, setProductName] = useState("");
 	const [otherInquiry, setOtherInquiry] = useState("");
+	const [reservationNumber, setReservationNumber] = useState("");
+	// eslint-disable-next-line
+	const [hotelName, setHotelName] = useState("");
+	const [hotelId, setHotelId] = useState(""); // Store selected hotelId
 	const [submitted, setSubmitted] = useState(false);
 	const [messages, setMessages] = useState([]);
 	const [newMessage, setNewMessage] = useState("");
@@ -88,8 +94,7 @@ const ChatWindow = ({ closeChatWindow }) => {
 			socket.off("typing");
 			socket.off("stopTyping");
 		};
-		// eslint-disable-next-line
-	}, [caseId, customerEmail]);
+	}, [caseId, customerEmail, customerName]);
 
 	useEffect(() => {
 		if (caseId) {
@@ -140,6 +145,20 @@ const ChatWindow = ({ closeChatWindow }) => {
 		scrollToBottom();
 	}, [messages]);
 
+	// Fetch hotel details on component mount
+	useEffect(() => {
+		const fetchHotel = async () => {
+			try {
+				const hotelData = await gettingActiveHotelList(); // Fetch hotels
+				setActiveHotels(hotelData); // Set response to activeHotels state
+			} catch (error) {
+				console.error("Error fetching hotels:", error);
+			}
+		};
+
+		fetchHotel();
+	}, []);
+
 	const handleInputChange = (e) => {
 		setNewMessage(e.target.value);
 		socket.emit("typing", { name: customerName, caseId });
@@ -167,8 +186,13 @@ const ChatWindow = ({ closeChatWindow }) => {
 		}
 
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		if (customerEmail && !emailRegex.test(customerEmail)) {
+		if (!customerEmail || !emailRegex.test(customerEmail)) {
 			message.error("Please enter a valid email address.");
+			return;
+		}
+
+		if (!hotelId) {
+			message.error("Please select a hotel.");
 			return;
 		}
 
@@ -182,25 +206,56 @@ const ChatWindow = ({ closeChatWindow }) => {
 				? orderNumber
 				: inquiryAbout === "product"
 					? productName
-					: otherInquiry;
+					: inquiryAbout === "reservation"
+						? reservationNumber
+						: otherInquiry;
 
-		if (!inquiryDetails) {
+		if (
+			inquiryAbout === "reservation" &&
+			(!reservationNumber || reservationNumber.trim() === "")
+		) {
+			message.error("Please provide your reservation confirmation number.");
+			return;
+		}
+
+		if (
+			inquiryAbout === "others" &&
+			(!otherInquiry || otherInquiry.trim() === "")
+		) {
 			message.error("Please provide details for your inquiry.");
 			return;
 		}
 
+		const ownerId =
+			activeHotels &&
+			activeHotels.filter((i) => i._id === hotelId)[0].belongsTo;
+
 		const data = {
-			customerName,
+			customerName: customerName,
+			displayName1: customerName,
+			displayName2: "Fareda Elsheemy",
+			role: 0,
 			customerEmail,
+			hotelId, // Send hotelId along with other data
 			inquiryAbout,
-			inquiryDetails,
+			inquiryDetails: inquiryDetails
+				? inquiryDetails
+				: `Inquiry To ${inquiryAbout}`,
+			supporterId: "6553f1c6d06c5cea2f98a838",
+			ownerId: ownerId,
 		};
 
 		try {
 			const response = await createNewSupportCase(data);
-			console.log("Support case created with ID:", response._id); // Log the case ID
 			setCaseId(response._id);
 			setSubmitted(true);
+			setMessages((prev) => [
+				...prev,
+				{
+					messageBy: { customerName: "System" },
+					message: "A Representative will be available with you in 3 minutes",
+				},
+			]); // Add system message
 			fetchSupportCase(response._id); // Fetch the created support case
 		} catch (err) {
 			console.error("Error creating support case", err);
@@ -272,6 +327,22 @@ const ChatWindow = ({ closeChatWindow }) => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	};
 
+	// Handle hotel selection and set hotelId
+	const handleHotelChange = (value, option) => {
+		setHotelName(option.children); // Set hotel name
+		setHotelId(value); // Store the hotelId
+	};
+
+	const handleInquiryChange = (value) => {
+		setInquiryAbout(value);
+		if (value !== "others") {
+			setOtherInquiry(""); // Reset other inquiry field if not selected
+		}
+		if (value !== "reservation") {
+			setReservationNumber(""); // Reset reservation number field if not reservation
+		}
+	};
+
 	return (
 		<ChatWindowWrapper isMinimized={isMinimized}>
 			<ChatWindowHeader>
@@ -287,11 +358,11 @@ const ChatWindow = ({ closeChatWindow }) => {
 					<h4>Rate Our Service</h4>
 					<StarRatings
 						rating={rating}
-						starRatedColor='var(--secondary-color)' // Using a color from :root
+						starRatedColor='var(--secondary-color)'
 						changeRating={setRating}
 						numberOfStars={5}
 						name='rating'
-						starDimension='20px' // Making the stars smaller
+						starDimension='20px'
 						starSpacing='2px'
 					/>
 					<RatingButtons>
@@ -312,12 +383,19 @@ const ChatWindow = ({ closeChatWindow }) => {
 				</RatingSection>
 			) : submitted && !isMinimized ? (
 				<div>
-					<p>A representative will be with you shortly.</p>
 					<MessagesContainer>
 						{messages &&
 							messages.map((msg, index) => (
 								<Message key={index}>
-									<strong>{msg.messageBy.customerName}:</strong> {msg.message}
+									{msg.message ===
+									"A representative will be with you in 3 to 5 minutes" ? (
+										msg.message
+									) : (
+										<>
+											<strong>{msg.messageBy.customerName}:</strong>{" "}
+											{msg.message}
+										</>
+									)}
 								</Message>
 							))}
 						<div ref={messagesEndRef} />
@@ -341,7 +419,6 @@ const ChatWindow = ({ closeChatWindow }) => {
 									<EmojiPicker
 										onEmojiClick={handleEmojiClick}
 										disableAutoFocus={true}
-										// Adjusting the picker position and size
 										pickerStyle={{ width: "100%" }}
 									/>
 								</EmojiPickerWrapper>
@@ -364,54 +441,72 @@ const ChatWindow = ({ closeChatWindow }) => {
 				</div>
 			) : !isMinimized ? (
 				<Form layout='vertical' onFinish={handleSubmit}>
-					<Form.Item label='Name' required>
+					<Form.Item label='Full Name' required>
 						<Input
 							value={customerName}
+							placeholder='FirstName LastName'
 							onChange={(e) => setCustomerName(e.target.value)}
 							disabled={isAuthenticated()}
 						/>
 					</Form.Item>
-					<Form.Item label='Email'>
+					<Form.Item label='Email' required>
 						<Input
 							value={customerEmail}
+							placeholder='e.g. client@gmail.com'
 							onChange={(e) => setCustomerEmail(e.target.value)}
 							disabled={isAuthenticated()}
 						/>
 					</Form.Item>
-					<Form.Item label='Inquiry About' required>
+					<Form.Item label='Select Hotel' required>
 						<Select
-							value={inquiryAbout}
-							onChange={(value) => setInquiryAbout(value)}
+							showSearch
+							placeholder='Select a hotel'
+							optionFilterProp='children'
+							onChange={handleHotelChange}
+							filterOption={(input, option) =>
+								option.children.toLowerCase().includes(input.toLowerCase())
+							}
 						>
-							<Option value='order'>Inquiry about an order</Option>
-							<Option value='product'>Inquiry about a product</Option>
-							<Option value='other'>Others</Option>
+							{activeHotels &&
+								activeHotels.map((hotel) => (
+									<Option
+										key={hotel._id}
+										value={hotel._id}
+										style={{ textTransform: "capitalize" }}
+									>
+										{hotel.hotelName}
+									</Option>
+								))}
 						</Select>
 					</Form.Item>
-					{inquiryAbout === "order" && (
-						<Form.Item label='Order/Invoice Number' required>
-							<Input
-								value={orderNumber}
-								onChange={(e) => setOrderNumber(e.target.value)}
-							/>
-						</Form.Item>
-					)}
-					{inquiryAbout === "product" && (
-						<Form.Item label='Product Name' required>
-							<Input
-								value={productName}
-								onChange={(e) => setProductName(e.target.value)}
-							/>
-						</Form.Item>
-					)}
-					{inquiryAbout === "other" && (
-						<Form.Item label='Brief Description' required>
+					<Form.Item label='Inquiry About' required>
+						<Select value={inquiryAbout} onChange={handleInquiryChange}>
+							<Option value='reserve_room'>Reserve A Room</Option>
+							<Option value='reserve_bed'>Reserve A Bed</Option>
+							<Option value='payment_inquiry'>Payment Inquiry</Option>
+							<Option value='reservation'>Reservation Inquiry</Option>
+							<Option value='others'>Others</Option>
+						</Select>
+					</Form.Item>
+
+					{inquiryAbout === "others" && (
+						<Form.Item label='Please specify your inquiry' required>
 							<Input
 								value={otherInquiry}
 								onChange={(e) => setOtherInquiry(e.target.value)}
 							/>
 						</Form.Item>
 					)}
+
+					{inquiryAbout === "reservation" && (
+						<Form.Item label='Reservation Confirmation Number' required>
+							<Input
+								value={reservationNumber}
+								onChange={(e) => setReservationNumber(e.target.value)}
+							/>
+						</Form.Item>
+					)}
+
 					<Form.Item
 						onClick={() => {
 							ReactGA.event({
@@ -431,6 +526,8 @@ const ChatWindow = ({ closeChatWindow }) => {
 };
 
 export default ChatWindow;
+
+// Styled-components
 
 const ChatWindowWrapper = styled.div`
 	position: fixed;
@@ -468,7 +565,7 @@ const ChatWindowHeader = styled.div`
 	h3 {
 		font-size: 1.2rem;
 		font-weight: bold;
-		color: var(--text-color-dark); /* Using one of the specified text colors */
+		color: var(--text-color-dark);
 	}
 `;
 
@@ -476,6 +573,8 @@ const MessagesContainer = styled.div`
 	max-height: 55vh;
 	margin-bottom: 10px;
 	overflow-x: hidden;
+	overflow-y: auto; /* Added for y-axis scrolling */
+	scroll-behavior: smooth;
 `;
 
 const Message = styled.p`
@@ -502,8 +601,8 @@ const EmojiPickerWrapper = styled.div`
 	bottom: 60px;
 	right: 20px;
 	z-index: 1002;
-	width: 300px; /* Adjusting the width */
-	height: 300px; /* Adjusting the height */
+	width: 300px;
+	height: 300px;
 	overflow: hidden;
 `;
 
