@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import styled from "styled-components";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Pagination, Autoplay, Thumbs } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/pagination";
+import "swiper/css/thumbs";
 import StarRatings from "react-star-ratings";
-import Slider from "react-slick";
-import "slick-carousel/slick/slick.css";
-import "slick-carousel/slick/slick-theme.css";
 import { amenitiesList, extraAmenitiesList, viewsList } from "../../Assets";
 import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
 
@@ -25,51 +27,78 @@ const getIcon = (item) => {
 
 // Main SingleHotel component
 const SingleHotel = ({ selectedHotel }) => {
+	const [thumbsSwiper, setThumbsSwiper] = useState(null);
+	// Array of swiper references for each room
+	const [roomThumbsSwipers, setRoomThumbsSwipers] = useState([]);
+
 	// Return null if no selected hotel to prevent rendering issues
 	if (!selectedHotel) return null;
-
-	// Slick settings for the hero carousel
-	const heroSliderSettings = {
-		dots: true,
-		infinite: true,
-		speed: 1500,
-		slidesToShow: 1,
-		slidesToScroll: 1,
-		autoplay: true,
-		autoplaySpeed: 4000,
-		arrows: true,
-	};
-
-	// Slick settings for room photo carousels
-	const imageSettings = {
-		dots: true,
-		infinite: true,
-		speed: 1500,
-		slidesToShow: 1,
-		slidesToScroll: 1,
-		autoplay: true,
-		autoplaySpeed: 4000,
-	};
 
 	const formatAddress = (address) => {
 		const addressParts = address.split(",");
 		return addressParts.slice(1).join(", ").trim();
 	};
 
+	const handleRoomThumbsSwiper = (index) => (swiper) => {
+		setRoomThumbsSwipers((prev) => {
+			const newSwipers = [...prev];
+			newSwipers[index] = swiper;
+			return newSwipers;
+		});
+	};
+
 	return (
 		<SingleHotelWrapper>
-			{/* Hero Section with react-slick */}
+			{/* Hero Section */}
 			<HeroSection>
-				<Slider {...heroSliderSettings}>
+				<Swiper
+					modules={[Pagination, Autoplay, Thumbs]}
+					spaceBetween={10}
+					slidesPerView={1}
+					pagination={{ clickable: true }}
+					autoplay={{
+						delay: 4000,
+						disableOnInteraction: false,
+					}}
+					thumbs={{ swiper: thumbsSwiper }}
+					loop={true}
+					className='main-swiper'
+				>
 					{selectedHotel.hotelPhotos.map((photo, index) => (
-						<div key={index}>
+						<SwiperSlide key={index}>
 							<img
 								src={photo.url}
 								alt={`${selectedHotel.hotelName} - ${index + 1}`}
+								className='hotel-image'
 							/>
-						</div>
+						</SwiperSlide>
 					))}
-				</Slider>
+				</Swiper>
+				<Swiper
+					modules={[Thumbs]}
+					onSwiper={setThumbsSwiper}
+					spaceBetween={2}
+					slidesPerView={6}
+					watchSlidesProgress
+					className='thumbnail-swiper'
+					breakpoints={{
+						768: {
+							slidesPerView: 4,
+						},
+						1024: {
+							slidesPerView: 6,
+						},
+					}}
+				>
+					{selectedHotel.hotelPhotos.map((photo, index) => (
+						<SwiperSlide key={index}>
+							<ThumbnailImage
+								src={photo.url}
+								alt={`${selectedHotel.hotelName} - ${index + 1}`}
+							/>
+						</SwiperSlide>
+					))}
+				</Swiper>
 			</HeroSection>
 
 			{/* Hotel basic info */}
@@ -113,81 +142,118 @@ const SingleHotel = ({ selectedHotel }) => {
 			{/* Rooms section */}
 			<RoomsSection>
 				<h2>Rooms</h2>
-				<RoomGrid>
-					{selectedHotel &&
-						selectedHotel.roomCountDetails &&
-						selectedHotel.roomCountDetails.map((room, index) => {
-							// Calculate average price
-							const prices = room.pricingRate.map((rate) => Number(rate.price));
-							const totalPrices = prices.reduce((sum, price) => sum + price, 0);
-							const averagePrice =
-								prices.length > 0 ? totalPrices / prices.length : 0;
+				{selectedHotel.roomCountDetails.map((room, index) => {
+					// Calculate average price
+					const prices = room.pricingRate.map((rate) => Number(rate.price));
+					const totalPrices = prices.reduce((sum, price) => sum + price, 0);
+					const averagePrice =
+						prices.length > 0 ? totalPrices / prices.length : 0;
 
-							return (
-								<RoomCard key={room._id || index}>
-									{/* Room Photos Carousel */}
-									{room && room.photos && room.photos.length > 1 ? (
-										<CarouselWrapper>
-											<Slider {...imageSettings}>
-												{room.photos.map((photo, index) => (
-													<div key={index}>
-														<RoomImage
-															src={photo.url}
-															alt={`${room.displayName} - ${index + 1}`}
-														/>
-													</div>
-												))}
-											</Slider>
-										</CarouselWrapper>
-									) : (
-										<RoomImage
-											src={room.photos[0] && room.photos[0].url}
-											alt={`${room.displayName} - ${index + 1}`}
-										/>
-									)}
+					return (
+						<RoomCardWrapper key={room._id || index}>
+							{/* Room image section with Swiper */}
+							<RoomImageWrapper>
+								<Swiper
+									modules={[Pagination, Autoplay, Thumbs]}
+									spaceBetween={10}
+									slidesPerView={1}
+									pagination={{ clickable: true }}
+									autoplay={{
+										delay: 4000,
+										disableOnInteraction: false,
+									}}
+									loop={true}
+									thumbs={{ swiper: roomThumbsSwipers[index] }}
+									className='room-swiper'
+								>
+									{room.photos.map((photo, idx) => (
+										<SwiperSlide key={idx}>
+											<RoomImage
+												src={photo.url}
+												alt={`${room.displayName} - ${idx + 1}`}
+											/>
+										</SwiperSlide>
+									))}
+								</Swiper>
 
-									{/* Room details */}
-									<div className='room-details'>
-										<h3>{room.displayName}</h3>
-										<p>
-											Price:{" "}
-											{averagePrice
-												? averagePrice.toFixed(2)
-												: room.price.basePrice}{" "}
-											<span style={{ textTransform: "uppercase" }}>
-												{selectedHotel.currency}
-											</span>
-											/ Night{" "}
-											<div
-												style={{
-													fontWeight: "bold",
-													fontSize: "12px",
-													color: "darkred",
-												}}
-											>
-												(Price Varies Based On Selected Date Range)
-											</div>
-										</p>
-										<p>
-											{room.description.length > 200
-												? `${room.description.slice(0, 200)}...`
-												: room.description}
-										</p>
+								<Swiper
+									modules={[Thumbs]}
+									onSwiper={handleRoomThumbsSwiper(index)}
+									spaceBetween={2}
+									slidesPerView={4}
+									watchSlidesProgress
+									className='thumbnail-swiper'
+									breakpoints={{
+										768: {
+											slidesPerView: 3,
+										},
+										1024: {
+											slidesPerView: 4,
+										},
+									}}
+								>
+									{room.photos.map((photo, idx) => (
+										<SwiperSlide key={idx}>
+											<RoomThumbnailImage
+												src={photo.url}
+												alt={`${room.displayName} - ${idx + 1}`}
+											/>
+										</SwiperSlide>
+									))}
+								</Swiper>
+							</RoomImageWrapper>
 
-										{/* Room amenities */}
-										<AmenitiesWrapper>
-											<h4>Amenities</h4>
-											{room.amenities.map((amenity, index) => (
-												<AmenityItem key={index}>
-													{getIcon(amenity)} <span>{amenity}</span>
-												</AmenityItem>
-											))}
-										</AmenitiesWrapper>
+							{/* Room details in the center */}
+							<RoomDetails>
+								<h3>{room.displayName}</h3>
+								<p>
+									Price:{" "}
+									{averagePrice
+										? averagePrice.toFixed(2)
+										: room.price.basePrice}{" "}
+									<span style={{ textTransform: "uppercase" }}>
+										{selectedHotel.currency}
+									</span>{" "}
+									/ Night{" "}
+									<div
+										style={{
+											fontWeight: "bold",
+											fontSize: "12px",
+											color: "darkred",
+										}}
+									>
+										(Price Varies Based On Selected Date Range)
 									</div>
-								</RoomCard>
-							);
-						})}
-				</RoomGrid>
+								</p>
+								<p>
+									{room.description.length > 200
+										? `${room.description.slice(0, 200)}...`
+										: room.description}
+								</p>
+								<AmenitiesWrapper>
+									<h4>Amenities</h4>
+									{room.amenities.map((amenity, idx) => (
+										<AmenityItem key={idx}>
+											{getIcon(amenity)} <span>{amenity}</span>
+										</AmenityItem>
+									))}
+								</AmenitiesWrapper>
+							</RoomDetails>
+
+							{/* Price section on the right */}
+							<PriceSection>
+								{/* <OfferTag>Limited Offer</OfferTag> */}
+								<FinalPrice>
+									<span className='old-price'>136 SAR</span>
+									<span className='current-price'>
+										{room.price.basePrice} SAR
+									</span>
+								</FinalPrice>
+								<FreeCancellation>+ FREE CANCELLATION</FreeCancellation>
+							</PriceSection>
+						</RoomCardWrapper>
+					);
+				})}
 			</RoomsSection>
 		</SingleHotelWrapper>
 	);
@@ -195,14 +261,16 @@ const SingleHotel = ({ selectedHotel }) => {
 
 export default SingleHotel;
 
-// Styled-components for the sections, using your custom color palette
-
+// Styled-components
 const SingleHotelWrapper = styled.div`
 	padding: 20px;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	overflow: hidden;
+	@media (max-width: 800px) {
+		margin-top: 20px;
+	}
 `;
 
 const HeroSection = styled.div`
@@ -210,58 +278,205 @@ const HeroSection = styled.div`
 	max-width: 1200px;
 	margin: 20px 0;
 
-	img {
+	.hotel-image {
 		width: 100%;
-		height: 600px;
-		object-fit: cover;
+		height: 700px;
 		border-radius: 10px;
-		box-shadow: var(--box-shadow-light);
+		object-fit: cover;
 	}
 
-	@media (max-width: 768px) {
-		margin-top: 70px;
+	.thumbnail-swiper {
+		margin-top: 10px;
 
-		img {
-			height: 400px;
+		.swiper-slide {
+			opacity: 0.6;
+			margin: 2px;
+		}
+
+		.swiper-slide-thumb-active {
+			opacity: 1;
+			border: 2px solid var(--primary-color);
+			border-radius: 10px;
 		}
 	}
 
-	@media (max-width: 480px) {
-		img {
-			height: 300px;
-		}
-	}
-
-	.slick-slide {
-		padding: 10px;
-		box-sizing: border-box;
-	}
-
-	.slick-dots {
-		bottom: -30px;
-	}
-
-	.slick-prev:before,
-	.slick-next:before {
-		color: var(--text-color-dark);
-	}
-
-	.slick-dots li button:before {
-		color: var(--text-color-dark);
-	}
-
-	.slick-dots {
-		display: none !important;
-	}
-
-	@media (max-width: 900px) {
-		.slick-arrow,
-		.slick-prev {
-			display: none !important;
+	@media (max-width: 800px) {
+		.hotel-image {
+			width: 100%;
+			height: 500px;
+			border-radius: 10px;
+			object-fit: cover;
 		}
 	}
 `;
 
+const ThumbnailImage = styled.img`
+	width: 100%;
+	height: 120px;
+	object-fit: cover;
+	border-radius: 10px;
+	cursor: pointer;
+
+	@media (max-width: 800px) {
+		height: 80px;
+	}
+`;
+
+const RoomThumbnailImage = styled.img`
+	width: 90%;
+	height: 80px;
+	object-fit: cover;
+	margin-top: 8px;
+	border-radius: 10px;
+	cursor: pointer;
+
+	@media (max-width: 800px) {
+		height: 80px;
+	}
+`;
+
+const RoomsSection = styled.div`
+	width: 100%;
+	padding: 20px;
+	background-color: var(--neutral-light);
+	border-radius: 10px;
+	margin-top: 20px;
+	max-width: 1200px;
+
+	h2 {
+		text-align: center;
+		color: var(--primaryBlue);
+		margin-bottom: 20px;
+		text-transform: capitalize;
+	}
+`;
+
+const RoomCardWrapper = styled.div`
+	display: grid;
+	grid-template-columns: 35% 45% 20%;
+	background-color: var(--mainWhite);
+	border: 1px solid var(--border-color-light);
+	border-radius: 10px;
+	box-shadow: var(--box-shadow-light);
+	padding: 20px;
+	margin-bottom: 20px;
+	transition: var(--main-transition);
+
+	@media (max-width: 768px) {
+		display: block; /* Stack the elements vertically for mobile */
+	}
+`;
+
+const RoomImageWrapper = styled.div`
+	.room-swiper {
+		border-radius: 10px;
+		overflow: hidden;
+	}
+`;
+
+const RoomImage = styled.img`
+	width: 100%;
+	height: 300px;
+	object-fit: cover;
+	border-radius: 10px;
+`;
+
+const RoomDetails = styled.div`
+	padding: 0 15px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+
+	h3 {
+		font-size: 1.5rem;
+		color: var(--primaryBlue);
+		margin-bottom: 10px;
+	}
+
+	p {
+		font-size: 1rem;
+		margin-bottom: 10px;
+	}
+`;
+
+const PriceSection = styled.div`
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	justify-content: space-between;
+
+	@media (max-width: 768px) {
+		align-items: center;
+		margin-top: 20px;
+	}
+`;
+
+// eslint-disable-next-line
+const OfferTag = styled.div`
+	background-color: var(--secondary-color);
+	color: var(--mainWhite);
+	font-weight: bold;
+	padding: 5px 10px;
+	border-radius: 5px;
+	margin-bottom: 10px;
+	text-transform: uppercase;
+`;
+
+const FinalPrice = styled.div`
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	font-size: 1.25rem;
+
+	.old-price {
+		text-decoration: line-through;
+		color: var(--neutral-dark);
+		font-size: 1rem;
+	}
+
+	.current-price {
+		font-weight: bold;
+		color: var(--secondary-color);
+		font-size: 1.5rem;
+	}
+
+	@media (max-width: 768px) {
+		align-items: center;
+	}
+`;
+
+const FreeCancellation = styled.p`
+	font-size: 0.9rem;
+	color: var(--primaryBlueDarker);
+	font-weight: bold;
+	text-align: right;
+
+	@media (max-width: 768px) {
+		text-align: center;
+	}
+`;
+
+const AmenitiesWrapper = styled.div`
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	grid-gap: 10px;
+	margin-top: 15px;
+
+	@media (max-width: 768px) {
+		grid-template-columns: repeat(2, 1fr);
+	}
+`;
+
+const AmenityItem = styled.div`
+	display: flex;
+	align-items: center;
+	font-size: 12px;
+	color: var(--text-color-primary);
+
+	span {
+		margin-left: 5px;
+	}
+`;
 const HotelInfo = styled.div`
 	margin: 20px 0;
 	text-align: center;
@@ -290,119 +505,5 @@ const HotelInfo = styled.div`
 		p {
 			font-size: 16px;
 		}
-	}
-`;
-
-const RoomsSection = styled.div`
-	width: 100%;
-	padding: 20px;
-	background-color: var(--neutral-light);
-	border-radius: 10px;
-	margin-top: 20px;
-	max-width: 1200px;
-
-	img {
-		width: 100% !important;
-		height: 300px !important;
-		object-fit: cover;
-		border-radius: 10px;
-	}
-
-	h2 {
-		text-align: center;
-		color: var(--primaryBlue);
-		margin-bottom: 20px;
-		text-transform: capitalize;
-	}
-
-	@media (max-width: 768px) {
-		padding: 10px;
-	}
-
-	@media (max-width: 480px) {
-		padding: 5px;
-	}
-`;
-
-const RoomGrid = styled.div`
-	display: grid;
-	grid-template-columns: repeat(
-		3,
-		minmax(0, 1fr)
-	); /* Use minmax to ensure flexibility */
-	gap: 20px;
-
-	@media (max-width: 1024px) {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-
-	@media (max-width: 768px) {
-		grid-template-columns: repeat(1, minmax(0, 1fr));
-	}
-`;
-
-const RoomCard = styled.div`
-	border: 1px solid var(--neutral-light3);
-	border-radius: 10px;
-	padding: 20px;
-	background-color: white;
-
-	.room-details {
-		margin-top: 20px;
-		width: 100%;
-		text-align: center;
-
-		h3 {
-			font-size: 24px;
-			color: var(--primaryBlue);
-			margin-bottom: 10px;
-			text-transform: capitalize;
-		}
-
-		p {
-			font-size: 16px;
-			margin-bottom: 10px;
-		}
-	}
-`;
-
-const CarouselWrapper = styled.div`
-	width: 100%;
-	height: 300px;
-	border-radius: 10px;
-	overflow: hidden;
-`;
-
-const RoomImage = styled.img`
-	width: 100%;
-	height: 100%;
-	object-fit: cover;
-	border-radius: 10px;
-	overflow: hidden;
-`;
-
-const AmenitiesWrapper = styled.div`
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: center;
-	gap: 10px;
-	margin-top: 15px;
-
-	h4 {
-		width: 100%;
-		text-align: center;
-		margin-bottom: 10px;
-		color: var(--darkGrey);
-	}
-`;
-
-const AmenityItem = styled.div`
-	display: flex;
-	align-items: center;
-	font-size: 14px;
-	color: var(--darkGrey);
-
-	span {
-		margin-left: 5px;
 	}
 `;

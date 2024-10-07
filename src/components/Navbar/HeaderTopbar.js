@@ -14,7 +14,7 @@ const HeaderTopbar = () => {
 						<div className='contact-intro'>
 							<ul>
 								<li>
-									<i className='fa fa-envelope'></i>info@janatbooking.com
+									<i className='fa fa-envelope'></i>info@jannatbooking.com
 								</li>
 								<li>
 									<i className='fa fa-phone'></i> +1909 (991) 4386

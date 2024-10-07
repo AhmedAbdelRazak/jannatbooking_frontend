@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import styled from "styled-components";
-import Slider from "react-slick";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Pagination, Autoplay, Thumbs } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/pagination";
+import "swiper/css/thumbs";
 import StarRatings from "react-star-ratings";
-import "slick-carousel/slick/slick.css";
-import "slick-carousel/slick/slick-theme.css";
 import { amenitiesList, viewsList, extraAmenitiesList } from "../../Assets";
 
 // Helper function to format the address
@@ -25,7 +27,7 @@ const getIcon = (item) => {
 	);
 	if (extraAmenity) return extraAmenity.icon;
 
-	return null; // Fallback if no icon is found
+	return null;
 };
 
 // Function to get unique amenities, views, and extra amenities, limit to 12
@@ -38,108 +40,152 @@ const getUniqueFeatures = (featuresArray) => {
 		}
 	});
 
-	// Limit to 12 unique features
 	return uniqueFeatures.slice(0, 12);
 };
 
-const HotelList = ({ activeHotels }) => {
-	// Slick settings for the image slider
-	const sliderSettings = {
-		dots: true,
-		infinite: true,
-		speed: 500,
-		slidesToShow: 1,
-		slidesToScroll: 1,
-		autoplay: true,
-		autoplaySpeed: 4000,
-		arrows: false,
+// HotelCard component for individual hotels
+const HotelCard = ({ hotel }) => {
+	const [thumbsSwiper, setThumbsSwiper] = useState(null); // Each hotel has its own thumbsSwiper
+	const [mainSwiper, setMainSwiper] = useState(null); // Main swiper reference to control autoplay
+
+	const combinedFeatures = [
+		...hotel.roomCountDetails.flatMap((room) => room.amenities),
+		...hotel.roomCountDetails.flatMap((room) => room.views),
+		...hotel.roomCountDetails.flatMap((room) => room.extraAmenities),
+	];
+
+	const uniqueFeatures = getUniqueFeatures(combinedFeatures);
+
+	// Stop autoplay when user hovers over the image
+	const handleMouseEnter = () => {
+		if (mainSwiper) mainSwiper.autoplay.stop();
+	};
+
+	// Resume autoplay when the user stops hovering
+	const handleMouseLeave = () => {
+		if (mainSwiper) mainSwiper.autoplay.start();
 	};
 
 	return (
+		<HotelCardWrapper>
+			{/* Image section with Swiper */}
+			<HotelImageWrapper>
+				<Swiper
+					modules={[Pagination, Autoplay, Thumbs]}
+					spaceBetween={10}
+					slidesPerView={1}
+					pagination={{ clickable: true }}
+					autoplay={{
+						delay: 4000,
+						disableOnInteraction: false,
+					}}
+					thumbs={{ swiper: thumbsSwiper }}
+					loop={true} // Ensure infinite loop
+					onSwiper={setMainSwiper} // Set the main swiper reference
+					className='main-swiper'
+					onMouseEnter={handleMouseEnter}
+					onMouseLeave={handleMouseLeave}
+				>
+					{hotel.hotelPhotos.map((photo, idx) => (
+						<SwiperSlide key={idx}>
+							<div
+								onClick={() =>
+									(window.location.href = `/single-hotel/${hotel.hotelName
+										.replace(/\s+/g, "-")
+										.toLowerCase()}`)
+								}
+							>
+								<img
+									src={photo.url}
+									alt={`${hotel.hotelName} - ${idx + 1}`}
+									className='hotel-image'
+								/>
+							</div>
+						</SwiperSlide>
+					))}
+				</Swiper>
+
+				{/* Thumbnail Navigation Swiper */}
+				<Swiper
+					modules={[Thumbs]}
+					onSwiper={setThumbsSwiper} // Set the specific hotel thumbsSwiper
+					spaceBetween={2} // Reduced space to 2 pixels between thumbnails
+					slidesPerView={5} // Larger screens
+					watchSlidesProgress
+					className='thumbnail-swiper'
+					breakpoints={{
+						768: {
+							slidesPerView: 3, // For smaller screens
+						},
+						1024: {
+							slidesPerView: 5, // For larger screens
+						},
+					}}
+				>
+					{hotel.hotelPhotos.map((photo, idx) => (
+						<SwiperSlide key={idx}>
+							<ThumbnailImage
+								src={photo.url}
+								alt={`${hotel.hotelName} - ${idx + 1}`}
+							/>
+						</SwiperSlide>
+					))}
+				</Swiper>
+			</HotelImageWrapper>
+
+			{/* Hotel details section */}
+			<HotelDetails>
+				<div>
+					<HotelName>{hotel.hotelName}</HotelName>
+					<Location>{formatAddress(hotel.hotelAddress)}</Location>
+					<StarRatings
+						rating={hotel.hotelRating || 0}
+						starRatedColor='orange'
+						numberOfStars={5}
+						name='rating'
+						starDimension='20px'
+						starSpacing='3px'
+					/>
+
+					{/* Display unique amenities, views, and extra amenities */}
+					<AmenitiesWrapper>
+						{uniqueFeatures.map((feature, index) => (
+							<AmenityItem key={index}>
+								{getIcon(feature)} <span>{feature}</span>
+							</AmenityItem>
+						))}
+					</AmenitiesWrapper>
+
+					<PriceWrapper className='mt-3'>
+						Starting from:{" "}
+						<span>{hotel.roomCountDetails[0]?.price.basePrice} SAR</span> per
+						night
+					</PriceWrapper>
+				</div>
+			</HotelDetails>
+
+			{/* Price and Offer section */}
+			<PriceSection>
+				<OfferTag>Limited Offer</OfferTag>
+				<FinalPrice>
+					<span className='old-price'>136 SAR</span>
+					<span className='current-price'>
+						{hotel.roomCountDetails[0]?.price.basePrice} SAR
+					</span>
+				</FinalPrice>
+				<FreeCancellation>+ FREE CANCELLATION</FreeCancellation>
+			</PriceSection>
+		</HotelCardWrapper>
+	);
+};
+
+const HotelList = ({ activeHotels }) => {
+	return (
 		<HotelListWrapper>
 			{activeHotels && activeHotels.length > 0 ? (
-				activeHotels.map((hotel, index) => {
-					// Combine all amenities, views, and extra amenities into one array
-					const combinedFeatures = [
-						...hotel.roomCountDetails.flatMap((room) => room.amenities),
-						...hotel.roomCountDetails.flatMap((room) => room.views),
-						...hotel.roomCountDetails.flatMap((room) => room.extraAmenities),
-					];
-
-					// Get unique features and limit to 12
-					const uniqueFeatures = getUniqueFeatures(combinedFeatures);
-
-					return (
-						<HotelCard key={hotel._id || index}>
-							{/* Image section */}
-							<HotelImageWrapper>
-								<Slider {...sliderSettings}>
-									{hotel.hotelPhotos.map((photo, idx) => (
-										<div
-											key={idx}
-											onClick={() =>
-												(window.location.href = `/single-hotel/${hotel.hotelName
-													.replace(/\s+/g, "-")
-													.toLowerCase()}`)
-											}
-										>
-											<img
-												src={photo.url}
-												alt={`${hotel.hotelName} - ${idx + 1}`}
-												className='hotel-image'
-											/>
-										</div>
-									))}
-								</Slider>
-							</HotelImageWrapper>
-
-							{/* Hotel details section */}
-							<HotelDetails>
-								<div>
-									<HotelName>{hotel.hotelName}</HotelName>
-									<Location>{formatAddress(hotel.hotelAddress)}</Location>
-									<StarRatings
-										rating={hotel.hotelRating || 0}
-										starRatedColor='orange'
-										numberOfStars={5}
-										name='rating'
-										starDimension='20px'
-										starSpacing='3px'
-									/>
-
-									{/* Display unique amenities, views, and extra amenities */}
-									<AmenitiesWrapper>
-										{uniqueFeatures.map((feature, index) => (
-											<AmenityItem key={index}>
-												{getIcon(feature)} <span>{feature}</span>
-											</AmenityItem>
-										))}
-									</AmenitiesWrapper>
-
-									<PriceWrapper className='mt-3'>
-										Starting from:{" "}
-										<span>
-											{hotel.roomCountDetails[0]?.price.basePrice} SAR
-										</span>{" "}
-										per night
-									</PriceWrapper>
-								</div>
-							</HotelDetails>
-
-							{/* Price and Offer section */}
-							<PriceSection>
-								<OfferTag>Limited Offer</OfferTag>
-								<FinalPrice>
-									<span className='old-price'>136 SAR</span>
-									<span className='current-price'>
-										{hotel.roomCountDetails[0]?.price.basePrice} SAR
-									</span>
-								</FinalPrice>
-								<FreeCancellation>+ FREE CANCELLATION</FreeCancellation>
-							</PriceSection>
-						</HotelCard>
-					);
-				})
+				activeHotels.map((hotel, index) => (
+					<HotelCard key={hotel._id || index} hotel={hotel} />
+				))
 			) : (
 				<p>No hotels available</p>
 			)}
@@ -156,9 +202,23 @@ const HotelListWrapper = styled.div`
 	gap: 10px;
 	padding: 20px;
 	background-color: var(--neutral-light);
+	overflow-x: hidden; /* Prevent horizontal scroll */
+
+	.swiper-button-prev,
+	.swiper-button-next {
+		display: none !important; /* Remove navigation arrows */
+	}
+
+	.swiper-pagination-bullet {
+		background-color: darkgrey !important; /* Inactive dot color */
+	}
+
+	.swiper-pagination-bullet-active {
+		background-color: black !important; /* Active dot color */
+	}
 `;
 
-const HotelCard = styled.div`
+const HotelCardWrapper = styled.div`
 	display: grid;
 	grid-template-columns: 35% 45% 20%;
 	background-color: var(--mainWhite);
@@ -172,13 +232,31 @@ const HotelCard = styled.div`
 		box-shadow: var(--box-shadow-dark);
 	}
 
+	/* Mobile view adjustments */
 	@media (max-width: 768px) {
-		grid-template-columns: 1fr; /* Stacks cards in mobile view */
+		display: block; /* Stack the elements vertically for mobile */
+	}
+
+	/* Ensure that the images take full width for small screens */
+	img {
+		width: 100%;
+		height: auto; /* Automatically adjust the height based on the width */
+		object-fit: cover;
+		border-radius: 10px;
+	}
+
+	/* For tablets and larger screens, keep the grid layout */
+	@media (min-width: 769px) {
+		img {
+			height: 300px; /* Adjust the height for larger screens */
+			object-fit: cover; /* Ensure the image maintains its aspect ratio */
+		}
 	}
 `;
 
 const HotelImageWrapper = styled.div`
 	position: relative;
+
 	.hotel-image {
 		width: 100%;
 		height: 300px;
@@ -187,13 +265,42 @@ const HotelImageWrapper = styled.div`
 		cursor: pointer;
 	}
 
-	.slick-prev:before,
-	.slick-next:before {
-		color: var(--text-color-primary);
+	@media (max-width: 768px) {
+		grid-column: 1 / -1; /* Make the image span the full width on mobile */
+
+		.hotel-image {
+			width: 100%;
+			object-fit: cover;
+			border-radius: 10px 10px 0 0; /* Optional: Rounded top corners */
+		}
 	}
 
-	.slick-arrow {
-		z-index: 1;
+	.thumbnail-swiper {
+		margin-top: 2px; /* Reduced margin to ensure smaller gaps */
+		width: 100%; /* Thumbnails take full width */
+
+		.swiper-slide {
+			opacity: 0.6;
+			margin: 2px; /* Reduced margin to 2 pixels */
+		}
+
+		.swiper-slide-thumb-active {
+			opacity: 1;
+			border: 2px solid var(--primary-color); /* Highlight the active thumbnail */
+			border-radius: 10px;
+		}
+	}
+`;
+
+const ThumbnailImage = styled.img`
+	width: 100%;
+	height: 60px !important; /* Smaller thumbnail size */
+	object-fit: cover;
+	border-radius: 10px;
+	cursor: pointer;
+
+	@media (max-width: 768px) {
+		height: 60px;
 	}
 `;
 
@@ -289,18 +396,14 @@ const FreeCancellation = styled.p`
 	}
 `;
 
-// New styled-components for amenities display
 const AmenitiesWrapper = styled.div`
 	display: grid;
-	grid-template-columns: repeat(3, 1fr); /* 3 icons per row */
+	grid-template-columns: repeat(3, 1fr);
 	grid-gap: 10px;
 	margin-top: 15px;
 
 	@media (max-width: 768px) {
-		grid-template-columns: repeat(
-			2,
-			1fr
-		); /* 2 icons per row on smaller screens */
+		grid-template-columns: repeat(2, 1fr);
 	}
 `;
 

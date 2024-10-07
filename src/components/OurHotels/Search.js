@@ -184,7 +184,7 @@ const SearchWrapper = styled.div`
 		flex-direction: column; // Stack children vertically
 		align-items: stretch; // Stretch children to fill the width
 		width: 95%; // Adjust width to your preference on smaller screens
-		top: 65%; // Adjust top position if needed
+		top: 28%; // Adjust top position if needed
 
 		.ant-picker,
 		.ant-select,
