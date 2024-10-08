@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useHistory } from "react-router-dom";
 import { DatePicker, Select, InputNumber, Button } from "antd";
 import styled from "styled-components";
@@ -8,25 +8,49 @@ import {
 	CalendarOutlined,
 	TeamOutlined,
 } from "@ant-design/icons";
+import dayjs from "dayjs";
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
-const Search = () => {
+const Search = ({ distinctRoomTypes }) => {
 	const [searchParams, setSearchParams] = useState({
 		dates: [],
 		roomType: "",
 		adults: "",
 		children: "",
 	});
+	const [calendarStartDate, setCalendarStartDate] = useState(
+		dayjs().add(1, "day")
+	);
 
 	const history = useHistory();
 
-	const handleDateChange = (dates) => {
+	useEffect(() => {
+		// Initialize with tomorrow and 7 days later as the default date range using Day.js
+		const startDate = dayjs().add(1, "day").startOf("day");
+		const endDate = dayjs().add(7, "day").endOf("day");
+
 		setSearchParams((prevParams) => ({
 			...prevParams,
-			dates,
+			dates: [startDate, endDate],
 		}));
+		setCalendarStartDate(startDate);
+	}, []);
+
+	const handleDateChange = (dates) => {
+		if (dates && dates[0] && dates[1]) {
+			setSearchParams((prevParams) => ({
+				...prevParams,
+				dates: [dates[0].clone(), dates[1].clone()],
+			}));
+			setCalendarStartDate(dates[0]);
+		} else {
+			setSearchParams((prevParams) => ({
+				...prevParams,
+				dates: [],
+			}));
+		}
 	};
 
 	const handleSelectChange = (value, name) => {
@@ -54,7 +78,12 @@ const Search = () => {
 			adults: searchParams.adults,
 			children: searchParams.children,
 		}).toString();
-		history.push(`/our-hotels?${queryParams}`);
+		history.push(`/our-hotels-rooms?${queryParams}`);
+	};
+
+	// Restrict date selection to today and onwards
+	const disabledDate = (current) => {
+		return current && current < dayjs().endOf("day");
 	};
 
 	return (
@@ -63,24 +92,33 @@ const Search = () => {
 				format='YYYY-MM-DD'
 				onChange={handleDateChange}
 				value={searchParams.dates}
+				disabledDate={disabledDate}
+				defaultPickerValue={[calendarStartDate]}
+				onCalendarChange={(dates) => {
+					if (dates && dates[0]) {
+						setCalendarStartDate(dates[0]); // Align calendar start date
+					}
+				}}
 			/>
 			<Select
 				style={{ width: "20%" }}
-				suffixIcon={<CalendarOutlined />} // This adds the calendar icon to the Select
+				suffixIcon={<CalendarOutlined />}
 				placeholder='Select room type'
 				onChange={(value) => handleSelectChange(value, "roomType")}
 				value={searchParams.roomType}
 			>
 				<Option value=''>Room Type</Option>
-				<Option value='single'>Single</Option>
-				<Option value='double'>Double</Option>
-				<Option value='suite'>Suite</Option>
+				{distinctRoomTypes.map((roomType) => (
+					<Option key={roomType} value={roomType}>
+						{roomType}
+					</Option>
+				))}
 			</Select>
 
 			<InputNumberWrapper>
 				<InputNumber
 					className='w-100'
-					prefix={<UserOutlined />} // This adds the user icon to the InputNumber
+					prefix={<UserOutlined />}
 					min={1}
 					max={10}
 					placeholder='Adults'
@@ -91,7 +129,7 @@ const Search = () => {
 			<InputNumberWrapper>
 				<InputNumber
 					className='w-100'
-					prefix={<TeamOutlined />} // This adds the team icon to the InputNumber
+					prefix={<TeamOutlined />}
 					min={0}
 					max={10}
 					placeholder='Children'

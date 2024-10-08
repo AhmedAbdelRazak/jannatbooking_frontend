@@ -1,11 +1,28 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import styled from "styled-components";
+import { gettingJannatWebsiteData } from "../../apiCore";
 
 const Footer = (props) => {
+	const [homePage, setHomePage] = useState({});
 	const ClickHandler = () => {
 		window.scrollTo(10, 0);
 	};
+
+	const gettingAllHomes = () => {
+		gettingJannatWebsiteData().then((data) => {
+			if (data.error) {
+				console.log(data.error);
+			} else {
+				setHomePage(data[data.length - 1]);
+			}
+		});
+	};
+
+	useEffect(() => {
+		gettingAllHomes();
+		// eslint-disable-next-line
+	}, []);
 
 	return (
 		<FooterWrapper className='wpo-site-footer'>
@@ -16,8 +33,12 @@ const Footer = (props) => {
 							<div className='widget about-widget'>
 								<div className='logo widget-title' style={{ color: "white" }}>
 									<img
-										src='https://res.cloudinary.com/infiniteapps/image/upload/v1707282182/janat/1707282182070.png'
-										alt='janat booking the best rates!'
+										src={
+											homePage && homePage.janatLogo && homePage.janatLogo.url
+												? homePage.janatLogo.url
+												: "https://res.cloudinary.com/infiniteapps/image/upload/v1707282182/janat/1707282182070.png"
+										}
+										alt='jannatbooking umrah trips'
 									/>
 								</div>
 								<p>
@@ -118,7 +139,7 @@ const Footer = (props) => {
 											<i className='fi flaticon-phone-call'></i>+1909 (991) 4386
 										</li>
 										<li>
-											<i className='fi flaticon-send'></i>info@janatbooking.com
+											<i className='fi flaticon-send'></i>info@jannatbooking.com
 										</li>
 									</ul>
 								</div>
@@ -133,7 +154,7 @@ const Footer = (props) => {
 						<div className='col col-xs-12'>
 							<p className='copyright'>
 								{" "}
-								Copyright &copy; {new Date().getFullYear()} JANAT BOOKING by{" "}
+								Copyright &copy; {new Date().getFullYear()} JANNAT BOOKING by{" "}
 								<Link
 									onClick={() => {
 										ClickHandler();

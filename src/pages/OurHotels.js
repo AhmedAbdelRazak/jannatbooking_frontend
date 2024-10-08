@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import { gettingActiveHotelList } from "../apiCore";
-import { Spin, Drawer, Button } from "antd"; // Import Spin, Drawer, and Button from Ant Design
+import { gettingActiveHotelList, gettingDistinctRoomTypes } from "../apiCore";
+import { Spin, Drawer } from "antd"; // Import Spin, Drawer, and Button from Ant Design
 // eslint-disable-next-line
 import { FilterOutlined } from "@ant-design/icons"; // Import filter icon
 import HotelList from "../components/OurHotels/HotelList";
@@ -11,9 +11,48 @@ const OurHotels = () => {
 	const [activeHotels, setActiveHotels] = useState(null); // State for selected hotel
 	const [loading, setLoading] = useState(true); // State for loading
 	const [drawerVisible, setDrawerVisible] = useState(false); // Drawer state for smaller screens
+	const [distinctRoomTypes, setDistinctRoomTypes] = useState([]); // Initialize as an array
 
-	// Fetch hotel details on component mount
+	const roomTypesMapping = [
+		{ value: "standardRooms", label: "Standard Rooms" },
+		{ value: "singleRooms", label: "Single Rooms" },
+		{ value: "doubleRooms", label: "Double Rooms" },
+		{ value: "twinRooms", label: "Twin Rooms" },
+		{ value: "queenRooms", label: "Queen Rooms" },
+		{ value: "kingRooms", label: "King Rooms" },
+		{ value: "tripleRooms", label: "Triple Rooms" },
+		{ value: "quadRooms", label: "Quad Rooms" },
+		{ value: "studioRooms", label: "Studio Rooms" },
+		{ value: "suite", label: "Suite" },
+		{ value: "masterSuite", label: "Master Suite" },
+		{ value: "familyRooms", label: "Family Rooms" },
+		{ value: "individualBed", label: "Rooms With Individual Beds" },
+	];
+
 	useEffect(() => {
+		const gettingDistinctRooms = () => {
+			gettingDistinctRoomTypes().then((data3) => {
+				if (data3.error) {
+					console.log(data3.error);
+				} else {
+					// Extract and map distinct room types
+					const distinctRoomTypesArray = [
+						...new Set(
+							data3.map((room) => {
+								const mapping = roomTypesMapping.find(
+									(map) => map.value === room.roomType
+								);
+								return mapping ? mapping.label : room.roomType;
+							})
+						),
+					];
+					setDistinctRoomTypes(distinctRoomTypesArray);
+				}
+			});
+		};
+
+		gettingDistinctRooms();
+
 		window.scrollTo({ top: 50, behavior: "smooth" });
 		const fetchHotel = async () => {
 			try {
@@ -27,6 +66,7 @@ const OurHotels = () => {
 		};
 
 		fetchHotel();
+		// eslint-disable-next-line
 	}, []);
 
 	// Drawer functions
@@ -43,13 +83,13 @@ const OurHotels = () => {
 		<OurHotelsWrapper>
 			{/* Search bar for filtering hotels */}
 			<SearchSection>
-				<Search fromPage='OurHotels' />
+				<Search distinctRoomTypes={distinctRoomTypes} />
 			</SearchSection>
 
 			{/* Filter button for mobile view */}
 			{/* <MobileFilterButton onClick={showDrawer}>
-				<FilterOutlined /> Filters
-			</MobileFilterButton> */}
+                <FilterOutlined /> Filters
+            </MobileFilterButton> */}
 
 			{/* Drawer for filters */}
 			<Drawer
@@ -65,8 +105,8 @@ const OurHotels = () => {
 			<ContentWrapper>
 				{/* Left section for filters (on larger screens) */}
 				{/* <FilterSection>
-					<h3>Filters (Coming Soon)</h3>
-				</FilterSection> */}
+                    <h3>Filters (Coming Soon)</h3>
+                </FilterSection> */}
 
 				{/* Hotel list or loading spinner */}
 				<HotelListSection>
@@ -102,7 +142,7 @@ const SearchSection = styled.div`
 	margin-bottom: 50px;
 
 	@media (max-width: 800px) {
-		/* display: none; */
+		margin-top: 30px;
 	}
 `;
 
@@ -113,19 +153,7 @@ const ContentWrapper = styled.div`
 
 	@media (max-width: 768px) {
 		flex-direction: column;
-		gap: 10px; // Reduce the gap for better spacing on smaller screens
-	}
-`;
-
-// eslint-disable-next-line
-const FilterSection = styled.div`
-	width: 25%;
-	background-color: #fff;
-	padding: 20px;
-	border-radius: 10px;
-	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-	@media (max-width: 768px) {
-		display: none; /* Hide filters section on smaller screens */
+		gap: 10px;
 	}
 `;
 
@@ -143,15 +171,4 @@ const SpinWrapper = styled.div`
 	align-items: center;
 	height: 100vh;
 	width: 100%;
-`;
-
-// eslint-disable-next-line
-const MobileFilterButton = styled(Button)`
-	display: none;
-	margin-top: 30px;
-	margin-left: 20px;
-
-	@media (max-width: 768px) {
-		display: block;
-	}
 `;

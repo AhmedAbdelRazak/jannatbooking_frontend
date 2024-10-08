@@ -14,6 +14,7 @@ import Footer from "./components/Footer/Footer";
 import ListProperty from "./pages/ListProperty";
 import ChatIcon from "./Chat/ChatIcon";
 import SingleHotelMain from "./pages/SingleHotelMain";
+import OurHotelRooms from "./pages/OurHotelRooms";
 
 const App = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
@@ -59,6 +60,7 @@ const App = () => {
 						exact
 						component={SingleHotelMain}
 					/>
+					<Route path='/our-hotels-rooms' exact component={OurHotelRooms} />
 				</Switch>
 			</>
 

@@ -86,7 +86,7 @@ const Navbar = () => {
 								? homePage.janatLogo.url
 								: "https://res.cloudinary.com/infiniteapps/image/upload/v1707282182/janat/1707282182070.png"
 						}
-						alt='infinite-apps.com'
+						alt='jannatbooking umrah trips'
 					/>
 				</LogoSection>
 				<NavLinks
