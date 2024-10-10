@@ -84,7 +84,10 @@ const Home = () => {
 			{homePage ? <Hero homePage={homePage} /> : null}
 
 			{distinctRoomTypes ? (
-				<Search distinctRoomTypes={distinctRoomTypes} />
+				<Search
+					distinctRoomTypes={distinctRoomTypes}
+					roomTypesMapping={roomTypesMapping}
+				/>
 			) : null}
 
 			{activeHotels && generalRoomTypes && !loading ? (

@@ -13,7 +13,7 @@ import dayjs from "dayjs";
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
-const Search = ({ distinctRoomTypes }) => {
+const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 	const [searchParams, setSearchParams] = useState({
 		dates: [],
 		roomType: "",
@@ -64,20 +64,29 @@ const Search = ({ distinctRoomTypes }) => {
 		if (
 			!searchParams.dates.length ||
 			!searchParams.roomType ||
-			searchParams.adults === "" ||
-			searchParams.children === ""
+			searchParams.adults === ""
 		) {
 			toast.error("Please fill in all required fields");
 			return;
 		}
 
+		// Find the mapping that matches the selected room type label
+		const selectedRoomType = roomTypesMapping.find(
+			(type) => type.label === searchParams.roomType
+		);
+
+		const roomTypeValue = selectedRoomType
+			? selectedRoomType.value
+			: searchParams.roomType;
+
 		const queryParams = new URLSearchParams({
 			startDate: searchParams.dates[0].format("YYYY-MM-DD"),
 			endDate: searchParams.dates[1].format("YYYY-MM-DD"),
-			roomType: searchParams.roomType,
+			roomType: roomTypeValue, // Use the value, not the label
 			adults: searchParams.adults,
 			children: searchParams.children,
 		}).toString();
+
 		history.push(`/our-hotels-rooms?${queryParams}`);
 	};
 

@@ -83,7 +83,10 @@ const OurHotels = () => {
 		<OurHotelsWrapper>
 			{/* Search bar for filtering hotels */}
 			<SearchSection>
-				<Search distinctRoomTypes={distinctRoomTypes} />
+				<Search
+					distinctRoomTypes={distinctRoomTypes}
+					roomTypesMapping={roomTypesMapping}
+				/>
 			</SearchSection>
 
 			{/* Filter button for mobile view */}

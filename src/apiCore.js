@@ -314,3 +314,17 @@ export const gettingActiveHotelList = () => {
 		})
 		.catch((err) => console.log(err));
 };
+
+export const getRoomQuery = async (query) => {
+	return fetch(`${process.env.REACT_APP_API_URL}/room-query-list/${query}`, {
+		method: "GET",
+		headers: {
+			Accept: "application/json",
+			"Content-Type": "application/json",
+		},
+	})
+		.then((response) => response.json())
+		.catch((err) => {
+			console.error("API error: ", err);
+		});
+};
