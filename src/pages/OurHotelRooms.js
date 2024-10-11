@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import styled from "styled-components";
 import { Button, Spin } from "antd";
 import { useLocation } from "react-router-dom";
@@ -12,6 +12,34 @@ import StarRatings from "react-star-ratings";
 import { amenitiesList, viewsList, extraAmenitiesList } from "../Assets";
 import Search from "../components/OurHotels/Search";
 import { useCartContext } from "../cart_context";
+import dayjs from "dayjs";
+
+const generateDateRange = (startDate, endDate) => {
+	const start = dayjs(startDate);
+	const end = dayjs(endDate);
+	const dateArray = [];
+
+	let currentDate = start;
+	while (currentDate <= end) {
+		dateArray.push(currentDate.format("YYYY-MM-DD"));
+		currentDate = currentDate.add(1, "day");
+	}
+
+	return dateArray;
+};
+
+// Function to get pricing by day
+const calculatePricingByDay = (pricingRate, startDate, endDate, basePrice) => {
+	const dateRange = generateDateRange(startDate, endDate);
+
+	return dateRange.map((date) => {
+		const rateForDate = pricingRate.find((rate) => rate.calendarDate === date);
+		return {
+			date,
+			price: rateForDate ? rateForDate.price : basePrice,
+		};
+	});
+};
 
 // Helper function to extract query parameters from the URL
 const getQueryParams = (search) => {
@@ -57,36 +85,38 @@ const getIcon = (item) => {
 };
 
 const OurHotelRooms = () => {
-	const { chosenLanguage } = useCartContext();
+	const { chosenLanguage, addRoomToCart, openSidebar2 } = useCartContext();
 
 	const [loading, setLoading] = useState(true);
 	const [roomData, setRoomData] = useState(null);
-	const [distinctRoomTypes, setDistinctRoomTypes] = useState([]); // Initialize as an array
+	const [distinctRoomTypes, setDistinctRoomTypes] = useState([]);
 
 	const location = useLocation();
+	const queryParams = getQueryParams(location.search);
 
-	const roomTypesMapping = [
-		{ value: "standardRooms", label: "Standard Rooms" },
-		{ value: "singleRooms", label: "Single Rooms" },
-		{ value: "doubleRooms", label: "Double Rooms" },
-		{ value: "twinRooms", label: "Twin Rooms" },
-		{ value: "queenRooms", label: "Queen Rooms" },
-		{ value: "kingRooms", label: "King Rooms" },
-		{ value: "tripleRooms", label: "Triple Rooms" },
-		{ value: "quadRooms", label: "Quad Rooms" },
-		{ value: "studioRooms", label: "Studio Rooms" },
-		{ value: "suite", label: "Suite" },
-		{ value: "masterSuite", label: "Master Suite" },
-		{ value: "familyRooms", label: "Family Rooms" },
-		{ value: "individualBed", label: "Rooms With Individual Beds" },
-	];
+	const roomTypesMapping = useMemo(
+		() => [
+			{ value: "standardRooms", label: "Standard Rooms" },
+			{ value: "singleRooms", label: "Single Rooms" },
+			{ value: "doubleRooms", label: "Double Rooms" },
+			{ value: "twinRooms", label: "Twin Rooms" },
+			{ value: "queenRooms", label: "Queen Rooms" },
+			{ value: "kingRooms", label: "King Rooms" },
+			{ value: "tripleRooms", label: "Triple Rooms" },
+			{ value: "quadRooms", label: "Quad Rooms" },
+			{ value: "studioRooms", label: "Studio Rooms" },
+			{ value: "suite", label: "Suite" },
+			{ value: "masterSuite", label: "Master Suite" },
+			{ value: "familyRooms", label: "Family Rooms" },
+			{ value: "individualBed", label: "Rooms With Individual Beds" },
+		],
+		[]
+	);
 
 	useEffect(() => {
 		window.scrollTo({ top: 20, behavior: "smooth" });
 		const fetchRoomData = async () => {
-			const queryParams = getQueryParams(location.search);
 			const query = `${queryParams.startDate}_${queryParams.endDate}_${queryParams.roomType}_${queryParams.adults}_${queryParams.children}`;
-
 			try {
 				const data = await getRoomQuery(query);
 				setRoomData(data);
@@ -98,15 +128,19 @@ const OurHotelRooms = () => {
 		};
 
 		fetchRoomData();
-	}, [location.search]);
+	}, [
+		location.search,
+		queryParams.startDate,
+		queryParams.endDate,
+		queryParams.roomType,
+		queryParams.adults,
+		queryParams.children,
+	]);
 
 	useEffect(() => {
 		const gettingDistinctRooms = () => {
 			gettingDistinctRoomTypes().then((data3) => {
-				if (data3.error) {
-					console.log(data3.error);
-				} else {
-					// Extract and map distinct room types
+				if (!data3.error) {
 					const distinctRoomTypesArray = [
 						...new Set(
 							data3.map((room) => {
@@ -123,9 +157,7 @@ const OurHotelRooms = () => {
 		};
 
 		gettingDistinctRooms();
-
-		// eslint-disable-next-line
-	}, []);
+	}, [roomTypesMapping]);
 
 	return (
 		<OurHotelRoomsWrapper>
@@ -139,6 +171,15 @@ const OurHotelRooms = () => {
 						<Search
 							distinctRoomTypes={distinctRoomTypes}
 							roomTypesMapping={roomTypesMapping}
+							initialSearchParams={{
+								dates: [
+									dayjs(queryParams.startDate, "YYYY-MM-DD"),
+									dayjs(queryParams.endDate, "YYYY-MM-DD"),
+								],
+								roomType: queryParams.roomType || "",
+								adults: queryParams.adults || "",
+								children: queryParams.children || "",
+							}}
 						/>
 					</SearchSection>
 					{roomData.flatMap((hotel) =>
@@ -149,9 +190,15 @@ const OurHotelRooms = () => {
 								hotelName={hotel.hotelName}
 								hotelRating={hotel.hotelRating}
 								hotelAddress={hotel.hotelAddress}
-								startDate={getQueryParams(location.search).startDate}
-								endDate={getQueryParams(location.search).endDate}
+								startDate={queryParams.startDate}
+								endDate={queryParams.endDate}
 								chosenLanguage={chosenLanguage}
+								addRoomToCart={addRoomToCart}
+								openSidebar2={openSidebar2}
+								hotelId={hotel._id}
+								belongsTo={hotel.belongsTo}
+								priceRating={[]}
+								roomColor={room.roomColor}
 							/>
 						))
 					)}
@@ -172,11 +219,13 @@ const RoomCard = ({
 	startDate,
 	endDate,
 	chosenLanguage,
+	addRoomToCart,
+	openSidebar2,
+	hotelId,
+	belongsTo,
+	roomColor,
 }) => {
 	const [thumbsSwiper, setThumbsSwiper] = useState(null);
-	// eslint-disable-next-line
-	const [mainSwiper, setMainSwiper] = useState(null);
-
 	const averagePrice = calculateAveragePrice(
 		room.pricingRate,
 		startDate,
@@ -184,13 +233,45 @@ const RoomCard = ({
 	);
 	const displayedPrice = averagePrice || room.price.basePrice || "N/A";
 
-	// Combine all amenities, views, and extra amenities
+	const pricingByDay = calculatePricingByDay(
+		room.pricingRate,
+		startDate,
+		endDate,
+		room.price.basePrice
+	);
+
+	// console.log(pricingByDay, "pricingByDaypricingByDay");
+
+	const firstImage = room.photos[0]?.url || "";
+
 	const combinedFeatures = [
 		...room.amenities,
 		...room.views,
 		...room.extraAmenities,
 	];
-	const uniqueFeatures = [...new Set(combinedFeatures)].slice(0, 12); // Limit to 12 features
+	const uniqueFeatures = [...new Set(combinedFeatures)].slice(0, 12);
+
+	const handleAddToCart = () => {
+		addRoomToCart(
+			room._id,
+			{
+				id: room._id,
+				name: room.displayName,
+				price: displayedPrice,
+				photos: room.photos,
+				hotelName,
+				hotelAddress,
+				firstImage,
+			},
+			startDate,
+			endDate,
+			hotelId,
+			belongsTo,
+			pricingByDay,
+			roomColor
+		);
+		openSidebar2(); // Open the cart drawer after adding a room
+	};
 
 	return (
 		<RoomCardWrapper>
@@ -203,7 +284,6 @@ const RoomCard = ({
 					autoplay={{ delay: 4000, disableOnInteraction: false }}
 					thumbs={{ swiper: thumbsSwiper }}
 					loop={true}
-					onSwiper={setMainSwiper}
 					className='main-swiper'
 				>
 					{room.photos.map((photo, idx) => (
@@ -235,13 +315,11 @@ const RoomCard = ({
 			<RoomDetails>
 				<RoomDisplayName>
 					{chosenLanguage === "Arabic"
-						? room.displayName_OtherLanguage
-							? room.displayName_OtherLanguage
-							: room.displayName
+						? room.displayName_OtherLanguage || room.displayName
 						: room.displayName}
 				</RoomDisplayName>
-				<HotelName className='mt-2'>{hotelName}</HotelName>
-				<Location className='mt-2'>{hotelAddress}</Location>
+				<HotelName>{hotelName}</HotelName>
+				<Location>{hotelAddress}</Location>
 				<StarRatings
 					rating={hotelRating || 0}
 					starRatedColor='orange'
@@ -250,18 +328,20 @@ const RoomCard = ({
 					starDimension='20px'
 					starSpacing='3px'
 				/>
-				<AmenitiesWrapper className='mt-2'>
+				<AmenitiesWrapper>
 					{uniqueFeatures.map((feature, index) => (
 						<AmenityItem key={index}>
 							{getIcon(feature)} <span>{feature}</span>
 						</AmenityItem>
 					))}
 				</AmenitiesWrapper>
-				<PriceWrapper className='mt-2'>
-					Price for date from {startDate} to {endDate}:{" "}
-					<span>{displayedPrice} SAR</span> per night
+				<PriceWrapper>
+					Price from {startDate} to {endDate}: <span>{displayedPrice} SAR</span>{" "}
+					per night
 				</PriceWrapper>
-				<StyledButton>Add Room To Reservation</StyledButton>
+				<StyledButton onClick={handleAddToCart}>
+					Add Room To Reservation
+				</StyledButton>
 			</RoomDetails>
 		</RoomCardWrapper>
 	);
@@ -411,7 +491,8 @@ const Location = styled.p`
 `;
 
 const PriceWrapper = styled.p`
-	font-size: 1rem;
+	font-size: 0.85rem;
+	font-weight: bold;
 	color: #444;
 
 	span {

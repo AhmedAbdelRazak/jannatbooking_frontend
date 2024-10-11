@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import { useCartContext } from "../../cart_context";
+import { AiOutlineShoppingCart } from "react-icons/ai";
+import { FaHeart } from "react-icons/fa";
+import SidebarCartDrawer from "./SidebarCartDrawer";
 import { Link } from "react-router-dom";
+import { useCartContext } from "../../cart_context";
 import HeaderTopbar from "./HeaderTopbar";
 import { gettingJannatWebsiteData } from "../../apiCore";
 
 const Navbar = () => {
-	const { languageToggle, chosenLanguage } = useCartContext();
+	const { languageToggle, chosenLanguage, total_rooms, openSidebar2 } =
+		useCartContext();
 	const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 	const [inTop, setInTop] = useState(true);
 	const [homePage, setHomePage] = useState({});
@@ -51,34 +55,6 @@ const Navbar = () => {
 			<HeaderTopbar />
 
 			<NavbarWrapper inTop={inTop}>
-				<ArabicPhone>
-					{chosenLanguage === "Arabic" ? (
-						<span
-							className='phoneLanguage'
-							style={{
-								fontSize: "12px",
-								fontWeight: "bold",
-								textDecoration: "underline",
-								color: "white",
-							}}
-							onClick={() => languageToggle("English")}
-						>
-							<i className='fa-solid fa-earth-americas'></i> En
-						</span>
-					) : (
-						<span
-							style={{
-								fontSize: "12px",
-								fontWeight: "bold",
-								textDecoration: "underline",
-								color: "white",
-							}}
-							onClick={() => languageToggle("Arabic")}
-						>
-							<i className='fa-solid fa-earth-americas'></i> Ar
-						</span>
-					)}
-				</ArabicPhone>
 				<LogoSection>
 					<img
 						src={
@@ -89,6 +65,7 @@ const Navbar = () => {
 						alt='jannatbooking umrah trips'
 					/>
 				</LogoSection>
+
 				<NavLinks
 					dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
 					language={chosenLanguage === "Arabic"}
@@ -96,42 +73,25 @@ const Navbar = () => {
 					{chosenLanguage === "Arabic" ? (
 						<>
 							<li>
-								<Link
-									to='/'
-									onClick={() =>
-										window.scrollTo({ behavior: "smooth", top: 5 })
-									}
-								>
+								<Link to='/' onClick={() => window.scrollTo({ top: 0 })}>
 									الرئيسية
 								</Link>
 							</li>
 							<li>
 								<Link
 									to='/our-hotels'
-									onClick={() =>
-										window.scrollTo({ behavior: "smooth", top: 8 })
-									}
+									onClick={() => window.scrollTo({ top: 8 })}
 								>
 									فنادقنا
 								</Link>
 							</li>
 							<li>
-								<Link
-									to='/about'
-									onClick={() =>
-										window.scrollTo({ behavior: "smooth", top: 8 })
-									}
-								>
+								<Link to='/about' onClick={() => window.scrollTo({ top: 8 })}>
 									معلومات عنا
 								</Link>
 							</li>
 							<li>
-								<Link
-									to='/contact'
-									onClick={() =>
-										window.scrollTo({ behavior: "smooth", top: 8 })
-									}
-								>
+								<Link to='/contact' onClick={() => window.scrollTo({ top: 8 })}>
 									اتصل بنا
 								</Link>
 							</li>
@@ -139,219 +99,214 @@ const Navbar = () => {
 					) : (
 						<>
 							<li>
-								{" "}
-								<Link
-									to='/'
-									onClick={() =>
-										window.scrollTo({ behavior: "smooth", top: 5 })
-									}
-								>
+								<Link to='/' onClick={() => window.scrollTo({ top: 0 })}>
 									Home
-								</Link>{" "}
+								</Link>
 							</li>
 							<li>
-								{" "}
 								<Link
 									to='/our-hotels'
-									onClick={() =>
-										window.scrollTo({ behavior: "smooth", top: 8 })
-									}
+									onClick={() => window.scrollTo({ top: 8 })}
 								>
 									Our Hotels
-								</Link>{" "}
+								</Link>
 							</li>
 							<li>
-								{" "}
-								<Link
-									to='/about'
-									onClick={() =>
-										window.scrollTo({ behavior: "smooth", top: 8 })
-									}
-								>
+								<Link to='/about' onClick={() => window.scrollTo({ top: 8 })}>
 									About Us
-								</Link>{" "}
+								</Link>
 							</li>
 							<li>
-								{" "}
-								<Link
-									to='/contact'
-									onClick={() =>
-										window.scrollTo({ behavior: "smooth", top: 8 })
-									}
-								>
+								<Link to='/contact' onClick={() => window.scrollTo({ top: 8 })}>
 									Call Us
-								</Link>{" "}
+								</Link>
 							</li>
 						</>
 					)}
 				</NavLinks>
+
+				<IconsWrapper>
+					<LanguageToggle>
+						{chosenLanguage === "Arabic" ? (
+							<span onClick={() => languageToggle("English")}>
+								<i className='fa-solid fa-earth-americas'></i> En
+							</span>
+						) : (
+							<span onClick={() => languageToggle("Arabic")}>
+								<i className='fa-solid fa-earth-americas'></i> Ar
+							</span>
+						)}
+					</LanguageToggle>
+
+					<WishlistIcon />
+					<CartIconWrapper>
+						<CartIcon onClick={openSidebar2} />
+						{total_rooms > 0 && <Badge>{total_rooms}</Badge>}
+					</CartIconWrapper>
+				</IconsWrapper>
 
 				<MobileIcon onClick={toggleDrawer}>☰</MobileIcon>
 			</NavbarWrapper>
 			<SideDrawer isOpen={isDrawerOpen} language={chosenLanguage === "Arabic"}>
 				{chosenLanguage === "Arabic" ? (
 					<>
-						<li
-							onClick={() => {
-								setIsDrawerOpen(false);
-								window.scrollTo({ top: 0, behavior: "smooth" });
-							}}
-						>
+						<li onClick={() => setIsDrawerOpen(false)}>
 							<Link to='/'>الرئيسية</Link>
 						</li>
-						<li
-							onClick={() => {
-								setIsDrawerOpen(false);
-								window.scrollTo({ top: 8, behavior: "smooth" });
-							}}
-						>
+						<li onClick={() => setIsDrawerOpen(false)}>
 							<Link to='/our-hotels'>فنادقنا</Link>
 						</li>
-						<li
-							onClick={() => {
-								setIsDrawerOpen(false);
-								window.scrollTo({ top: 8, behavior: "smooth" });
-							}}
-						>
+						<li onClick={() => setIsDrawerOpen(false)}>
 							<Link to='/about'>معلومات عنا</Link>
 						</li>
-						<li
-							onClick={() => {
-								setIsDrawerOpen(false);
-								window.scrollTo({ top: 8, behavior: "smooth" });
-							}}
-						>
+						<li onClick={() => setIsDrawerOpen(false)}>
 							<Link to='/contact'>اتصل بنا</Link>
 						</li>
 					</>
 				) : (
 					<>
-						<li
-							onClick={() => {
-								setIsDrawerOpen(false);
-								window.scrollTo({ top: 0, behavior: "smooth" });
-							}}
-						>
-							{" "}
-							<Link to='/'>Home</Link>{" "}
+						<li onClick={() => setIsDrawerOpen(false)}>
+							<Link to='/'>Home</Link>
 						</li>
-						<li
-							onClick={() => {
-								setIsDrawerOpen(false);
-								window.scrollTo({ top: 8, behavior: "smooth" });
-							}}
-						>
-							{" "}
-							<Link to='/our-hotels'>Our Hotels</Link>{" "}
+						<li onClick={() => setIsDrawerOpen(false)}>
+							<Link to='/our-hotels'>Our Hotels</Link>
 						</li>
-						<li
-							onClick={() => {
-								setIsDrawerOpen(false);
-								window.scrollTo({ top: 8, behavior: "smooth" });
-							}}
-						>
-							{" "}
-							<Link to='/about'>About Us</Link>{" "}
+						<li onClick={() => setIsDrawerOpen(false)}>
+							<Link to='/about'>About Us</Link>
 						</li>
-						<li
-							onClick={() => {
-								setIsDrawerOpen(false);
-								window.scrollTo({ top: 8, behavior: "smooth" });
-							}}
-						>
-							{" "}
-							<Link to='/contact'>Call Us</Link>{" "}
+						<li onClick={() => setIsDrawerOpen(false)}>
+							<Link to='/contact'>Call Us</Link>
 						</li>
 					</>
 				)}
 			</SideDrawer>
 			<Backdrop isOpen={isDrawerOpen} onClick={closeDrawer} />
+			<SidebarCartDrawer from='Navbar' />
 		</>
 	);
 };
 
 export default Navbar;
 
+// Styled-components for styling the Navbar and cart
 const NavbarWrapper = styled.div`
 	top: 0;
 	z-index: 40;
 	display: flex;
-	justify-content: space-between;
 	align-items: center;
-	padding: 0% 10%;
+	padding: 0% 5%;
 	height: 80px;
 	background-color: ${(props) => (props.inTop ? "" : "var(--primaryBlue)")};
-
-	position: sticky; /* or 'fixed' */
-	width: 100%; /* Ensure it spans the full width */
-	left: 0; /* Align it to the left edge */
+	position: sticky;
+	width: 100%;
+	justify-content: space-between;
 
 	@media (max-width: 1000px) {
-		position: fixed; /* Keep it fixed on smaller screens */
+		position: fixed;
+		padding: 0% 3%;
 	}
 `;
 
 const LogoSection = styled.div`
-	object-fit: cover;
+	flex: 1;
+	display: flex;
+	justify-content: flex-start;
 
-	/* Logo styling */
 	img {
-		width: 222px;
+		width: 180px;
 		height: 60px;
 		object-fit: cover;
 	}
 
-	@media (max-width: 1000px) {
+	@media (max-width: 768px) {
 		img {
-			width: 100%;
+			width: 180px;
+			height: 60px;
+			object-fit: cover;
 		}
 	}
 `;
 
 const NavLinks = styled.ul`
+	flex: 5;
 	list-style: none;
 	display: flex;
-	gap: 30px;
+	justify-content: center;
+	gap: 40px;
 	color: white;
-	cursor: pointer;
 	align-items: center;
-	margin: auto 0px;
+	height: 100%;
+	margin-top: 12px;
 
 	a {
 		color: white;
+		text-decoration: none;
+		font-size: 1rem;
+		font-weight: bolder;
 	}
 
 	@media (max-width: 768px) {
 		display: none;
 	}
+`;
 
-	& li {
-		white-space: nowrap; // Prevent wrapping
-		min-width: max-content; // Ensure enough width for each item
+const IconsWrapper = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 20px;
+
+	@media (max-width: 768px) {
+		gap: 10px;
+		margin-right: 10px;
+	}
+`;
+
+const CartIconWrapper = styled.div`
+	position: relative;
+	cursor: pointer;
+`;
+
+const WishlistIcon = styled(FaHeart)`
+	color: var(--secondary-color-lighter);
+	font-size: 1.5rem;
+	cursor: pointer;
+`;
+
+const CartIcon = styled(AiOutlineShoppingCart)`
+	color: var(--text-color-light);
+	font-size: 1.5rem;
+`;
+
+const Badge = styled.span`
+	position: absolute;
+	top: -10px;
+	right: -10px;
+	background: var(--secondary-color);
+	color: var(--mainWhite);
+	border-radius: 50%;
+	padding: 2px 6px;
+	font-size: 0.8rem;
+	font-weight: bold;
+`;
+
+const LanguageToggle = styled.div`
+	display: none;
+
+	@media (max-width: 768px) {
+		display: block;
+		color: white;
+		cursor: pointer;
+		font-size: 0.85rem;
 	}
 `;
 
 const MobileIcon = styled.div`
 	display: none;
 	color: white;
-	font-size: 30px;
+	font-size: 1.5rem;
 
 	@media (max-width: 768px) {
 		display: block;
-		cursor: pointer;
-	}
-`;
-
-const ArabicPhone = styled.span`
-	display: none;
-
-	@media (max-width: 1000px) {
-		display: block;
-		font-size: 12px;
-		margin-right: 5px;
-		font-weight: bold;
-		text-decoration: underline;
-		color: white;
 		cursor: pointer;
 	}
 `;
@@ -365,7 +320,7 @@ const SideDrawer = styled.div`
 	background: white;
 	transform: ${({ isOpen }) => (isOpen ? "translateX(0)" : "translateX(100%)")};
 	transition: transform 0.3s ease-in-out;
-	z-index: 50; // Higher than Backdrop
+	z-index: 50;
 	background-color: var(--primaryBlue);
 
 	a {
@@ -377,9 +332,9 @@ const SideDrawer = styled.div`
 	}
 
 	& li {
-		padding: 30px 20px;
+		padding: 20px;
 		list-style: none;
-		text-align: ${({ language }) => (language ? "right" : "")};
+		text-align: ${({ language }) => (language ? "right" : "left")};
 		font-weight: bold;
 		color: white;
 	}
@@ -392,7 +347,7 @@ const Backdrop = styled.div`
 	height: 100%;
 	top: 0;
 	left: 0;
-	background: rgba(0, 0, 0, 0.5); // Darkened background
-	backdrop-filter: blur(5px); // Blurry effect
-	z-index: 40; // Ensure it's below the SideDrawer but above other content
+	background: rgba(0, 0, 0, 0.5);
+	backdrop-filter: blur(5px);
+	z-index: 40;
 `;
