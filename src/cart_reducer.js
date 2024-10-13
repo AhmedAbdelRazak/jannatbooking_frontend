@@ -1,3 +1,5 @@
+import dayjs from "dayjs";
+
 import {
 	LANGUAGE_TOGGLE,
 	ADD_ROOM_TO_CART,
@@ -9,6 +11,34 @@ import {
 	SIDEBAR_CLOSE2,
 	UPDATE_ROOM_DATES,
 } from "./actions";
+
+// Helper function to calculate pricing by day
+const calculatePricingByDay = (pricingRate, startDate, endDate, basePrice) => {
+	const start = dayjs(startDate);
+	const end = dayjs(endDate);
+	const dateArray = [];
+	let currentDate = start;
+
+	while (currentDate <= end) {
+		// Create a new variable in each iteration
+		const dateForLoop = currentDate;
+
+		const rateForDate = pricingRate.find(
+			(rate) =>
+				dayjs(rate.date).format("YYYY-MM-DD") ===
+				dateForLoop.format("YYYY-MM-DD")
+		);
+
+		dateArray.push({
+			date: dateForLoop.format("YYYY-MM-DD"),
+			price: rateForDate ? rateForDate.price : basePrice, // Default to basePrice if no specific rate
+		});
+
+		currentDate = currentDate.add(1, "day");
+	}
+
+	return dateArray;
+};
 
 const cart_reducer = (state, action) => {
 	if (action.type === LANGUAGE_TOGGLE) {
@@ -26,6 +56,19 @@ const cart_reducer = (state, action) => {
 			priceRating,
 			roomColor,
 		} = action.payload;
+
+		// Calculate the number of nights between startDate and endDate
+		const start = dayjs(startDate);
+		const end = dayjs(endDate);
+		const nights = end.diff(start, "day");
+
+		// Calculate pricing breakdown by day
+		const pricingByDay = calculatePricingByDay(
+			priceRating,
+			startDate,
+			endDate,
+			roomDetails.price
+		);
 
 		const existingRoom = state.roomCart.find((item) => item.id === id);
 
@@ -46,10 +89,12 @@ const cart_reducer = (state, action) => {
 				amount: 1,
 				startDate,
 				endDate,
+				nights, // Store the number of nights
+				pricingByDay, // Store detailed pricing information for each day
 				hotelId,
 				belongsTo,
-				priceRating, // Store detailed pricing information
-				roomColor, // Store the room's color code
+				priceRating, // Keep the original priceRating if needed
+				roomColor,
 			};
 			return { ...state, roomCart: [...state.roomCart, newRoom] };
 		}
@@ -58,9 +103,26 @@ const cart_reducer = (state, action) => {
 	if (action.type === UPDATE_ROOM_DATES) {
 		const { id, startDate, endDate } = action.payload;
 
+		// Calculate new nights and pricingByDay based on the updated dates
+		const start = dayjs(startDate);
+		const end = dayjs(endDate);
+		const nights = end.diff(start, "day");
+
 		const updatedCart = state.roomCart.map((room) => {
 			if (room.id === id) {
-				return { ...room, startDate, endDate };
+				const newPricingByDay = calculatePricingByDay(
+					room.priceRating,
+					startDate,
+					endDate,
+					room.price
+				);
+				return {
+					...room,
+					startDate,
+					endDate,
+					nights, // Update the number of nights
+					pricingByDay: newPricingByDay, // Update the pricing breakdown
+				};
 			}
 			return room;
 		});
@@ -97,8 +159,11 @@ const cart_reducer = (state, action) => {
 	if (action.type === COUNT_ROOM_TOTALS) {
 		const { total_rooms, total_price } = state.roomCart.reduce(
 			(total, item) => {
+				const roomRate = item.price; // Assuming this is the base price
+				const totalRoomPrice = item.nights * roomRate * item.amount;
+
 				total.total_rooms += item.amount;
-				total.total_price += item.amount * item.price;
+				total.total_price += totalRoomPrice;
 				return total;
 			},
 			{

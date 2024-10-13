@@ -117,6 +117,7 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 				value={searchParams.roomType}
 			>
 				<Option value=''>Room Type</Option>
+				<Option value='all'>All Rooms</Option>
 				{distinctRoomTypes.map((roomType) => (
 					<Option key={roomType} value={roomType}>
 						{roomType}

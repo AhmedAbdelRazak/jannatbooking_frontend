@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
 import dayjs from "dayjs";
-import { DatePicker, Button } from "antd";
+import { DatePicker, Button, Collapse } from "antd";
+import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
 
 const { RangePicker } = DatePicker;
+const { Panel } = Collapse;
 
 const CheckoutContent = () => {
 	const {
@@ -16,6 +18,7 @@ const CheckoutContent = () => {
 	} = useCartContext();
 
 	const [expanded, setExpanded] = useState({});
+	const [mobileExpanded, setMobileExpanded] = useState(false); // Mobile collapse
 
 	const toggleExpanded = (id) => {
 		setExpanded((prev) => ({
@@ -34,9 +37,102 @@ const CheckoutContent = () => {
 		}
 	};
 
+	console.log(roomCart, "cart");
+
 	return (
 		<CheckoutContentWrapper>
-			<LeftSection>
+			{/* Mobile Accordion for Reservation Summary */}
+			<MobileAccordion
+				onChange={() => setMobileExpanded(!mobileExpanded)}
+				activeKey={mobileExpanded ? "1" : null}
+			>
+				<Panel header='Your Reservation Summary' key='1'>
+					<RightSection>
+						<h2>Your Reservation</h2>
+						{roomCart.length > 0 ? (
+							roomCart.map((room) => (
+								<RoomItem key={room.id}>
+									<RoomImage src={room.firstImage} alt={room.name} />
+									<RoomDetails>
+										<h3>{room.name}</h3>
+										<p>{room.amount} room(s)</p>
+										<DateRangeWrapper>
+											<label>Dates:</label>
+											<RangePicker
+												format='YYYY-MM-DD'
+												value={[
+													dayjs(room.startDate, "YYYY-MM-DD"),
+													dayjs(room.endDate, "YYYY-MM-DD"),
+												]}
+												onChange={(dates) => handleDateChange(room.id, dates)}
+												disabledDate={(current) =>
+													current && current < dayjs().endOf("day")
+												}
+											/>
+										</DateRangeWrapper>
+										<p className='total'>
+											Price from {room.startDate} to {room.endDate}:{" "}
+											{room.amount * room.price} SAR | {room.nights} nights
+										</p>
+
+										<h4>{room.price} SAR per night</h4>
+
+										{/* New Accordion for Price Rating */}
+										<Collapse
+											accordion
+											expandIcon={({ isActive }) => (
+												<CaretRightOutlined
+													rotate={isActive ? 90 : 0}
+													style={{ color: "var(--primary-color)" }}
+												/>
+											)}
+											onChange={() => toggleExpanded(room.id)}
+											activeKey={expanded[room.id] ? "1" : null}
+										>
+											<Panel
+												header={
+													<PriceDetailsHeader>
+														<InfoCircleOutlined /> Price Breakdown
+													</PriceDetailsHeader>
+												}
+												key='1'
+											>
+												<PricingList>
+													{room.priceRating && room.priceRating.length > 0 ? (
+														room.priceRating.map(({ date, price }, index) => {
+															return (
+																<li key={index}>
+																	{new Date(date).toLocaleDateString()}: {price}{" "}
+																	SAR
+																</li>
+															);
+														})
+													) : (
+														<li>No price breakdown available</li>
+													)}
+												</PricingList>
+											</Panel>
+										</Collapse>
+
+										<RemoveButton onClick={() => removeRoomItem(room.id)}>
+											Remove
+										</RemoveButton>
+									</RoomDetails>
+								</RoomItem>
+							))
+						) : (
+							<p>No rooms selected.</p>
+						)}
+						<TotalSection>
+							<p>Total Rooms: {total_rooms}</p>
+							<p className='total-price'>Total Price: {total_price} SAR</p>
+						</TotalSection>
+					</RightSection>
+				</Panel>
+			</MobileAccordion>
+
+			{/* Mobile form for user details */}
+			<MobileFormWrapper>
 				<h2>Customer Details</h2>
 				<form>
 					<InputGroup>
@@ -64,88 +160,170 @@ const CheckoutContent = () => {
 						<input type='text' name='nationality' placeholder='Nationality' />
 					</InputGroup>
 				</form>
-			</LeftSection>
+			</MobileFormWrapper>
 
-			<RightSection>
-				<h2>Your Reservation</h2>
-				{roomCart.length > 0 ? (
-					roomCart.map((room) => (
-						<RoomItem key={room.id}>
-							<RoomImage src={room.firstImage} alt={room.name} />
-							<RoomDetails>
-								<h3>{room.name}</h3>
-								<p>{room.amount} room(s)</p>
-								<DateRangeWrapper>
-									<label>Dates:</label>
-									<RangePicker
-										format='YYYY-MM-DD'
-										value={[
-											dayjs(room.startDate, "YYYY-MM-DD"),
-											dayjs(room.endDate, "YYYY-MM-DD"),
-										]}
-										onChange={(dates) => handleDateChange(room.id, dates)}
-										disabledDate={(current) =>
-											current && current < dayjs().endOf("day")
-										}
-									/>
-								</DateRangeWrapper>
-								<p className='total'>Total: {room.amount * room.price} SAR</p>
+			<DesktopWrapper>
+				<LeftSection>
+					<h2>Customer Details</h2>
+					<form>
+						<InputGroup>
+							<label>Name</label>
+							<input type='text' name='name' placeholder='First & Last Name' />
+						</InputGroup>
+						<InputGroup>
+							<label>Phone</label>
+							<input type='text' name='phone' placeholder='Phone Number' />
+						</InputGroup>
+						<InputGroup>
+							<label>Email</label>
+							<input type='email' name='email' placeholder='Email Address' />
+						</InputGroup>
+						<InputGroup>
+							<label>Passport</label>
+							<input
+								type='text'
+								name='passport'
+								placeholder='Passport Number'
+							/>
+						</InputGroup>
+						<InputGroup>
+							<label>Passport Expiry</label>
+							<input type='date' name='passportExpiry' />
+						</InputGroup>
+						<InputGroup>
+							<label>Nationality</label>
+							<input type='text' name='nationality' placeholder='Nationality' />
+						</InputGroup>
+					</form>
+				</LeftSection>
 
-								<h4>Itemized Pricing: {room.price} SAR per night</h4>
-								<AccordionToggle onClick={() => toggleExpanded(room.id)}>
-									{expanded[room.id] ? "Hide Details" : "Show Details"}
-								</AccordionToggle>
-								{expanded[room.id] && (
-									<PricingList>
-										{room.pricingRate && room.pricingRate.length > 0 ? (
-											room.pricingRate.map(({ calendarDate, price }, index) => (
-												<li key={index}>
-													{calendarDate}: {price} SAR
-												</li>
-											))
-										) : (
-											<li>
-												{room.startDate} to {room.endDate}: {room.price} SAR per
-												night
-											</li>
+				<RightSection className='desktop-right'>
+					<h2>Your Reservation</h2>
+					{roomCart.length > 0 ? (
+						roomCart.map((room) => (
+							<RoomItem key={room.id}>
+								<RoomImage src={room.firstImage} alt={room.name} />
+
+								<RoomDetails>
+									<h3>{room.name}</h3>
+									<p>{room.amount} room(s)</p>
+									<DateRangeWrapper>
+										<label>Dates:</label>
+										<RangePicker
+											format='YYYY-MM-DD'
+											value={[
+												dayjs(room.startDate, "YYYY-MM-DD"),
+												dayjs(room.endDate, "YYYY-MM-DD"),
+											]}
+											onChange={(dates) => handleDateChange(room.id, dates)}
+											disabledDate={(current) =>
+												current && current < dayjs().endOf("day")
+											}
+										/>
+									</DateRangeWrapper>
+									<p className='total'>
+										Price from {room.startDate} to {room.endDate}:{" "}
+										{room.amount * room.price} SAR | {room.nights} nights
+									</p>
+									<h4>{room.price} SAR per night</h4>
+
+									{/* New Accordion for Price Rating */}
+									<Collapse
+										accordion
+										expandIcon={({ isActive }) => (
+											<CaretRightOutlined
+												rotate={isActive ? 90 : 0}
+												style={{ color: "var(--primary-color)" }}
+											/>
 										)}
-									</PricingList>
-								)}
-								<RemoveButton onClick={() => removeRoomItem(room.id)}>
-									Remove
-								</RemoveButton>
-							</RoomDetails>
-						</RoomItem>
-					))
-				) : (
-					<p>No rooms selected.</p>
-				)}
-				<TotalSection>
-					<p>Total Rooms: {total_rooms}</p>
-					<p className='total-price'>Total Price: {total_price} SAR</p>
-				</TotalSection>
-			</RightSection>
+										onChange={() => toggleExpanded(room.id)}
+										activeKey={expanded[room.id] ? "1" : null}
+									>
+										<Panel
+											header={
+												<PriceDetailsHeader>
+													<InfoCircleOutlined /> Price Breakdown
+												</PriceDetailsHeader>
+											}
+											key='1'
+										>
+											<PricingList>
+												{room.priceRating && room.priceRating.length > 0 ? (
+													room.priceRating.map(({ date, price }, index) => {
+														return (
+															<li key={index}>
+																{new Date(date).toLocaleDateString()}: {price}{" "}
+																SAR
+															</li>
+														);
+													})
+												) : (
+													<li>No price breakdown available</li>
+												)}
+											</PricingList>
+										</Panel>
+									</Collapse>
+
+									<RemoveButton onClick={() => removeRoomItem(room.id)}>
+										Remove
+									</RemoveButton>
+								</RoomDetails>
+							</RoomItem>
+						))
+					) : (
+						<p>No rooms selected.</p>
+					)}
+					<TotalSection>
+						<p>Total Rooms: {total_rooms}</p>
+						<p className='total-price'>Total Price: {total_price} SAR</p>
+					</TotalSection>
+				</RightSection>
+			</DesktopWrapper>
 		</CheckoutContentWrapper>
 	);
 };
 
 export default CheckoutContent;
 
-// Styled components for layout
+// Styled components
 const CheckoutContentWrapper = styled.div`
 	display: flex;
-	gap: 20px;
-	padding: 20px;
+	flex-direction: column;
+	padding: 20px 150px;
 
-	h2 {
-		font-size: 1.5rem;
-		font-weight: bold;
+	@media (max-width: 800px) {
+		padding: 25px 0px;
+	}
+`;
+
+const MobileAccordion = styled(Collapse)`
+	display: none;
+	@media (max-width: 768px) {
+		display: block;
+		margin-top: 50px;
+	}
+`;
+
+const MobileFormWrapper = styled.div`
+	display: block;
+	margin: 20px 0;
+
+	@media (min-width: 768px) {
+		display: none;
+	}
+`;
+
+const DesktopWrapper = styled.div`
+	display: flex;
+	gap: 20px;
+	@media (max-width: 768px) {
+		display: none;
 	}
 `;
 
 const LeftSection = styled.div`
 	flex: 2;
-	background: #fff;
+	background: var(--background-light);
 	padding: 20px;
 	border-radius: 10px;
 	box-shadow: var(--box-shadow-light);
@@ -153,13 +331,11 @@ const LeftSection = styled.div`
 
 const RightSection = styled.div`
 	flex: 1;
-	position: sticky;
-	top: 20px;
-	background: #f9f9f9;
 	padding: 20px;
 	border-radius: 10px;
 	box-shadow: var(--box-shadow-light);
-	height: max-content;
+	position: sticky;
+	top: 20px;
 `;
 
 const RoomItem = styled.div`
@@ -172,44 +348,28 @@ const RoomItem = styled.div`
 `;
 
 const RoomImage = styled.img`
-	width: 60%;
-	height: 200px !important;
-	border-radius: 8px;
-	margin: auto !important;
+	width: 100%;
+	height: 200px;
 	object-fit: cover;
+	border-radius: 8px;
 `;
 
 const RoomDetails = styled.div`
 	text-align: center;
-
-	.total {
-		font-size: 1.2rem;
-		font-weight: bold;
-		color: #444;
-		margin: 10px 0;
-	}
-
-	h3 {
-		font-size: 1.2rem;
-		font-weight: bold;
-		text-transform: capitalize;
-	}
 `;
 
 const DateRangeWrapper = styled.div`
 	display: flex;
+	flex-direction: column;
 	align-items: center;
 	margin: 10px 0;
+`;
 
-	label {
-		width: 100px;
-		margin-right: 10px;
-		text-align: left;
-	}
-
-	.ant-picker {
-		flex: 1;
-	}
+const PriceDetailsHeader = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	color: var(--primary-color);
 `;
 
 const RemoveButton = styled(Button)`
@@ -223,25 +383,6 @@ const PricingList = styled.ul`
 	list-style-type: none;
 	padding: 0;
 	margin-top: 10px;
-
-	li {
-		font-size: 0.85rem;
-		color: #666;
-		text-align: left;
-	}
-`;
-
-const AccordionToggle = styled.button`
-	background: none;
-	color: var(--primary-color);
-	border: none;
-	font-weight: bold;
-	cursor: pointer;
-	margin-top: 10px;
-
-	&:hover {
-		text-decoration: underline;
-	}
 `;
 
 const TotalSection = styled.div`
@@ -249,23 +390,20 @@ const TotalSection = styled.div`
 	padding-top: 10px;
 	border-top: 1px solid #ddd;
 	text-align: center;
-
 	.total-price {
 		font-size: 1.4rem;
 		font-weight: bold;
-		color: #222;
+		color: var(--text-color-dark);
 	}
 `;
 
 const InputGroup = styled.div`
 	margin-bottom: 10px;
-
 	label {
 		display: block;
 		font-size: 0.9rem;
 		margin-bottom: 5px;
 	}
-
 	input {
 		width: 100%;
 		padding: 8px;

@@ -8,6 +8,11 @@ import "swiper/css/thumbs";
 import StarRatings from "react-star-ratings";
 import { amenitiesList, extraAmenitiesList, viewsList } from "../../Assets";
 import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
+import { useCartContext } from "../../cart_context";
+import { DatePicker, Button } from "antd";
+import dayjs from "dayjs";
+
+const { RangePicker } = DatePicker;
 
 // Helper function to find the matching icon for each amenity
 const getIcon = (item) => {
@@ -22,16 +27,58 @@ const getIcon = (item) => {
 	);
 	if (extraAmenity) return extraAmenity.icon;
 
-	return null; // Fallback if no icon is found
+	return null;
+};
+
+// Helper to generate date range
+const generateDateRange = (startDate, endDate) => {
+	const start = dayjs(startDate);
+	const end = dayjs(endDate);
+	const dateArray = [];
+
+	let currentDate = start;
+	while (currentDate < end) {
+		// Adjusted to exclude the end date
+		dateArray.push(currentDate.format("YYYY-MM-DD"));
+		currentDate = currentDate.add(1, "day");
+	}
+
+	return dateArray;
+};
+
+// Function to get pricing by day
+const calculatePricingByDay = (pricingRate, startDate, endDate, basePrice) => {
+	const dateRange = generateDateRange(startDate, endDate);
+
+	return dateRange.map((date) => {
+		const rateForDate = pricingRate.find((rate) => rate.calendarDate === date);
+		return {
+			date,
+			price: rateForDate
+				? parseFloat(rateForDate.price)
+				: parseFloat(basePrice), // Fallback to base price
+		};
+	});
 };
 
 // Main SingleHotel component
 const SingleHotel = ({ selectedHotel }) => {
 	const [thumbsSwiper, setThumbsSwiper] = useState(null);
-	// Array of swiper references for each room
 	const [roomThumbsSwipers, setRoomThumbsSwipers] = useState([]);
+	const [dateRange, setDateRange] = useState([
+		dayjs().add(1, "day"),
+		dayjs().add(6, "day"),
+	]);
+	const { addRoomToCart, openSidebar2, chosenLanguage } = useCartContext();
 
-	// Return null if no selected hotel to prevent rendering issues
+	const handleDateChange = (dates) => {
+		if (dates && dates.length === 2) {
+			setDateRange(dates);
+		} else {
+			setDateRange([dayjs().add(1, "day"), dayjs().add(6, "day")]);
+		}
+	};
+
 	if (!selectedHotel) return null;
 
 	const formatAddress = (address) => {
@@ -47,10 +94,71 @@ const SingleHotel = ({ selectedHotel }) => {
 		});
 	};
 
+	// Add to Cart functionality
+	const handleAddRoomToCart = (room) => {
+		const startDate = dateRange[0].format("YYYY-MM-DD");
+		const endDate = dateRange[1].format("YYYY-MM-DD");
+
+		// Calculate pricing by day
+		const pricingByDay = calculatePricingByDay(
+			room.pricingRate,
+			startDate,
+			endDate,
+			room.price.basePrice
+		);
+
+		// Calculate the total price and number of nights
+		const totalPrice = pricingByDay.reduce(
+			(total, day) => total + day.price,
+			0
+		);
+		const numberOfNights = pricingByDay.length;
+
+		// Calculate the average price per night
+		const averagePrice = numberOfNights
+			? (totalPrice / numberOfNights).toFixed(2)
+			: room.price.basePrice;
+
+		// Room details structure matches OurHotelRooms, with safe checks for photos
+		const roomDetails = {
+			id: room._id,
+			name: room.displayName,
+			price: averagePrice,
+			photos: room.photos || [], // Default to an empty array if photos is undefined
+			hotelName: selectedHotel.hotelName,
+			hotelAddress: selectedHotel.hotelAddress,
+			firstImage:
+				room.photos && room.photos.length > 0 ? room.photos[0].url : "", // Safe check for first image
+		};
+
+		// Add room to cart with relevant details, including pricingByDay
+		addRoomToCart(
+			room._id,
+			roomDetails,
+			startDate,
+			endDate,
+			selectedHotel._id,
+			selectedHotel.belongsTo,
+			pricingByDay,
+			room.roomColor
+		);
+
+		openSidebar2(); // Open the sidebar/cart drawer
+	};
+
+	// Combine all amenities into one list
+	const combinedFeatures = [
+		...new Set([
+			...selectedHotel.roomCountDetails.flatMap((room) => room.amenities),
+			...selectedHotel.roomCountDetails.flatMap((room) => room.views),
+			...selectedHotel.roomCountDetails.flatMap((room) => room.extraAmenities),
+		]),
+	];
+
 	return (
-		<SingleHotelWrapper>
+		<SingleHotelWrapper dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
 			{/* Hero Section */}
-			<HeroSection>
+			<HeroSection dir='ltr'>
 				<Swiper
 					modules={[Pagination, Autoplay, Thumbs]}
 					spaceBetween={10}
@@ -101,7 +209,7 @@ const SingleHotel = ({ selectedHotel }) => {
 				</Swiper>
 			</HeroSection>
 
-			{/* Hotel basic info */}
+			{/* Hotel Info */}
 			<HotelInfo>
 				<h1>{selectedHotel.hotelName}</h1>
 				<p>{formatAddress(selectedHotel.hotelAddress)}</p>
@@ -139,20 +247,44 @@ const SingleHotel = ({ selectedHotel }) => {
 				</LoadScript>
 			</HotelInfo>
 
-			{/* Rooms section */}
+			{/* Date Range Picker */}
+			<DateRangeWrapper>
+				<RangePicker
+					format='YYYY-MM-DD'
+					value={dateRange}
+					onChange={handleDateChange}
+					disabledDate={(current) => current && current < dayjs().endOf("day")}
+				/>
+			</DateRangeWrapper>
+
+			{/* Rooms Section */}
 			<RoomsSection>
 				<h2>Rooms</h2>
 				{selectedHotel.roomCountDetails.map((room, index) => {
-					// Calculate average price
-					const prices = room.pricingRate.map((rate) => Number(rate.price));
-					const totalPrices = prices.reduce((sum, price) => sum + price, 0);
-					const averagePrice =
-						prices.length > 0 ? totalPrices / prices.length : 0;
+					const startDate = dateRange[0].format("YYYY-MM-DD");
+					const endDate = dateRange[1].format("YYYY-MM-DD");
+
+					// Get pricing by day
+					const pricingByDay = calculatePricingByDay(
+						room.pricingRate || [],
+						startDate,
+						endDate,
+						room.price.basePrice
+					);
+
+					// Calculate the total price
+					const totalPrice = pricingByDay.reduce(
+						(total, day) => total + day.price,
+						0
+					);
+
+					// Handle NaN case and ensure the totalPrice is a number before calling toFixed
+					const displayTotalPrice = totalPrice ? totalPrice.toFixed(2) : "0.00";
+					const numberOfNights = pricingByDay.length; // Number of nights
 
 					return (
 						<RoomCardWrapper key={room._id || index}>
-							{/* Room image section with Swiper */}
-							<RoomImageWrapper>
+							<RoomImageWrapper dir='ltr'>
 								<Swiper
 									modules={[Pagination, Autoplay, Thumbs]}
 									spaceBetween={10}
@@ -203,53 +335,62 @@ const SingleHotel = ({ selectedHotel }) => {
 								</Swiper>
 							</RoomImageWrapper>
 
-							{/* Room details in the center */}
-							<RoomDetails>
-								<h3>{room.displayName}</h3>
+							{/* Room Details */}
+							<RoomDetails dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
+								<h3>
+									{chosenLanguage === "Arabic"
+										? room.displayName_OtherLanguage || room.displayName
+										: room.displayName}
+								</h3>
 								<p>
-									Price:{" "}
-									{averagePrice
-										? averagePrice.toFixed(2)
-										: room.price.basePrice}{" "}
+									Price: {displayTotalPrice}{" "}
 									<span style={{ textTransform: "uppercase" }}>
 										{selectedHotel.currency}
 									</span>{" "}
-									/ Night{" "}
-									<div
-										style={{
-											fontWeight: "bold",
-											fontSize: "12px",
-											color: "darkred",
-										}}
-									>
-										(Price Varies Based On Selected Date Range)
-									</div>
+									/ Total for {numberOfNights} nights{" "}
 								</p>
-								<p>
-									{room.description.length > 200
-										? `${room.description.slice(0, 200)}...`
-										: room.description}
-								</p>
+								{chosenLanguage === "Arabic" ? (
+									<p>
+										{(room.description_OtherLanguage.length > 200
+											? `${room.description_OtherLanguage.slice(0, 200)}...`
+											: room.description_OtherLanguage) ||
+											(room.description.length > 200
+												? `${room.description.slice(0, 200)}...`
+												: room.description)}
+									</p>
+								) : (
+									<p>
+										{room.description.length > 200
+											? `${room.description.slice(0, 200)}...`
+											: room.description}
+									</p>
+								)}
+
 								<AmenitiesWrapper>
-									<h4>Amenities</h4>
-									{room.amenities.map((amenity, idx) => (
+									<h4>Amenities:</h4>
+									{combinedFeatures.map((feature, idx) => (
 										<AmenityItem key={idx}>
-											{getIcon(amenity)} <span>{amenity}</span>
+											{getIcon(feature)} <span>{feature}</span>
 										</AmenityItem>
 									))}
 								</AmenitiesWrapper>
+								<StyledButton onClick={() => handleAddRoomToCart(room)}>
+									Add Room To Reservation
+								</StyledButton>
 							</RoomDetails>
 
-							{/* Price section on the right */}
+							{/* Price Section */}
 							<PriceSection>
-								{/* <OfferTag>Limited Offer</OfferTag> */}
 								<FinalPrice>
-									<span className='old-price'>136 SAR</span>
 									<span className='current-price'>
-										{room.price.basePrice} SAR
+										{(
+											Number(displayTotalPrice) / Number(numberOfNights)
+										).toFixed(2)}{" "}
+										SAR / Night
 									</span>
+									<div>{numberOfNights} nights</div>
+									<div>Total: {displayTotalPrice} SAR</div>
 								</FinalPrice>
-								<FreeCancellation>+ FREE CANCELLATION</FreeCancellation>
 							</PriceSection>
 						</RoomCardWrapper>
 					);
@@ -351,6 +492,13 @@ const RoomsSection = styled.div`
 	}
 `;
 
+const DateRangeWrapper = styled.div`
+	margin-bottom: 20px;
+	margin-top: 20px;
+	display: flex;
+	justify-content: center;
+`;
+
 const RoomCardWrapper = styled.div`
 	display: grid;
 	grid-template-columns: 35% 45% 20%;
@@ -411,48 +559,20 @@ const PriceSection = styled.div`
 	}
 `;
 
-// eslint-disable-next-line
-const OfferTag = styled.div`
-	background-color: var(--secondary-color);
-	color: var(--mainWhite);
-	font-weight: bold;
-	padding: 5px 10px;
-	border-radius: 5px;
-	margin-bottom: 10px;
-	text-transform: uppercase;
-`;
-
 const FinalPrice = styled.div`
 	display: flex;
 	flex-direction: column;
 	align-items: flex-end;
 	font-size: 1.25rem;
 
-	.old-price {
-		text-decoration: line-through;
-		color: var(--neutral-dark);
-		font-size: 1rem;
-	}
-
 	.current-price {
 		font-weight: bold;
 		color: var(--secondary-color);
-		font-size: 1.5rem;
+		font-size: 1.3rem;
 	}
 
 	@media (max-width: 768px) {
 		align-items: center;
-	}
-`;
-
-const FreeCancellation = styled.p`
-	font-size: 0.9rem;
-	color: var(--primaryBlueDarker);
-	font-weight: bold;
-	text-align: right;
-
-	@media (max-width: 768px) {
-		text-align: center;
 	}
 `;
 
@@ -477,6 +597,7 @@ const AmenityItem = styled.div`
 		margin-left: 5px;
 	}
 `;
+
 const HotelInfo = styled.div`
 	margin: 20px 0;
 	text-align: center;
@@ -505,5 +626,40 @@ const HotelInfo = styled.div`
 		p {
 			font-size: 16px;
 		}
+	}
+`;
+
+const StyledButton = styled(Button)`
+	width: 75%;
+	margin: 20px auto 0; /* Ensure it is centered */
+	background-color: var(--button-bg-primary);
+	color: var(--button-font-color);
+	border: 1px solid var(--primary-color);
+	padding: 0.5rem 1rem; /* Adjusted padding for better vertical centering */
+	font-size: 1rem;
+	text-transform: uppercase;
+	transition: var(--main-transition);
+	box-shadow: var(--box-shadow-light);
+	display: flex;
+	align-items: center;
+	justify-content: center; /* Ensures the text is centered horizontally and vertically */
+
+	&:hover {
+		background-color: var(--primary-color-light);
+		border-color: var(--primary-color-lighter);
+		color: var(--button-font-color);
+		box-shadow: var(--box-shadow-dark);
+	}
+
+	&:focus {
+		background-color: var(--primary-color-darker);
+		border-color: var(--primary-color-dark);
+		box-shadow: var(--box-shadow-dark);
+	}
+
+	&:active {
+		background-color: var(--primary-color);
+		border-color: var(--primary-color-darker);
+		box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 	}
 `;

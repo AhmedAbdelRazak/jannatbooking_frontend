@@ -14,8 +14,6 @@ const SidebarCartDrawer = () => {
 		isSidebarOpen2,
 	} = useCartContext();
 
-	console.log(roomCart, "roomCart");
-
 	return (
 		<>
 			<Overlay isOpen={isSidebarOpen2} onClick={closeSidebar2} />
@@ -26,14 +24,22 @@ const SidebarCartDrawer = () => {
 					{roomCart.length > 0 ? (
 						roomCart.map((room) => (
 							<CartItem key={room.id}>
-								<ItemImage src={room.photos[0].url} alt={room.name} />
+								<ItemImage
+									src={room.photos[0] && room.photos[0].url}
+									alt={room.name}
+								/>
 								<ItemDetails>
 									<ItemName>{room.name}</ItemName>
 									<ItemInfo>
-										{room.amount} room(s) from {room.startDate} to{" "}
-										{room.endDate}
+										{room.amount} room(s) for {room.nights} night(s) from{" "}
+										{room.startDate} to {room.endDate}
 									</ItemInfo>
-									<ItemPrice>Total: {room.amount * room.price} SAR</ItemPrice>
+									<ItemPricePerNight>
+										Price per night: {room.price} SAR
+									</ItemPricePerNight>
+									<ItemPrice>
+										Total Amount: {room.amount * room.nights * room.price} SAR
+									</ItemPrice>
 								</ItemDetails>
 								<RemoveButton onClick={() => removeRoomItem(room.id)}>
 									Remove
@@ -167,6 +173,12 @@ const ItemInfo = styled.p`
 	font-size: 0.82rem;
 	color: var(--text-color-secondary);
 	margin-bottom: 5px;
+`;
+
+const ItemPricePerNight = styled.p`
+	font-size: 0.9rem;
+	font-weight: bold;
+	color: var(--primary-color-darker);
 `;
 
 const ItemPrice = styled.p`

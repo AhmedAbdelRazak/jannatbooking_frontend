@@ -120,6 +120,7 @@ const Search = ({
 				className='mb-2'
 			>
 				<Option value=''>Room Type</Option>
+				<Option value='all'>All Rooms</Option>
 				{distinctRoomTypes &&
 					distinctRoomTypes.map((roomType) => (
 						<Option key={roomType} value={roomType}>

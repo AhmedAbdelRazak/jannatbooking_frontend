@@ -8,6 +8,7 @@ import { Pagination, Autoplay, Thumbs } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/pagination";
 import "swiper/css/thumbs";
+// eslint-disable-next-line
 import StarRatings from "react-star-ratings";
 import { amenitiesList, viewsList, extraAmenitiesList } from "../Assets";
 import Search from "../components/OurHotels/Search";
@@ -32,6 +33,7 @@ const generateDateRange = (startDate, endDate) => {
 const calculatePricingByDay = (pricingRate, startDate, endDate, basePrice) => {
 	const dateRange = generateDateRange(startDate, endDate);
 
+	// Calculate total price for each day
 	return dateRange.map((date) => {
 		const rateForDate = pricingRate.find((rate) => rate.calendarDate === date);
 		return {
@@ -287,7 +289,14 @@ const RoomCard = ({
 					className='main-swiper'
 				>
 					{room.photos.map((photo, idx) => (
-						<SwiperSlide key={idx}>
+						<SwiperSlide
+							key={idx}
+							onClick={() =>
+								(window.location.href = `/single-hotel/${hotelName
+									.replace(/\s+/g, "-")
+									.toLowerCase()}`)
+							}
+						>
 							<img
 								src={photo.url}
 								alt={room.displayName}
@@ -320,14 +329,14 @@ const RoomCard = ({
 				</RoomDisplayName>
 				<HotelName>{hotelName}</HotelName>
 				<Location>{hotelAddress}</Location>
-				<StarRatings
+				{/* <StarRatings
 					rating={hotelRating || 0}
 					starRatedColor='orange'
 					numberOfStars={5}
 					name='rating'
 					starDimension='20px'
 					starSpacing='3px'
-				/>
+				/> */}
 				<AmenitiesWrapper>
 					{uniqueFeatures.map((feature, index) => (
 						<AmenityItem key={index}>
