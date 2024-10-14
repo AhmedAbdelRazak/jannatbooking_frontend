@@ -201,6 +201,8 @@ const OurHotelRooms = () => {
 								belongsTo={hotel.belongsTo}
 								priceRating={[]}
 								roomColor={room.roomColor}
+								adults={queryParams.adults}
+								children={queryParams.children}
 							/>
 						))
 					)}
@@ -226,6 +228,8 @@ const RoomCard = ({
 	hotelId,
 	belongsTo,
 	roomColor,
+	adults,
+	children,
 }) => {
 	const [thumbsSwiper, setThumbsSwiper] = useState(null);
 	const averagePrice = calculateAveragePrice(
@@ -259,6 +263,7 @@ const RoomCard = ({
 			{
 				id: room._id,
 				name: room.displayName,
+				roomType: room.roomType,
 				price: displayedPrice,
 				photos: room.photos,
 				hotelName,
@@ -270,7 +275,9 @@ const RoomCard = ({
 			hotelId,
 			belongsTo,
 			pricingByDay,
-			roomColor
+			roomColor,
+			adults,
+			children
 		);
 		openSidebar2(); // Open the cart drawer after adding a room
 	};

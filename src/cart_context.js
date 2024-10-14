@@ -55,7 +55,9 @@ export const CartProvider = ({ children }) => {
 		hotelId,
 		belongsTo,
 		priceRating,
-		roomColor
+		roomColor,
+		adults, // Add adults parameter
+		children // Add children parameter
 	) => {
 		dispatch({
 			type: ADD_ROOM_TO_CART,
@@ -68,6 +70,8 @@ export const CartProvider = ({ children }) => {
 				belongsTo,
 				priceRating,
 				roomColor,
+				adults, // Pass adults count
+				children, // Pass children count
 			},
 		});
 	};

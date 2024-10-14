@@ -55,14 +55,14 @@ const cart_reducer = (state, action) => {
 			belongsTo,
 			priceRating,
 			roomColor,
+			adults, // New adult field
+			children, // New children field
 		} = action.payload;
 
-		// Calculate the number of nights between startDate and endDate
 		const start = dayjs(startDate);
 		const end = dayjs(endDate);
 		const nights = end.diff(start, "day");
 
-		// Calculate pricing breakdown by day
 		const pricingByDay = calculatePricingByDay(
 			priceRating,
 			startDate,
@@ -76,7 +76,7 @@ const cart_reducer = (state, action) => {
 			const updatedCart = state.roomCart.map((item) => {
 				if (item.id === id) {
 					let newAmount = item.amount + 1;
-					return { ...item, amount: newAmount };
+					return { ...item, amount: newAmount, adults, children };
 				}
 				return item;
 			});
@@ -89,12 +89,14 @@ const cart_reducer = (state, action) => {
 				amount: 1,
 				startDate,
 				endDate,
-				nights, // Store the number of nights
-				pricingByDay, // Store detailed pricing information for each day
+				nights,
+				pricingByDay,
 				hotelId,
 				belongsTo,
-				priceRating, // Keep the original priceRating if needed
+				priceRating,
 				roomColor,
+				adults, // Set adults count
+				children, // Set children count
 			};
 			return { ...state, roomCart: [...state.roomCart, newRoom] };
 		}
@@ -157,22 +159,42 @@ const cart_reducer = (state, action) => {
 	}
 
 	if (action.type === COUNT_ROOM_TOTALS) {
-		const { total_rooms, total_price } = state.roomCart.reduce(
-			(total, item) => {
+		const {
+			total_rooms,
+			total_price,
+			total_guests,
+			total_adults,
+			total_children,
+		} = state.roomCart.reduce(
+			(totals, item) => {
 				const roomRate = item.price; // Assuming this is the base price
 				const totalRoomPrice = item.nights * roomRate * item.amount;
 
-				total.total_rooms += item.amount;
-				total.total_price += totalRoomPrice;
-				return total;
+				totals.total_rooms += item.amount;
+				totals.total_price += totalRoomPrice;
+				totals.total_guests += item.amount * (item.adults + item.children); // Calculate total guests
+				totals.total_adults += item.adults * item.amount; // Calculate total adults
+				totals.total_children += item.children * item.amount; // Calculate total children
+
+				return totals;
 			},
 			{
 				total_rooms: 0,
 				total_price: 0,
+				total_guests: 0, // Initialize total guests
+				total_adults: 0, // Initialize total adults
+				total_children: 0, // Initialize total children
 			}
 		);
 
-		return { ...state, total_rooms, total_price };
+		return {
+			...state,
+			total_rooms,
+			total_price,
+			total_guests, // Update total guests
+			total_adults, // Update total adults
+			total_children, // Update total children
+		};
 	}
 
 	if (action.type === SIDEBAR_OPEN2) {

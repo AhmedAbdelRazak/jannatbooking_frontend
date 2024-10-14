@@ -123,6 +123,7 @@ const SingleHotel = ({ selectedHotel }) => {
 		const roomDetails = {
 			id: room._id,
 			name: room.displayName,
+			roomType: room.roomType,
 			price: averagePrice,
 			photos: room.photos || [], // Default to an empty array if photos is undefined
 			hotelName: selectedHotel.hotelName,
@@ -131,6 +132,7 @@ const SingleHotel = ({ selectedHotel }) => {
 				room.photos && room.photos.length > 0 ? room.photos[0].url : "", // Safe check for first image
 		};
 
+		const adults = 1;
 		// Add room to cart with relevant details, including pricingByDay
 		addRoomToCart(
 			room._id,
@@ -140,7 +142,8 @@ const SingleHotel = ({ selectedHotel }) => {
 			selectedHotel._id,
 			selectedHotel.belongsTo,
 			pricingByDay,
-			room.roomColor
+			room.roomColor,
+			adults
 		);
 
 		openSidebar2(); // Open the sidebar/cart drawer

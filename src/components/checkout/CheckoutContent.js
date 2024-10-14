@@ -2,11 +2,15 @@ import React, { useState } from "react";
 import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
 import dayjs from "dayjs";
-import { DatePicker, Button, Collapse } from "antd";
+import { DatePicker, Button, Collapse, Select, message } from "antd";
+import PaymentDetails from "./PaymentDetails";
+import { countryList } from "../../Assets"; // Ensure this file contains an array of countries
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
+import { createNewReservationClient } from "../../apiCore";
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
+const { Option } = Select;
 
 const CheckoutContent = () => {
 	const {
@@ -15,10 +19,42 @@ const CheckoutContent = () => {
 		removeRoomItem,
 		total_rooms,
 		total_price,
+		clearRoomCart,
 	} = useCartContext();
 
 	const [expanded, setExpanded] = useState({});
 	const [mobileExpanded, setMobileExpanded] = useState(false); // Mobile collapse
+	const [cardNumber, setCardNumber] = useState("");
+	const [expiryDate, setExpiryDate] = useState("");
+	const [cvv, setCvv] = useState("");
+	const [cardHolderName, setCardHolderName] = useState("");
+	const [postalCode, setPostalCode] = useState("");
+	const [nationality, setNationality] = useState("");
+	const [customerDetails, setCustomerDetails] = useState({
+		name: "",
+		phone: "",
+		email: "",
+		passport: "",
+		passportExpiry: "",
+		nationality: "",
+	});
+
+	console.log(roomCart, "roomCart");
+
+	// Function to transform roomCart into pickedRoomsType format
+	const transformRoomCartToPickedRoomsType = (roomCart) => {
+		return roomCart.flatMap((room) => {
+			// For each room, create an array of objects where each room's "amount" becomes multiple objects
+			return Array.from({ length: room.amount }, () => ({
+				room_type: room.roomType, // Using "name" as room_type
+				displayName: room.name, // To store the display name
+				chosenPrice: room.price, // Assuming price is already the total per room
+				count: 1, // Each room is counted individually in pickedRoomsType
+				pricingByDay: room.pricingByDay || [], // Pricing breakdown by day
+				roomColor: room.roomColor, // Room color
+			}));
+		});
+	};
 
 	const toggleExpanded = (id) => {
 		setExpanded((prev) => ({
@@ -37,7 +73,79 @@ const CheckoutContent = () => {
 		}
 	};
 
-	console.log(roomCart, "cart");
+	const createNewReservation = async () => {
+		const { name, phone, email, passport, passportExpiry } = customerDetails;
+
+		if (
+			!name ||
+			!phone ||
+			!email ||
+			!passport ||
+			!passportExpiry ||
+			!nationality
+		) {
+			// Ensure all customer details are filled before proceeding
+			console.error("All customer details must be provided");
+			return;
+		}
+
+		// Payment details
+		const paymentDetails = {
+			cardNumber,
+			cardExpiryDate: expiryDate,
+			cardCVV: cvv,
+			cardHolderName,
+		};
+
+		// Transform roomCart into the pickedRoomsType schema
+		const pickedRoomsType = transformRoomCartToPickedRoomsType(roomCart);
+
+		// Reservation data object
+		const reservationData = {
+			hotelId: roomCart[0].hotelId, // Assuming all rooms are for the same hotel
+			belongsTo: roomCart[0].belongsTo, // User ID associated with the reservation
+			customerDetails: {
+				...customerDetails,
+				nationality, // Ensure nationality is included
+			},
+			paymentDetails, // Pass payment details
+			payment: "Paid", // Set payment status as Paid
+			total_rooms, // The total number of rooms reserved
+			total_guests: Number(roomCart[0].adults) + Number(roomCart[0].children), // Parsed total guests
+			adults: Number(roomCart[0].adults), // Parsed total adults
+			children: 0, // Parsed total children
+			total_amount: total_price, // Total price for the reservation
+			checkin_date: roomCart[0].startDate,
+			checkout_date: roomCart[0].endDate,
+			days_of_residence: dayjs(roomCart[0].endDate).diff(
+				dayjs(roomCart[0].startDate),
+				"days"
+			),
+			booking_source: "Jannat Booking", // Booking source
+			pickedRoomsType, // Transformed rooms
+		};
+
+		try {
+			const response = await createNewReservationClient(reservationData);
+			if (response && response.message === "Reservation created successfully") {
+				// Success handling
+				message.success("Reservation created successfully");
+
+				// Clear the cart context (cart and other states)
+				clearRoomCart();
+
+				// Redirect to home page
+				window.location.href = "/";
+			} else {
+				// Error handling
+				message.error(response.message || "Error creating reservation");
+			}
+		} catch (error) {
+			console.error("Error creating reservation", error);
+			// Display error message
+			message.error("An error occurred while creating the reservation");
+		}
+	};
 
 	return (
 		<CheckoutContentWrapper>
@@ -137,28 +245,110 @@ const CheckoutContent = () => {
 				<form>
 					<InputGroup>
 						<label>Name</label>
-						<input type='text' name='name' placeholder='First & Last Name' />
+						<input
+							type='text'
+							name='name'
+							placeholder='First & Last Name'
+							value={customerDetails.name}
+							onChange={(e) =>
+								setCustomerDetails({ ...customerDetails, name: e.target.value })
+							}
+						/>
 					</InputGroup>
 					<InputGroup>
 						<label>Phone</label>
-						<input type='text' name='phone' placeholder='Phone Number' />
+						<input
+							type='text'
+							name='phone'
+							placeholder='Phone Number'
+							value={customerDetails.phone}
+							onChange={(e) =>
+								setCustomerDetails({
+									...customerDetails,
+									phone: e.target.value,
+								})
+							}
+						/>
 					</InputGroup>
 					<InputGroup>
 						<label>Email</label>
-						<input type='email' name='email' placeholder='Email Address' />
+						<input
+							type='email'
+							name='email'
+							placeholder='Email Address'
+							value={customerDetails.email}
+							onChange={(e) =>
+								setCustomerDetails({
+									...customerDetails,
+									email: e.target.value,
+								})
+							}
+						/>
 					</InputGroup>
 					<InputGroup>
 						<label>Passport</label>
-						<input type='text' name='passport' placeholder='Passport Number' />
+						<input
+							type='text'
+							name='passport'
+							placeholder='Passport Number'
+							value={customerDetails.passport}
+							onChange={(e) =>
+								setCustomerDetails({
+									...customerDetails,
+									passport: e.target.value,
+								})
+							}
+						/>
 					</InputGroup>
 					<InputGroup>
 						<label>Passport Expiry</label>
-						<input type='date' name='passportExpiry' />
+						<input
+							type='date'
+							name='passportExpiry'
+							value={customerDetails.passportExpiry}
+							onChange={(e) =>
+								setCustomerDetails({
+									...customerDetails,
+									passportExpiry: e.target.value,
+								})
+							}
+						/>
 					</InputGroup>
 					<InputGroup>
 						<label>Nationality</label>
-						<input type='text' name='nationality' placeholder='Nationality' />
+						<Select
+							showSearch
+							placeholder='Select a country'
+							optionFilterProp='children'
+							filterOption={(input, option) =>
+								option.children.toLowerCase().includes(input.toLowerCase())
+							}
+							value={nationality}
+							onChange={(value) => setNationality(value)}
+							style={{ width: "100%" }}
+						>
+							{countryList.map((country) => (
+								<Option key={country} value={country}>
+									{country}
+								</Option>
+							))}
+						</Select>
 					</InputGroup>
+					<div>
+						<PaymentDetails
+							cardNumber={cardNumber}
+							setCardNumber={setCardNumber}
+							expiryDate={expiryDate}
+							setExpiryDate={setExpiryDate}
+							cvv={cvv}
+							setCvv={setCvv}
+							cardHolderName={cardHolderName}
+							setCardHolderName={setCardHolderName}
+							postalCode={postalCode}
+							setPostalCode={setPostalCode}
+							handleReservation={createNewReservation}
+						/>
+					</div>
 				</form>
 			</MobileFormWrapper>
 
@@ -168,15 +358,48 @@ const CheckoutContent = () => {
 					<form>
 						<InputGroup>
 							<label>Name</label>
-							<input type='text' name='name' placeholder='First & Last Name' />
+							<input
+								type='text'
+								name='name'
+								placeholder='First & Last Name'
+								value={customerDetails.name}
+								onChange={(e) =>
+									setCustomerDetails({
+										...customerDetails,
+										name: e.target.value,
+									})
+								}
+							/>
 						</InputGroup>
 						<InputGroup>
 							<label>Phone</label>
-							<input type='text' name='phone' placeholder='Phone Number' />
+							<input
+								type='text'
+								name='phone'
+								placeholder='Phone Number'
+								value={customerDetails.phone}
+								onChange={(e) =>
+									setCustomerDetails({
+										...customerDetails,
+										phone: e.target.value,
+									})
+								}
+							/>
 						</InputGroup>
 						<InputGroup>
 							<label>Email</label>
-							<input type='email' name='email' placeholder='Email Address' />
+							<input
+								type='email'
+								name='email'
+								placeholder='Email Address'
+								value={customerDetails.email}
+								onChange={(e) =>
+									setCustomerDetails({
+										...customerDetails,
+										email: e.target.value,
+									})
+								}
+							/>
 						</InputGroup>
 						<InputGroup>
 							<label>Passport</label>
@@ -184,16 +407,65 @@ const CheckoutContent = () => {
 								type='text'
 								name='passport'
 								placeholder='Passport Number'
+								value={customerDetails.passport}
+								onChange={(e) =>
+									setCustomerDetails({
+										...customerDetails,
+										passport: e.target.value,
+									})
+								}
 							/>
 						</InputGroup>
 						<InputGroup>
 							<label>Passport Expiry</label>
-							<input type='date' name='passportExpiry' />
+							<input
+								type='date'
+								name='passportExpiry'
+								value={customerDetails.passportExpiry}
+								onChange={(e) =>
+									setCustomerDetails({
+										...customerDetails,
+										passportExpiry: e.target.value,
+									})
+								}
+							/>
 						</InputGroup>
 						<InputGroup>
 							<label>Nationality</label>
-							<input type='text' name='nationality' placeholder='Nationality' />
+							<Select
+								showSearch
+								placeholder='Select a country'
+								optionFilterProp='children'
+								filterOption={(input, option) =>
+									option.children.toLowerCase().includes(input.toLowerCase())
+								}
+								value={nationality}
+								onChange={(value) => setNationality(value)}
+								style={{ width: "100%" }}
+							>
+								{countryList.map((country) => (
+									<Option key={country} value={country}>
+										{country}
+									</Option>
+								))}
+							</Select>
 						</InputGroup>
+
+						<div>
+							<PaymentDetails
+								cardNumber={cardNumber}
+								setCardNumber={setCardNumber}
+								expiryDate={expiryDate}
+								setExpiryDate={setExpiryDate}
+								cvv={cvv}
+								setCvv={setCvv}
+								cardHolderName={cardHolderName}
+								setCardHolderName={setCardHolderName}
+								postalCode={postalCode}
+								setPostalCode={setPostalCode}
+								handleReservation={createNewReservation}
+							/>
+						</div>
 					</form>
 				</LeftSection>
 
