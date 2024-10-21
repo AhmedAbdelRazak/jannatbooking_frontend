@@ -7,6 +7,7 @@ import PaymentDetails from "./PaymentDetails";
 import { countryList } from "../../Assets"; // Ensure this file contains an array of countries
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { createNewReservationClient } from "../../apiCore";
+import { FaMinus, FaPlus } from "react-icons/fa";
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
@@ -20,6 +21,7 @@ const CheckoutContent = () => {
 		total_rooms,
 		total_price,
 		clearRoomCart,
+		toggleRoomAmount,
 	} = useCartContext();
 
 	const [expanded, setExpanded] = useState({});
@@ -56,22 +58,22 @@ const CheckoutContent = () => {
 		});
 	};
 
-	const toggleExpanded = (id) => {
-		setExpanded((prev) => ({
-			...prev,
-			[id]: !prev[id],
-		}));
-	};
+	// Handle Date Range change
+	const handleDateChange = (dates) => {
+		if (dates && dates[0] && dates[1]) {
+			const startDate = dates[0].format("YYYY-MM-DD");
+			const endDate = dates[1].format("YYYY-MM-DD");
 
-	const handleDateChange = (id, dates) => {
-		if (dates && dates.length === 2) {
-			updateRoomDates(
-				id,
-				dates[0].format("YYYY-MM-DD"),
-				dates[1].format("YYYY-MM-DD")
-			);
+			roomCart.forEach((room) => {
+				updateRoomDates(room.id, startDate, endDate);
+			});
+
+			console.log("Updated roomCart after date change", roomCart);
 		}
 	};
+
+	// Disable past dates
+	const disabledDate = (current) => current && current < dayjs().endOf("day");
 
 	const createNewReservation = async () => {
 		const { name, phone, email, passport, passportExpiry } = customerDetails;
@@ -157,35 +159,54 @@ const CheckoutContent = () => {
 				<Panel header='Your Reservation Summary' key='1'>
 					<RightSection>
 						<h2>Your Reservation</h2>
+
+						{/* Ant Design Date Range Picker */}
+						<DateRangePickerWrapper>
+							<RangePicker
+								format='YYYY-MM-DD'
+								disabledDate={disabledDate}
+								onChange={handleDateChange}
+								defaultValue={[
+									dayjs(roomCart[0]?.startDate),
+									dayjs(roomCart[0]?.endDate),
+								]}
+								style={{ width: "100%" }}
+								dropdownClassName='mobile-friendly-picker'
+							/>
+						</DateRangePickerWrapper>
+
 						{roomCart.length > 0 ? (
 							roomCart.map((room) => (
 								<RoomItem key={room.id}>
-									<RoomImage src={room.firstImage} alt={room.name} />
+									<RoomImage src={room.photos[0]?.url} alt={room.name} />
+
 									<RoomDetails>
 										<h3>{room.name}</h3>
 										<p>{room.amount} room(s)</p>
 										<DateRangeWrapper>
 											<label>Dates:</label>
-											<RangePicker
-												format='YYYY-MM-DD'
-												value={[
-													dayjs(room.startDate, "YYYY-MM-DD"),
-													dayjs(room.endDate, "YYYY-MM-DD"),
-												]}
-												onChange={(dates) => handleDateChange(room.id, dates)}
-												disabledDate={(current) =>
-													current && current < dayjs().endOf("day")
-												}
-											/>
+											<p>
+												{roomCart[0]?.startDate} to {roomCart[0]?.endDate}{" "}
+											</p>
 										</DateRangeWrapper>
 										<p className='total'>
-											Price from {room.startDate} to {room.endDate}:{" "}
-											{room.amount * room.price} SAR | {room.nights} nights
+											Price for {room.nights} night(s):{" "}
+											{room.amount * room.price} SAR
 										</p>
-
 										<h4>{room.price} SAR per night</h4>
 
-										{/* New Accordion for Price Rating */}
+										{/* Room Quantity Controls */}
+										<QuantityControls>
+											<MinusIcon
+												onClick={() => toggleRoomAmount(room.id, "dec")}
+											/>
+											<Quantity>{room.amount}</Quantity>
+											<PlusIcon
+												onClick={() => toggleRoomAmount(room.id, "inc")}
+											/>
+										</QuantityControls>
+
+										{/* New Accordion for Price Breakdown */}
 										<Collapse
 											accordion
 											expandIcon={({ isActive }) => (
@@ -194,7 +215,12 @@ const CheckoutContent = () => {
 													style={{ color: "var(--primary-color)" }}
 												/>
 											)}
-											onChange={() => toggleExpanded(room.id)}
+											onChange={() =>
+												setExpanded((prev) => ({
+													...prev,
+													[room.id]: !prev[room.id],
+												}))
+											}
 											activeKey={expanded[room.id] ? "1" : null}
 										>
 											<Panel
@@ -206,15 +232,13 @@ const CheckoutContent = () => {
 												key='1'
 											>
 												<PricingList>
-													{room.priceRating && room.priceRating.length > 0 ? (
-														room.priceRating.map(({ date, price }, index) => {
-															return (
-																<li key={index}>
-																	{new Date(date).toLocaleDateString()}: {price}{" "}
-																	SAR
-																</li>
-															);
-														})
+													{room.pricingByDay && room.pricingByDay.length > 0 ? (
+														room.pricingByDay.map(({ date, price }, index) => (
+															<li key={index}>
+																{new Date(date).toLocaleDateString()}: {price}{" "}
+																SAR
+															</li>
+														))
 													) : (
 														<li>No price breakdown available</li>
 													)}
@@ -231,10 +255,12 @@ const CheckoutContent = () => {
 						) : (
 							<p>No rooms selected.</p>
 						)}
-						<TotalSection>
+
+						{/* Totals Section */}
+						<TotalsWrapper>
 							<p>Total Rooms: {total_rooms}</p>
 							<p className='total-price'>Total Price: {total_price} SAR</p>
-						</TotalSection>
+						</TotalsWrapper>
 					</RightSection>
 				</Panel>
 			</MobileAccordion>
@@ -469,37 +495,56 @@ const CheckoutContent = () => {
 					</form>
 				</LeftSection>
 
-				<RightSection className='desktop-right'>
+				<RightSection>
 					<h2>Your Reservation</h2>
+
+					{/* Ant Design Date Range Picker */}
+					<DateRangePickerWrapper>
+						<RangePicker
+							format='YYYY-MM-DD'
+							disabledDate={disabledDate}
+							onChange={handleDateChange}
+							defaultValue={[
+								dayjs(roomCart[0]?.startDate),
+								dayjs(roomCart[0]?.endDate),
+							]}
+							style={{ width: "100%" }}
+							dropdownClassName='mobile-friendly-picker'
+						/>
+					</DateRangePickerWrapper>
+
 					{roomCart.length > 0 ? (
 						roomCart.map((room) => (
 							<RoomItem key={room.id}>
-								<RoomImage src={room.firstImage} alt={room.name} />
+								<RoomImage src={room.photos[0]?.url} alt={room.name} />
 
 								<RoomDetails>
 									<h3>{room.name}</h3>
 									<p>{room.amount} room(s)</p>
 									<DateRangeWrapper>
 										<label>Dates:</label>
-										<RangePicker
-											format='YYYY-MM-DD'
-											value={[
-												dayjs(room.startDate, "YYYY-MM-DD"),
-												dayjs(room.endDate, "YYYY-MM-DD"),
-											]}
-											onChange={(dates) => handleDateChange(room.id, dates)}
-											disabledDate={(current) =>
-												current && current < dayjs().endOf("day")
-											}
-										/>
+										<p>
+											{roomCart[0]?.startDate} to {roomCart[0]?.endDate}{" "}
+										</p>
 									</DateRangeWrapper>
 									<p className='total'>
-										Price from {room.startDate} to {room.endDate}:{" "}
-										{room.amount * room.price} SAR | {room.nights} nights
+										Price for {room.nights} night(s): {room.amount * room.price}{" "}
+										SAR
 									</p>
 									<h4>{room.price} SAR per night</h4>
 
-									{/* New Accordion for Price Rating */}
+									{/* Room Quantity Controls */}
+									<QuantityControls>
+										<MinusIcon
+											onClick={() => toggleRoomAmount(room.id, "dec")}
+										/>
+										<Quantity>{room.amount}</Quantity>
+										<PlusIcon
+											onClick={() => toggleRoomAmount(room.id, "inc")}
+										/>
+									</QuantityControls>
+
+									{/* New Accordion for Price Breakdown */}
 									<Collapse
 										accordion
 										expandIcon={({ isActive }) => (
@@ -508,7 +553,12 @@ const CheckoutContent = () => {
 												style={{ color: "var(--primary-color)" }}
 											/>
 										)}
-										onChange={() => toggleExpanded(room.id)}
+										onChange={() =>
+											setExpanded((prev) => ({
+												...prev,
+												[room.id]: !prev[room.id],
+											}))
+										}
 										activeKey={expanded[room.id] ? "1" : null}
 									>
 										<Panel
@@ -520,15 +570,12 @@ const CheckoutContent = () => {
 											key='1'
 										>
 											<PricingList>
-												{room.priceRating && room.priceRating.length > 0 ? (
-													room.priceRating.map(({ date, price }, index) => {
-														return (
-															<li key={index}>
-																{new Date(date).toLocaleDateString()}: {price}{" "}
-																SAR
-															</li>
-														);
-													})
+												{room.pricingByDay && room.pricingByDay.length > 0 ? (
+													room.pricingByDay.map(({ date, price }, index) => (
+														<li key={index}>
+															{new Date(date).toLocaleDateString()}: {price} SAR
+														</li>
+													))
 												) : (
 													<li>No price breakdown available</li>
 												)}
@@ -545,10 +592,12 @@ const CheckoutContent = () => {
 					) : (
 						<p>No rooms selected.</p>
 					)}
-					<TotalSection>
+
+					{/* Totals Section */}
+					<TotalsWrapper>
 						<p>Total Rooms: {total_rooms}</p>
 						<p className='total-price'>Total Price: {total_price} SAR</p>
-					</TotalSection>
+					</TotalsWrapper>
 				</RightSection>
 			</DesktopWrapper>
 		</CheckoutContentWrapper>
@@ -621,13 +670,21 @@ const RoomItem = styled.div`
 
 const RoomImage = styled.img`
 	width: 100%;
-	height: 200px;
+	height: 220px;
 	object-fit: cover;
 	border-radius: 8px;
 `;
 
 const RoomDetails = styled.div`
 	text-align: center;
+	h3 {
+		font-size: 1.2rem;
+		text-transform: capitalize;
+	}
+
+	h4 {
+		font-size: 1.1rem;
+	}
 `;
 
 const DateRangeWrapper = styled.div`
@@ -657,6 +714,7 @@ const PricingList = styled.ul`
 	margin-top: 10px;
 `;
 
+// eslint-disable-next-line
 const TotalSection = styled.div`
 	margin-top: 20px;
 	padding-top: 10px;
@@ -681,5 +739,87 @@ const InputGroup = styled.div`
 		padding: 8px;
 		border-radius: 5px;
 		border: 1px solid #ddd;
+	}
+`;
+
+const QuantityControls = styled.div`
+	display: flex;
+	align-items: center;
+	text-align: center;
+	margin: auto;
+	width: 25%;
+	margin-bottom: 10px;
+`;
+
+const PlusIcon = styled(FaPlus)`
+	color: var(--accent-color-3-light);
+	font-size: 1rem;
+	cursor: pointer;
+	text-align: center;
+	margin: auto;
+	border: 1px solid var(--border-color-light);
+	padding: 4px;
+	width: 44%;
+	height: 27px;
+
+	&:hover {
+		color: var(--primary-color);
+	}
+`;
+
+const MinusIcon = styled(FaMinus)`
+	color: var(--accent-color-3-light);
+	font-size: 1rem;
+	cursor: pointer;
+	text-align: center;
+	margin: auto;
+	border: 1px solid var(--border-color-light);
+	padding: 4px;
+	width: 44%;
+	height: 27px;
+
+	&:hover {
+		color: var(--primary-color);
+	}
+`;
+
+const Quantity = styled.span`
+	font-size: 1rem;
+	color: var(--accent-color-3-light);
+	margin: 0 10px;
+	font-weight: bold;
+	text-align: center;
+	margin: auto;
+	border: 1px solid var(--border-color-light);
+	width: 100%;
+	height: 27px;
+`;
+
+const TotalsWrapper = styled.div`
+	margin-top: 20px;
+	padding-top: 10px;
+	border-top: 1px solid #ddd;
+	text-align: center;
+	.total-price {
+		font-size: 1.4rem;
+		font-weight: bold;
+	}
+`;
+
+const DateRangePickerWrapper = styled.div`
+	margin: 10px 0;
+
+	.ant-picker {
+		width: 100%;
+	}
+
+	@media (max-width: 768px) {
+		.ant-picker-dropdown {
+			width: 100vw;
+			left: 0;
+			right: 0;
+			top: 50px;
+			transform: none;
+		}
 	}
 `;

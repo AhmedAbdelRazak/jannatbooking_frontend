@@ -40,6 +40,31 @@ const calculatePricingByDay = (pricingRate, startDate, endDate, basePrice) => {
 	return dateArray;
 };
 
+const calculatePricingByDay2 = (pricingRate, startDate, endDate, basePrice) => {
+	const start = dayjs(startDate).startOf("day"); // Ensure the loop starts on the correct day
+	const end = dayjs(endDate).startOf("day");
+	const dateArray = [];
+	let currentDate = start;
+
+	// Ensure that the loop runs exactly from startDate to endDate inclusive
+	while (currentDate.isBefore(end.add(1, "day"))) {
+		const dateForLoop = currentDate.format("YYYY-MM-DD");
+
+		const rateForDate = pricingRate.find(
+			(rate) => dayjs(rate.date).format("YYYY-MM-DD") === dateForLoop
+		);
+
+		dateArray.push({
+			date: dateForLoop,
+			price: rateForDate ? rateForDate.price : basePrice,
+		});
+
+		currentDate = currentDate.add(1, "day"); // Move to the next day
+	}
+
+	return dateArray;
+};
+
 const cart_reducer = (state, action) => {
 	if (action.type === LANGUAGE_TOGGLE) {
 		return { ...state, chosenLanguage: action.payload };
@@ -105,14 +130,15 @@ const cart_reducer = (state, action) => {
 	if (action.type === UPDATE_ROOM_DATES) {
 		const { id, startDate, endDate } = action.payload;
 
-		// Calculate new nights and pricingByDay based on the updated dates
 		const start = dayjs(startDate);
 		const end = dayjs(endDate);
 		const nights = end.diff(start, "day");
 
+		// Update the cart with the new dates and recalculated pricing breakdown
 		const updatedCart = state.roomCart.map((room) => {
 			if (room.id === id) {
-				const newPricingByDay = calculatePricingByDay(
+				console.log("Recalculating pricing for room:", room.id); // Debugging line
+				const newPricingByDay = calculatePricingByDay2(
 					room.priceRating,
 					startDate,
 					endDate,
@@ -122,8 +148,8 @@ const cart_reducer = (state, action) => {
 					...room,
 					startDate,
 					endDate,
-					nights, // Update the number of nights
-					pricingByDay: newPricingByDay, // Update the pricing breakdown
+					nights,
+					pricingByDay: newPricingByDay, // Update the pricing breakdown here
 				};
 			}
 			return room;
