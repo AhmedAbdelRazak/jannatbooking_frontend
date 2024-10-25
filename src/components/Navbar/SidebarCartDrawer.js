@@ -49,10 +49,14 @@ const SidebarCartDrawer = () => {
 							format='YYYY-MM-DD'
 							disabledDate={disabledDate}
 							onChange={(dates) => handleDateChange(dates)}
-							defaultValue={[
-								dayjs(roomCart[0]?.startDate), // Use first room's start date
-								dayjs(roomCart[0]?.endDate), // Use first room's end date
-							]}
+							value={
+								roomCart.length > 0
+									? [
+											dayjs(roomCart[0]?.startDate), // Preselect the start date from the first room
+											dayjs(roomCart[0]?.endDate), // Preselect the end date from the first room
+										]
+									: null // Default to null if the cart is empty
+							}
 							style={{ width: "100%" }} // Full-width on small screens
 							dropdownClassName='mobile-friendly-picker' // Custom styling
 						/>

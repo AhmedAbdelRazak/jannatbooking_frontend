@@ -14,26 +14,27 @@ import {
 
 // Helper function to calculate pricing by day
 const calculatePricingByDay = (pricingRate, startDate, endDate, basePrice) => {
-	const start = dayjs(startDate);
-	const end = dayjs(endDate);
+	const start = dayjs(startDate).startOf("day");
+	const end = dayjs(endDate).subtract(1, "day").startOf("day"); // Exclude the checkout day
 	const dateArray = [];
 	let currentDate = start;
 
-	while (currentDate <= end) {
-		// Create a new variable in each iteration
-		const dateForLoop = currentDate;
+	// Run the loop while currentDate is before or same as the day before the checkout date
+	while (currentDate.isBefore(end) || currentDate.isSame(end, "day")) {
+		const formattedDate = currentDate.format("YYYY-MM-DD");
 
+		// Find rate for the current date
 		const rateForDate = pricingRate.find(
-			(rate) =>
-				dayjs(rate.date).format("YYYY-MM-DD") ===
-				dateForLoop.format("YYYY-MM-DD")
+			(rate) => dayjs(rate.date).format("YYYY-MM-DD") === formattedDate
 		);
 
+		// Add the current date with price to the array
 		dateArray.push({
-			date: dateForLoop.format("YYYY-MM-DD"),
-			price: rateForDate ? rateForDate.price : basePrice, // Default to basePrice if no specific rate
+			date: formattedDate,
+			price: rateForDate ? rateForDate.price : basePrice,
 		});
 
+		// Increment the current date by one day
 		currentDate = currentDate.add(1, "day");
 	}
 
@@ -41,25 +42,29 @@ const calculatePricingByDay = (pricingRate, startDate, endDate, basePrice) => {
 };
 
 const calculatePricingByDay2 = (pricingRate, startDate, endDate, basePrice) => {
-	const start = dayjs(startDate).startOf("day"); // Ensure the loop starts on the correct day
-	const end = dayjs(endDate).startOf("day");
+	const start = dayjs(startDate).startOf("day");
+	const end = dayjs(endDate).subtract(1, "day").startOf("day"); // Exclude the checkout day
+
 	const dateArray = [];
 	let currentDate = start;
 
-	// Ensure that the loop runs exactly from startDate to endDate inclusive
-	while (currentDate.isBefore(end.add(1, "day"))) {
-		const dateForLoop = currentDate.format("YYYY-MM-DD");
+	// Run the loop while currentDate is before or same as the day before endDate (checkout day)
+	while (currentDate.isBefore(end) || currentDate.isSame(end, "day")) {
+		const formattedDate = currentDate.format("YYYY-MM-DD");
 
+		// Find rate for the current date
 		const rateForDate = pricingRate.find(
-			(rate) => dayjs(rate.date).format("YYYY-MM-DD") === dateForLoop
+			(rate) => dayjs(rate.date).format("YYYY-MM-DD") === formattedDate
 		);
 
+		// Add the current date with price to the array
 		dateArray.push({
-			date: dateForLoop,
+			date: formattedDate,
 			price: rateForDate ? rateForDate.price : basePrice,
 		});
 
-		currentDate = currentDate.add(1, "day"); // Move to the next day
+		// Increment the current date by one day
+		currentDate = currentDate.add(1, "day");
 	}
 
 	return dateArray;
@@ -137,7 +142,7 @@ const cart_reducer = (state, action) => {
 		// Update the cart with the new dates and recalculated pricing breakdown
 		const updatedCart = state.roomCart.map((room) => {
 			if (room.id === id) {
-				console.log("Recalculating pricing for room:", room.id); // Debugging line
+				// console.log("Recalculating pricing for room:", room.id); // Debugging line
 				const newPricingByDay = calculatePricingByDay2(
 					room.priceRating,
 					startDate,

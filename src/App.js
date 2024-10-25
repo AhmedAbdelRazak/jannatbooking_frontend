@@ -16,6 +16,7 @@ import ChatIcon from "./Chat/ChatIcon";
 import SingleHotelMain from "./pages/SingleHotelMain";
 import OurHotelRooms from "./pages/OurHotelRooms";
 import Checkout from "./pages/Checkout";
+import ConfirmationPage from "./pages/ConfirmationPage";
 
 const App = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
@@ -63,6 +64,11 @@ const App = () => {
 					/>
 					<Route path='/our-hotels-rooms' exact component={OurHotelRooms} />
 					<Route path='/checkout' exact component={Checkout} />
+					<Route
+						path='/reservation-confirmed'
+						exact
+						component={ConfirmationPage}
+					/>
 				</Switch>
 			</>
 

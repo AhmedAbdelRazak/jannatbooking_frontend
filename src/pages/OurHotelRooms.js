@@ -519,12 +519,15 @@ const PriceWrapper = styled.p`
 
 const AmenitiesWrapper = styled.div`
 	display: grid;
-	grid-template-columns: repeat(3, 1fr);
+	grid-template-columns: repeat(3, 1fr); /* Default to 3 amenities per row */
 	grid-gap: 10px;
 	margin-top: 15px;
 
 	@media (max-width: 768px) {
-		grid-template-columns: 1fr;
+		grid-template-columns: repeat(
+			2,
+			1fr
+		); /* Display 2 amenities per row on smaller screens */
 	}
 `;
 

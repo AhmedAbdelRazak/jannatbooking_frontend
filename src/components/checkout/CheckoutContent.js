@@ -41,8 +41,6 @@ const CheckoutContent = () => {
 		nationality: "",
 	});
 
-	console.log(roomCart, "roomCart");
-
 	// Function to transform roomCart into pickedRoomsType format
 	const transformRoomCartToPickedRoomsType = (roomCart) => {
 		return roomCart.flatMap((room) => {
@@ -64,11 +62,10 @@ const CheckoutContent = () => {
 			const startDate = dates[0].format("YYYY-MM-DD");
 			const endDate = dates[1].format("YYYY-MM-DD");
 
+			// Ensure that roomCart is properly updated before re-rendering
 			roomCart.forEach((room) => {
 				updateRoomDates(room.id, startDate, endDate);
 			});
-
-			console.log("Updated roomCart after date change", roomCart);
 		}
 	};
 
@@ -78,20 +75,57 @@ const CheckoutContent = () => {
 	const createNewReservation = async () => {
 		const { name, phone, email, passport, passportExpiry } = customerDetails;
 
-		if (
-			!name ||
-			!phone ||
-			!email ||
-			!passport ||
-			!passportExpiry ||
-			!nationality
-		) {
-			// Ensure all customer details are filled before proceeding
-			console.error("All customer details must be provided");
+		// Full name validation
+		if (!name || name.trim().split(" ").length < 2) {
+			message.error("Please provide your full name (first and last name).");
 			return;
 		}
 
-		// Payment details
+		// Phone number validation
+		const phoneRegex = /^[0-9]{6,}$/;
+		if (!phone || !phoneRegex.test(phone)) {
+			message.error("Please provide a valid phone number.");
+			return;
+		}
+
+		// Email validation
+		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		if (!email || !emailRegex.test(email)) {
+			message.error("Please provide a valid email address.");
+			return;
+		}
+
+		// Passport validation
+		if (!passport) {
+			message.error("Please provide your passport number.");
+			return;
+		}
+
+		// Passport Expiry validation
+		if (!passportExpiry) {
+			message.error("Please provide your passport expiry date.");
+			return;
+		}
+
+		// Nationality validation
+		if (!nationality) {
+			message.error("Please select your nationality.");
+			return;
+		}
+
+		// Hotel name consistency validation
+		const hotelNames = roomCart.map((room) => room.hotelName);
+		const uniqueHotelNames = [...new Set(hotelNames)];
+
+		// Check if there are multiple unique hotel names
+		if (uniqueHotelNames.length > 1) {
+			message.error(
+				"You cannot make a reservation with rooms from multiple hotels. Please ensure all rooms are from the same hotel."
+			);
+			return;
+		}
+
+		// Proceed with the reservation creation if all validations pass
 		const paymentDetails = {
 			cardNumber,
 			cardExpiryDate: expiryDate,
@@ -99,52 +133,62 @@ const CheckoutContent = () => {
 			cardHolderName,
 		};
 
-		// Transform roomCart into the pickedRoomsType schema
 		const pickedRoomsType = transformRoomCartToPickedRoomsType(roomCart);
 
-		// Reservation data object
 		const reservationData = {
-			hotelId: roomCart[0].hotelId, // Assuming all rooms are for the same hotel
-			belongsTo: roomCart[0].belongsTo, // User ID associated with the reservation
+			hotelId: roomCart[0].hotelId,
+			belongsTo: roomCart[0].belongsTo,
 			customerDetails: {
 				...customerDetails,
-				nationality, // Ensure nationality is included
+				nationality,
 			},
-			paymentDetails, // Pass payment details
-			payment: "Paid", // Set payment status as Paid
-			total_rooms, // The total number of rooms reserved
-			total_guests: Number(roomCart[0].adults) + Number(roomCart[0].children), // Parsed total guests
-			adults: Number(roomCart[0].adults), // Parsed total adults
-			children: 0, // Parsed total children
-			total_amount: total_price, // Total price for the reservation
+			paymentDetails,
+			payment: "Paid",
+			total_rooms,
+			total_guests: Number(roomCart[0].adults) + Number(roomCart[0].children),
+			adults: Number(roomCart[0].adults),
+			children: 0,
+			total_amount: total_price,
 			checkin_date: roomCart[0].startDate,
 			checkout_date: roomCart[0].endDate,
 			days_of_residence: dayjs(roomCart[0].endDate).diff(
 				dayjs(roomCart[0].startDate),
 				"days"
 			),
-			booking_source: "Jannat Booking", // Booking source
-			pickedRoomsType, // Transformed rooms
+			booking_source: "Jannat Booking",
+			pickedRoomsType,
 		};
 
 		try {
 			const response = await createNewReservationClient(reservationData);
 			if (response && response.message === "Reservation created successfully") {
-				// Success handling
 				message.success("Reservation created successfully");
 
-				// Clear the cart context (cart and other states)
 				clearRoomCart();
 
-				// Redirect to home page
-				window.location.href = "/";
+				// Construct query params
+				const queryParams = new URLSearchParams();
+				queryParams.append("name", customerDetails.name);
+				queryParams.append("total_price", total_price);
+				queryParams.append("total_rooms", total_rooms);
+
+				// Add each room's details to the query
+				roomCart.forEach((room, index) => {
+					queryParams.append(`hotel_name_${index}`, room.hotelName);
+					queryParams.append(`room_type_${index}`, room.roomType);
+					queryParams.append(`room_display_name_${index}`, room.name);
+					queryParams.append(`nights_${index}`, room.nights);
+					queryParams.append(`checkin_date_${index}`, room.startDate);
+					queryParams.append(`checkout_date_${index}`, room.endDate);
+				});
+
+				// Redirect with all room details in query
+				window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
 			} else {
-				// Error handling
 				message.error(response.message || "Error creating reservation");
 			}
 		} catch (error) {
 			console.error("Error creating reservation", error);
-			// Display error message
 			message.error("An error occurred while creating the reservation");
 		}
 	};
@@ -186,7 +230,7 @@ const CheckoutContent = () => {
 										<DateRangeWrapper>
 											<label>Dates:</label>
 											<p>
-												{roomCart[0]?.startDate} to {roomCart[0]?.endDate}{" "}
+												{room.startDate} to {room.endDate}
 											</p>
 										</DateRangeWrapper>
 										<p className='total'>
@@ -206,7 +250,7 @@ const CheckoutContent = () => {
 											/>
 										</QuantityControls>
 
-										{/* New Accordion for Price Breakdown */}
+										{/* Updated Accordion for Price Breakdown */}
 										<Collapse
 											accordion
 											expandIcon={({ isActive }) => (
@@ -232,13 +276,15 @@ const CheckoutContent = () => {
 												key='1'
 											>
 												<PricingList>
+													{/* Ensure pricingByDay is mapped correctly */}
 													{room.pricingByDay && room.pricingByDay.length > 0 ? (
-														room.pricingByDay.map(({ date, price }, index) => (
-															<li key={index}>
-																{new Date(date).toLocaleDateString()}: {price}{" "}
-																SAR
-															</li>
-														))
+														room.pricingByDay.map(({ date, price }, index) => {
+															return (
+																<li key={index}>
+																	{date}: {price} SAR
+																</li>
+															);
+														})
 													) : (
 														<li>No price breakdown available</li>
 													)}
@@ -524,7 +570,7 @@ const CheckoutContent = () => {
 									<DateRangeWrapper>
 										<label>Dates:</label>
 										<p>
-											{roomCart[0]?.startDate} to {roomCart[0]?.endDate}{" "}
+											{room.startDate} to {room.endDate}
 										</p>
 									</DateRangeWrapper>
 									<p className='total'>
@@ -544,7 +590,7 @@ const CheckoutContent = () => {
 										/>
 									</QuantityControls>
 
-									{/* New Accordion for Price Breakdown */}
+									{/* Updated Accordion for Price Breakdown */}
 									<Collapse
 										accordion
 										expandIcon={({ isActive }) => (
@@ -570,12 +616,15 @@ const CheckoutContent = () => {
 											key='1'
 										>
 											<PricingList>
+												{/* Ensure pricingByDay is mapped correctly */}
 												{room.pricingByDay && room.pricingByDay.length > 0 ? (
-													room.pricingByDay.map(({ date, price }, index) => (
-														<li key={index}>
-															{new Date(date).toLocaleDateString()}: {price} SAR
-														</li>
-													))
+													room.pricingByDay.map(({ date, price }, index) => {
+														return (
+															<li key={index}>
+																{date}: {price} SAR
+															</li>
+														);
+													})
 												) : (
 													<li>No price breakdown available</li>
 												)}
