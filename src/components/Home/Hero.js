@@ -1,5 +1,4 @@
 import React from "react";
-import { Link } from "react-router-dom";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Autoplay } from "swiper/modules";
 import "swiper/css";
@@ -9,37 +8,53 @@ import "swiper/css/autoplay";
 import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
 
-const Hero = (props) => {
-	const { homePage } = props;
-
+const Hero = ({ homePage }) => {
 	const { chosenLanguage } = useCartContext();
 
 	// Default slider images
 	const defaultImages = [
-		{ sImg: require("../../GeneralImages/slider/slide-1.jpg").default },
-		{ sImg: require("../../GeneralImages/slider/slide-2.jpg").default },
-		{ sImg: require("../../GeneralImages/slider/slide-3.jpg").default },
+		{
+			sImg: require("../../GeneralImages/slider/slide-1.jpg").default,
+			title: "Find Your Perfect Place To Stay",
+			subtitle: "Experience comfort and luxury in our amazing hotels.",
+			buttonTitle: "Book Now",
+			pageRedirectURL: "/our-hotels",
+			btnBackgroundColor: "#fc4c4c",
+		},
+		{
+			sImg: require("../../GeneralImages/slider/slide-2.jpg").default,
+			title: "Enjoy Your Stay",
+			subtitle: "Discover the best destinations and accommodations.",
+			buttonTitle: "Book Now",
+			pageRedirectURL: "/our-hotels",
+			btnBackgroundColor: "#fc4c4c",
+		},
+		{
+			sImg: require("../../GeneralImages/slider/slide-3.jpg").default,
+			title: "A Unique Experience",
+			subtitle: "Stay with us and make unforgettable memories.",
+			buttonTitle: "Book Now",
+			pageRedirectURL: "/our-hotels",
+			btnBackgroundColor: "#fc4c4c",
+		},
 	];
 
-	// Custom slider images based on homePage data
-	const sliderItems = [];
-
-	// Check for first banner
-	if (homePage?.homeMainBanners?.[0]?.url) {
-		sliderItems.push({ sImg: homePage.homeMainBanners[0].url });
-	} else {
-		sliderItems.push(defaultImages[0]);
-	}
-
-	// Check for second banner
-	if (homePage?.homeMainBanners?.[1]?.url) {
-		sliderItems.push({ sImg: homePage.homeMainBanners[1].url });
-	}
-
-	// Check for third banner
-	if (homePage?.homeMainBanners?.[2]?.url) {
-		sliderItems.push({ sImg: homePage.homeMainBanners[2].url });
-	}
+	// Generate slider items from homePage data or fall back to defaults
+	const sliderItems =
+		homePage?.homeMainBanners?.map((banner, index) => ({
+			sImg: banner.url || defaultImages[index].sImg,
+			title: chosenLanguage === "Arabic" ? banner.titleArabic : banner.title,
+			subtitle:
+				chosenLanguage === "Arabic" ? banner.subtitleArabic : banner.subTitle,
+			buttonTitle:
+				chosenLanguage === "Arabic"
+					? banner.buttonTitleArabic || defaultImages[index].buttonTitle
+					: banner.buttonTitle || defaultImages[index].buttonTitle,
+			pageRedirectURL:
+				banner.pageRedirectURL || defaultImages[index].pageRedirectURL,
+			btnBackgroundColor:
+				banner.btnBackgroundColor || defaultImages[index].btnBackgroundColor,
+		})) || defaultImages;
 
 	return (
 		<HeroWrapper>
@@ -58,8 +73,8 @@ const Hero = (props) => {
 					pauseOnMouseEnter: true,
 				}}
 			>
-				{sliderItems.map((item, slr) => (
-					<SwiperSlide key={slr}>
+				{sliderItems.map((item, index) => (
+					<SwiperSlide key={index}>
 						<div
 							className='swiper-slide'
 							style={{ backgroundImage: `url(${item.sImg})` }}
@@ -68,18 +83,22 @@ const Hero = (props) => {
 								<div className='container-fluid'>
 									<div className='slide-content'>
 										<div data-swiper-parallax='100' className='slide-title'>
-											<h1>
-												{" "}
-												{chosenLanguage === "Arabic"
-													? ""
-													: "Find Your Perfect Place To Stay"}{" "}
-											</h1>
+											<h1>{item.title}</h1>
+										</div>
+										<div data-swiper-parallax='200' className='slide-text'>
+											<p>{item.subtitle}</p>
 										</div>
 										<div className='clearfix'></div>
 										<div data-swiper-parallax='500' className='slide-btns'>
-											<Link to='/our-hotels' className='theme-btn'>
-												Book Now
-											</Link>
+											<div
+												className='theme-btn'
+												style={{ backgroundColor: item.btnBackgroundColor }}
+												onClick={() =>
+													(window.location.href = item.pageRedirectURL)
+												}
+											>
+												{item.buttonTitle}
+											</div>
 										</div>
 									</div>
 								</div>
@@ -107,7 +126,7 @@ const HeroWrapper = styled.section`
 	}
 
 	@media (max-width: 767px) {
-		height: 500px;
+		height: 470px;
 	}
 
 	.swiper-slide {
@@ -159,7 +178,7 @@ const HeroWrapper = styled.section`
 		}
 
 		@media (max-width: 767px) {
-			padding-left: 10px;
+			padding-left: 5px;
 		}
 	}
 
@@ -183,7 +202,7 @@ const HeroWrapper = styled.section`
 		}
 
 		@media (max-width: 767px) {
-			font-size: 30px;
+			font-size: 23px;
 			line-height: 36px;
 		}
 	}
@@ -237,11 +256,13 @@ const HeroWrapper = styled.section`
 
 	.slide-btns {
 		margin-left: 40px;
-		a {
-			background-color: #fc4c4c !important;
+		.theme-btn {
 			padding: 10px 30px;
 			color: white;
 			font-weight: bold;
+			cursor: pointer;
+			text-decoration: none;
+			display: inline-block;
 		}
 
 		@media (max-width: 767px) {
