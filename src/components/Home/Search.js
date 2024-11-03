@@ -15,6 +15,7 @@ const { Option } = Select;
 
 const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 	const [searchParams, setSearchParams] = useState({
+		destination: "",
 		dates: [],
 		roomType: "",
 		adults: "",
@@ -23,11 +24,9 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 	const [calendarStartDate, setCalendarStartDate] = useState(
 		dayjs().add(1, "day")
 	);
-
 	const history = useHistory();
 
 	useEffect(() => {
-		// Initialize with tomorrow and 7 days later as the default date range using Day.js
 		const startDate = dayjs().add(1, "day").startOf("day");
 		const endDate = dayjs().add(7, "day").endOf("day");
 
@@ -64,13 +63,13 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 		if (
 			!searchParams.dates.length ||
 			!searchParams.roomType ||
+			!searchParams.destination ||
 			searchParams.adults === ""
 		) {
 			toast.error("Please fill in all required fields");
 			return;
 		}
 
-		// Find the mapping that matches the selected room type label
 		const selectedRoomType = roomTypesMapping.find(
 			(type) => type.label === searchParams.roomType
 		);
@@ -80,9 +79,10 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 			: searchParams.roomType;
 
 		const queryParams = new URLSearchParams({
+			destination: searchParams.destination,
 			startDate: searchParams.dates[0].format("YYYY-MM-DD"),
 			endDate: searchParams.dates[1].format("YYYY-MM-DD"),
-			roomType: roomTypeValue, // Use the value, not the label
+			roomType: roomTypeValue,
 			adults: searchParams.adults,
 			children: searchParams.children,
 		}).toString();
@@ -90,174 +90,228 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 		history.push(`/our-hotels-rooms?${queryParams}`);
 	};
 
-	// Restrict date selection to today and onwards
 	const disabledDate = (current) => {
 		return current && current < dayjs().endOf("day");
 	};
 
+	const panelRender = (panelNode) => (
+		<StyledRangePickerContainer>{panelNode}</StyledRangePickerContainer>
+	);
+
 	return (
 		<SearchWrapper>
-			<RangePicker
-				format='YYYY-MM-DD'
-				onChange={handleDateChange}
-				value={searchParams.dates}
-				disabledDate={disabledDate}
-				defaultPickerValue={[calendarStartDate]}
-				onCalendarChange={(dates) => {
-					if (dates && dates[0]) {
-						setCalendarStartDate(dates[0]); // Align calendar start date
-					}
-				}}
-			/>
-			<Select
-				style={{ width: "20%" }}
-				suffixIcon={<CalendarOutlined />}
-				placeholder='Select room type'
-				onChange={(value) => handleSelectChange(value, "roomType")}
-				value={searchParams.roomType}
-			>
-				<Option value=''>Room Type</Option>
-				<Option value='all'>All Rooms</Option>
-				{distinctRoomTypes.map((roomType) => (
-					<Option key={roomType} value={roomType}>
-						{roomType}
-					</Option>
-				))}
-			</Select>
+			<DestinationWrapper>
+				<Select
+					style={{ width: "100%" }}
+					placeholder='Where would you like to go?'
+					onChange={(value) => handleSelectChange(value, "destination")}
+					value={searchParams.destination}
+				>
+					<Option value=''>Where would you like to go?</Option>
+					<Option value='Makkah'>Makkah</Option>
+					<Option value='Madinah'>Madinah</Option>
+				</Select>
+			</DestinationWrapper>
 
-			<InputNumberWrapper>
-				<InputNumber
-					className='w-100'
-					prefix={<UserOutlined />}
-					min={1}
-					max={10}
-					placeholder='Adults'
-					onChange={(value) => handleSelectChange(value, "adults")}
-					value={searchParams.adults}
+			<InputsWrapper>
+				<RangeDatePicker
+					format='YYYY-MM-DD'
+					onChange={handleDateChange}
+					value={searchParams.dates}
+					disabledDate={disabledDate}
+					defaultPickerValue={[calendarStartDate]}
+					picker='date'
+					panelRender={panelRender}
 				/>
-			</InputNumberWrapper>
-			<InputNumberWrapper>
-				<InputNumber
-					className='w-100'
-					prefix={<TeamOutlined />}
-					min={0}
-					max={10}
-					placeholder='Children'
-					onChange={(value) => handleSelectChange(value, "children")}
-					value={searchParams.children}
-				/>
-			</InputNumberWrapper>
 
-			<Button className='w-25' onClick={handleSubmit}>
-				Search
-			</Button>
+				<Select
+					style={{ width: "100%" }}
+					suffixIcon={<CalendarOutlined />}
+					placeholder='Select room type'
+					onChange={(value) => handleSelectChange(value, "roomType")}
+					value={searchParams.roomType}
+				>
+					<Option value=''>Room Type</Option>
+					<Option value='all'>All Rooms</Option>
+					{distinctRoomTypes.map((roomType) => (
+						<Option key={roomType} value={roomType}>
+							{roomType}
+						</Option>
+					))}
+				</Select>
+
+				<InputNumberWrapper>
+					<InputNumber
+						className='w-100'
+						prefix={<UserOutlined />}
+						min={1}
+						max={10}
+						placeholder='Adults'
+						onChange={(value) => handleSelectChange(value, "adults")}
+						value={searchParams.adults}
+					/>
+				</InputNumberWrapper>
+
+				<InputNumberWrapper>
+					<InputNumber
+						className='w-100'
+						prefix={<TeamOutlined />}
+						min={0}
+						max={10}
+						placeholder='Children'
+						onChange={(value) => handleSelectChange(value, "children")}
+						value={searchParams.children}
+					/>
+				</InputNumberWrapper>
+			</InputsWrapper>
+
+			<SearchButtonWrapper>
+				<Button className='search-button' onClick={handleSubmit}>
+					Search
+				</Button>
+			</SearchButtonWrapper>
 		</SearchWrapper>
 	);
 };
 
 export default Search;
 
+// Styled components
+
+// Wrapper for the entire search component
 const SearchWrapper = styled.div`
 	position: absolute;
 	top: 96%;
 	left: 50%;
 	transform: translate(-50%, -50%);
 	background-color: white;
-	padding: 30px;
+	padding: 40px;
 	display: flex;
+	flex-direction: column;
 	align-items: center;
-	justify-content: center;
-	gap: 6px;
+	gap: 10px;
 	border-radius: 20px;
-	width: 65%;
+	width: 68%;
 
-	.ant-select .ant-select-selector,
-	.ant-input-number .ant-input-number-input {
-		padding: 0 20px;
+	.ant-select-selector {
+		padding-top: 7px !important;
+		padding-bottom: 7px !important;
+		height: auto !important;
+		display: flex;
+		align-items: center;
 	}
 
-	.ant-btn {
-		flex-shrink: 0;
+	// Increase the height of the container on larger screens for a spacious layout
+	@media (min-width: 1024px) {
+		padding: 50px;
+	}
+
+	@media (max-width: 768px) {
+		width: 95%;
+		top: 65%;
+	}
+`;
+
+// Wrapper specifically for the destination selection dropdown
+const DestinationWrapper = styled.div`
+	width: 100%;
+	margin-bottom: 10px;
+
+	// Adjust styling for the select input
+	.ant-select-selector {
+		padding-top: 7px !important;
+		padding-bottom: 7px !important;
+		height: auto !important;
+		display: flex;
+		align-items: center;
+	}
+`;
+
+// Wrapper for inputs to arrange them in a grid format
+const InputsWrapper = styled.div`
+	display: grid;
+	width: 100%;
+	grid-template-columns: repeat(
+		4,
+		1fr
+	); // Reduced to 4 columns to leave room for the search button row
+	gap: 10px;
+
+	@media (max-width: 768px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+// Wrapper to center the search button in a row by itself on larger screens
+const SearchButtonWrapper = styled.div`
+	width: 100%;
+	display: flex;
+	justify-content: center;
+	margin-top: 10px;
+
+	.search-button {
 		background-color: var(--primaryBlue);
 		color: white;
 		border-radius: 10px;
 		border: none;
-	}
-
-	.ant-btn:hover {
-		background-color: var(--primaryBlueDarker) !important;
-		color: white !important;
-	}
-
-	.ant-picker,
-	.ant-select .ant-select-selector,
-	.ant-input-number .ant-input-number-handler-wrap,
-	.ant-input-number .ant-input-number-input,
-	.ant-btn {
-		height: 42px;
+		width: 75%; // Set to 75% width on larger screens
+		max-width: 450px; // Limit the max width for larger screens
+		padding: 20px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-	}
 
-	.ant-select .ant-select-selector {
-		bottom: 4px;
-	}
-
-	.ant-picker-range .ant-picker-input input {
-		text-align: center;
-	}
-
-	::placeholder {
-		font-style: italic;
-		font-size: 0.9rem;
-		font-weight: bold;
-		color: #d3d3d3 !important;
-	}
-
-	.ant-select-arrow {
-		display: flex;
-		align-items: center;
-	}
-
-	.ant-input-number-prefix {
-		display: flex;
-		align-items: center;
-	}
-
-	@media (max-width: 768px) {
-		flex-direction: column;
-		align-items: stretch;
-		width: 95%;
-		top: 65%;
-
-		.ant-picker,
-		.ant-select,
-		.ant-select .ant-select-selector,
-		.ant-input-number,
-		.ant-btn {
-			margin-right: 0;
-			margin-bottom: 6px;
-			width: 100% !important;
+		@media (max-width: 768px) {
+			width: 100%; // Full width on mobile screens
 		}
+	}
 
-		.ant-btn {
-			margin-bottom: 0;
+	.search-button:hover {
+		background-color: var(--primaryBlueDarker) !important;
+		color: white !important;
+	}
+`;
+
+// Custom styling for the RangePicker
+const StyledRangePickerContainer = styled.div`
+	@media (max-width: 768px) {
+		.ant-picker-panel:last-child {
+			width: 0;
+			overflow: hidden;
+
+			.ant-picker-header,
+			.ant-picker-body {
+				display: none;
+			}
 		}
 	}
 `;
 
+// Wrapper specifically for the RangePicker component
+const RangeDatePicker = styled(RangePicker)`
+	width: 100%;
+
+	// Center input text and add padding for height consistency
+	.ant-picker-input {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding-top: 7px;
+		padding-bottom: 7px;
+	}
+`;
+
+// Wrapper for the input number fields (Adults, Children)
 const InputNumberWrapper = styled.div`
+	width: 100%;
+
 	.ant-input-number {
 		width: 100%;
-		.ant-input-number-input {
-			padding-left: 2px;
-		}
-	}
 
-	@media (max-width: 768px) {
-		.ant-input-number {
-			width: auto;
+		// Add padding for height consistency across inputs
+		.ant-input-number-input-wrap {
+			padding-top: 7px;
+			padding-bottom: 7px;
 		}
 	}
 `;

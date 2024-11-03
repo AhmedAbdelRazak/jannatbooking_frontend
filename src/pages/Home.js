@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import Hero from "../components/Home/Hero";
 import Search from "../components/Home/Search";
+// eslint-disable-next-line
 import PopularHotels from "../components/Home/PopularHotels";
 import {
 	gettingActiveHotels,
@@ -9,6 +10,7 @@ import {
 	gettingJannatWebsiteData,
 } from "../apiCore";
 import { Spin } from "antd";
+import Section2 from "../components/Home/Section2";
 
 const Home = () => {
 	const [homePage, setHomePage] = useState("");
@@ -90,8 +92,10 @@ const Home = () => {
 				/>
 			) : null}
 
+			<Section2 />
+
 			{activeHotels && generalRoomTypes && !loading ? (
-				<div className='py-5' style={{ marginTop: "800px" }}>
+				<div>
 					<PopularHotels
 						activeHotels={activeHotels}
 						generalRoomTypes={generalRoomTypes}
@@ -109,7 +113,7 @@ const Home = () => {
 export default Home;
 
 const HomeWrapper = styled.div`
-	min-height: 2000px;
+	min-height: 1800px;
 `;
 
 const SpinWrapper = styled.div`

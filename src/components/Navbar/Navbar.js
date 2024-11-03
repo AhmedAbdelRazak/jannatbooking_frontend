@@ -220,7 +220,7 @@ const LogoSection = styled.div`
 
 	@media (max-width: 768px) {
 		img {
-			width: 180px;
+			width: 140px;
 			height: 60px;
 			object-fit: cover;
 		}

@@ -52,6 +52,7 @@ const getQueryParams = (search) => {
 		roomType: params.get("roomType"),
 		adults: params.get("adults"),
 		children: params.get("children"),
+		destination: params.get("destination"), // Add destination parameter
 	};
 };
 
@@ -118,10 +119,22 @@ const OurHotelRooms = () => {
 	useEffect(() => {
 		window.scrollTo({ top: 20, behavior: "smooth" });
 		const fetchRoomData = async () => {
-			const query = `${queryParams.startDate}_${queryParams.endDate}_${queryParams.roomType}_${queryParams.adults}_${queryParams.children}`;
+			const query = [
+				encodeURIComponent(queryParams.startDate),
+				encodeURIComponent(queryParams.endDate),
+				encodeURIComponent(queryParams.roomType),
+				encodeURIComponent(queryParams.adults),
+				encodeURIComponent(queryParams.children || ""),
+				encodeURIComponent(queryParams.destination || ""),
+			]
+				.join("_")
+				.replace(/_+$/, "");
+
+			console.log("Encoded query being sent:", query);
+
 			try {
 				const data = await getRoomQuery(query);
-				setRoomData(data);
+				setRoomData(Array.isArray(data) ? data : []); // Ensure roomData is always an array
 			} catch (error) {
 				console.error("Error fetching room data", error);
 			} finally {
@@ -137,6 +150,7 @@ const OurHotelRooms = () => {
 		queryParams.roomType,
 		queryParams.adults,
 		queryParams.children,
+		queryParams.destination,
 	]);
 
 	useEffect(() => {
@@ -178,6 +192,7 @@ const OurHotelRooms = () => {
 									dayjs(queryParams.startDate, "YYYY-MM-DD"),
 									dayjs(queryParams.endDate, "YYYY-MM-DD"),
 								],
+								destination: queryParams.destination || "", // Include destination
 								roomType: queryParams.roomType || "",
 								adults: queryParams.adults || "",
 								children: queryParams.children || "",
@@ -368,12 +383,12 @@ export default OurHotelRooms;
 // Styled-components for the component
 const OurHotelRoomsWrapper = styled.div`
 	width: 100%;
-	padding: 70px 250px;
+	padding: 220px 250px;
 	background-color: #f9f9f9;
 	min-height: 700px;
 
 	@media (max-width: 1000px) {
-		padding: 70px 0px;
+		padding: 160px 0px;
 	}
 `;
 
