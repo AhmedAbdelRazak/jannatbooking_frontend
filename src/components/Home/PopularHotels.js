@@ -12,11 +12,11 @@ const PopularHotels = ({ activeHotels }) => {
 	const settings = {
 		dots: true,
 		infinite: true,
-		speed: 2000,
-		slidesToShow: 1,
+		speed: 500,
+		slidesToShow: 4,
 		slidesToScroll: 1,
 		autoplay: true,
-		autoplaySpeed: 5000,
+		autoplaySpeed: 4000,
 		centerMode: true, // Enable center mode to show a portion of the next slide
 		centerPadding: "30px", // Adjust padding to show only a small part of the next slide
 		arrows: true,
