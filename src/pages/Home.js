@@ -86,13 +86,17 @@ const Home = () => {
 			{homePage ? <Hero homePage={homePage} /> : null}
 
 			{distinctRoomTypes ? (
-				<Search
-					distinctRoomTypes={distinctRoomTypes}
-					roomTypesMapping={roomTypesMapping}
-				/>
+				<div>
+					<Search
+						distinctRoomTypes={distinctRoomTypes}
+						roomTypesMapping={roomTypesMapping}
+					/>
+				</div>
 			) : null}
 
-			<Section2 />
+			<div>
+				<Section2 />
+			</div>
 
 			{activeHotels && generalRoomTypes && !loading ? (
 				<div>
@@ -113,7 +117,7 @@ const Home = () => {
 export default Home;
 
 const HomeWrapper = styled.div`
-	min-height: 1800px;
+	min-height: 1700px;
 `;
 
 const SpinWrapper = styled.div`

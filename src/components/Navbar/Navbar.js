@@ -58,7 +58,7 @@ const Navbar = () => {
 				inTop={inTop}
 				dir={chosenLanguage === "Arabic" ? "rtl" : ""}
 			>
-				<LogoSection>
+				<LogoSection onClick={() => (window.location.href = "/")}>
 					<img
 						src={
 							homePage && homePage.janatLogo && homePage.janatLogo.url

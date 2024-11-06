@@ -13,7 +13,7 @@ const SingleHotelMain = () => {
 	const { chosenLanguage } = useCartContext();
 	// Fetch hotel details on component mount
 	useEffect(() => {
-		window.scrollTo({ top: 70, behavior: "smooth" });
+		window.scrollTo({ top: 10, behavior: "smooth" });
 		const fetchHotel = async () => {
 			try {
 				const hotelData = await gettingSingleHotel(hotelNameSlug); // Fetch hotel by slug

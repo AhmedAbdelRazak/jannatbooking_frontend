@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Autoplay, Thumbs } from "swiper/modules";
@@ -10,6 +10,7 @@ import { amenitiesList, extraAmenitiesList, viewsList } from "../../Assets";
 import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
 import { useCartContext } from "../../cart_context";
 import { DatePicker, Button } from "antd";
+import Tabs from "./Tabs";
 import dayjs from "dayjs";
 
 const { RangePicker } = DatePicker;
@@ -63,13 +64,59 @@ const calculatePricingByDay = (pricingRate, startDate, endDate, basePrice) => {
 
 // Main SingleHotel component
 const SingleHotel = ({ selectedHotel }) => {
+	// eslint-disable-next-line
 	const [thumbsSwiper, setThumbsSwiper] = useState(null);
 	const [roomThumbsSwipers, setRoomThumbsSwipers] = useState([]);
 	const [dateRange, setDateRange] = useState([
 		dayjs().add(1, "day"),
 		dayjs().add(6, "day"),
 	]);
+
+	const [showAllAmenities, setShowAllAmenities] = useState(false);
+
+	const handleAmenitiesToggle = () => {
+		setShowAllAmenities((prev) => !prev);
+	};
+
+	// Combine all amenities into one list
+	const combinedFeatures = [
+		...new Set([
+			...selectedHotel.roomCountDetails.flatMap((room) => room.amenities),
+			...selectedHotel.roomCountDetails.flatMap((room) => room.views),
+			...selectedHotel.roomCountDetails.flatMap((room) => room.extraAmenities),
+		]),
+	];
+
+	const visibleFeatures = showAllAmenities
+		? combinedFeatures
+		: combinedFeatures.slice(0, 4);
+
 	const { addRoomToCart, openSidebar2, chosenLanguage } = useCartContext();
+	const tabRefs = useRef({});
+
+	// Section references for tabs
+	const overviewRef = useRef(null);
+	const aboutRef = useRef(null);
+	const roomsRef = useRef(null);
+	const policiesRef = useRef(null);
+	const comparisonsRef = useRef(null);
+
+	// Sections data to pass to the Tabs component
+	const sections = [
+		{ id: "overview", label: "Overview", ref: overviewRef },
+		{ id: "about", label: "About", ref: aboutRef },
+		{ id: "rooms", label: "Rooms", ref: roomsRef },
+		{ id: "policies", label: "Policies", ref: policiesRef },
+		{ id: "comparisons", label: "Comparisons", ref: comparisonsRef },
+	];
+
+	// Assign refs to tabRefs in Tabs component
+	useEffect(() => {
+		sections.forEach((section) => {
+			tabRefs.current[section.id] = section.ref.current;
+		});
+		// eslint-disable-next-line
+	}, []);
 
 	const handleDateChange = (dates) => {
 		if (dates && dates.length === 2) {
@@ -149,18 +196,25 @@ const SingleHotel = ({ selectedHotel }) => {
 		openSidebar2(); // Open the sidebar/cart drawer
 	};
 
-	// Combine all amenities into one list
-	const combinedFeatures = [
-		...new Set([
-			...selectedHotel.roomCountDetails.flatMap((room) => room.amenities),
-			...selectedHotel.roomCountDetails.flatMap((room) => room.views),
-			...selectedHotel.roomCountDetails.flatMap((room) => room.extraAmenities),
-		]),
-	];
+	const handleTabClick = (sectionId) => {
+		const section = tabRefs.current[sectionId];
+		if (section) {
+			const headerOffset = 80; // Adjust this value based on the height of your fixed header
+			const elementPosition =
+				section.getBoundingClientRect().top + window.scrollY;
+			const offsetPosition = elementPosition - headerOffset;
+
+			window.scrollTo({
+				top: offsetPosition,
+				behavior: "smooth",
+			});
+		}
+	};
 
 	return (
 		<SingleHotelWrapper dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
 			{/* Hero Section */}
+
 			<HeroSection dir='ltr'>
 				<Swiper
 					modules={[Pagination, Autoplay, Thumbs]}
@@ -185,7 +239,7 @@ const SingleHotel = ({ selectedHotel }) => {
 						</SwiperSlide>
 					))}
 				</Swiper>
-				<Swiper
+				{/* <Swiper
 					modules={[Thumbs]}
 					onSwiper={setThumbsSwiper}
 					spaceBetween={2}
@@ -209,11 +263,14 @@ const SingleHotel = ({ selectedHotel }) => {
 							/>
 						</SwiperSlide>
 					))}
-				</Swiper>
+				</Swiper> */}
 			</HeroSection>
+			<div>
+				<Tabs sections={sections} onTabClick={handleTabClick} />
+			</div>
 
-			{/* Hotel Info */}
-			<HotelInfo>
+			{/* Hotel Overview */}
+			<HotelInfo ref={overviewRef} id='overview'>
 				<h1>{selectedHotel.hotelName}</h1>
 				<p>{formatAddress(selectedHotel.hotelAddress)}</p>
 				<StarRatings
@@ -225,30 +282,56 @@ const SingleHotel = ({ selectedHotel }) => {
 					starSpacing='3px'
 				/>
 				<p>Phone: {selectedHotel.phone}</p>
+			</HotelInfo>
+
+			{/* Hotel About */}
+
+			<HotelOverview ref={aboutRef} id='about'>
+				<h2>About</h2>
+				<p>
+					{selectedHotel && selectedHotel.aboutHotel
+						? selectedHotel.aboutHotel
+						: "About Hotel"}
+				</p>
+
+				<AmenitiesWrapper>
+					{visibleFeatures.map((feature, idx) => (
+						<AmenityItem key={idx}>
+							{getIcon(feature)} <span>{feature}</span>
+						</AmenityItem>
+					))}
+				</AmenitiesWrapper>
+
+				{combinedFeatures.length > 4 && (
+					<ToggleText onClick={handleAmenitiesToggle}>
+						{showAllAmenities ? "Hide..." : "See More..."}
+					</ToggleText>
+				)}
+
 				<LoadScript googleMapsApiKey={process.env.REACT_APP_MAPS_API_KEY}>
-					<GoogleMap
-						mapContainerStyle={{
-							width: "1000px",
-							height: "350px",
-							borderRadius: "10px",
-							marginTop: "15px",
-						}}
-						center={{
-							lat: parseFloat(selectedHotel.location.coordinates[1]),
-							lng: parseFloat(selectedHotel.location.coordinates[0]),
-						}}
-						zoom={14}
-					>
-						<Marker
-							position={{
+					<MapContainer>
+						<GoogleMap
+							mapContainerStyle={{
+								width: "100%", // Let the styled-component handle the width
+								height: "100%", // Let the styled-component handle the height
+							}}
+							center={{
 								lat: parseFloat(selectedHotel.location.coordinates[1]),
 								lng: parseFloat(selectedHotel.location.coordinates[0]),
 							}}
-							draggable={false}
-						/>
-					</GoogleMap>
+							zoom={14}
+						>
+							<Marker
+								position={{
+									lat: parseFloat(selectedHotel.location.coordinates[1]),
+									lng: parseFloat(selectedHotel.location.coordinates[0]),
+								}}
+								draggable={false}
+							/>
+						</GoogleMap>
+					</MapContainer>
 				</LoadScript>
-			</HotelInfo>
+			</HotelOverview>
 
 			{/* Date Range Picker */}
 			<DateRangeWrapper>
@@ -261,7 +344,7 @@ const SingleHotel = ({ selectedHotel }) => {
 			</DateRangeWrapper>
 
 			{/* Rooms Section */}
-			<RoomsSection>
+			<RoomsSection ref={roomsRef} id='rooms'>
 				<h2>Rooms</h2>
 				{selectedHotel.roomCountDetails.map((room, index) => {
 					const startDate = dateRange[0].format("YYYY-MM-DD");
@@ -413,7 +496,7 @@ const SingleHotelWrapper = styled.div`
 	align-items: center;
 	overflow: hidden;
 	@media (max-width: 800px) {
-		margin-top: 20px;
+		margin-top: 40px;
 	}
 `;
 
@@ -431,6 +514,7 @@ const HeroSection = styled.div`
 
 	.thumbnail-swiper {
 		margin-top: 10px;
+		padding: 0px !important;
 
 		.swiper-slide {
 			opacity: 0.6;
@@ -445,26 +529,134 @@ const HeroSection = styled.div`
 	}
 
 	@media (max-width: 800px) {
+		padding: 0px !important;
+		width: 430px;
 		.hotel-image {
 			width: 100%;
-			height: 500px;
+			height: 420px;
 			border-radius: 10px;
 			object-fit: cover;
 		}
 	}
 `;
 
-const ThumbnailImage = styled.img`
-	width: 100%;
-	height: 120px;
-	object-fit: cover;
-	border-radius: 10px;
-	cursor: pointer;
+const HotelInfo = styled.div`
+	margin: 20px 0;
+	text-align: left; /* Aligns text to the left */
+	text-transform: capitalize;
+	width: 100%; /* Ensures full width */
+	max-width: 1200px; /* Limits the width on larger screens */
+	margin-left: 0; /* Aligns to the left of the parent container */
 
-	@media (max-width: 800px) {
-		height: 80px;
+	h1 {
+		font-size: 36px;
+		color: var(--primaryBlue);
+		margin-bottom: 10px;
+		text-transform: capitalize;
+		font-weight: bold;
+	}
+
+	p {
+		margin: 5px 0;
+		font-size: 18px;
+		color: var(--darkGrey);
+		white-space: pre-wrap;
+		line-height: 1.5;
+	}
+
+	@media (max-width: 768px) {
+		/* text-align: center; */
+		text-align: left; /* Aligns text to the left */
+		width: 100%;
+
+		h1 {
+			font-size: 28px;
+		}
+
+		p {
+			font-size: 16px;
+		}
 	}
 `;
+
+const HotelOverview = styled.div`
+	text-align: left; /* Aligns text to the left */
+	text-transform: capitalize;
+	width: 100%; /* Ensures full width */
+	max-width: 1200px; /* Limits the width on larger screens */
+	margin-left: 0; /* Aligns to the left of the parent container */
+
+	h2 {
+		font-size: 30px;
+		color: var(--primaryBlue);
+		margin-bottom: 10px;
+		text-transform: capitalize;
+		font-weight: bold;
+	}
+
+	p {
+		margin: 5px 0;
+		font-size: 18px;
+		color: var(--darkGrey);
+		white-space: pre-wrap;
+		line-height: 1.5;
+	}
+
+	@media (max-width: 768px) {
+		/* text-align: center; */
+		margin-left: auto; /* Centers content on smaller screens */
+		margin-right: auto; /* Centers content on smaller screens */
+		padding: 0px !important;
+
+		h2 {
+			font-size: 25px;
+		}
+
+		p {
+			font-size: 14px;
+		}
+	}
+`;
+
+const ToggleText = styled.span`
+	display: inline-block;
+	margin-top: 10px;
+	color: var(--primaryBlue);
+	cursor: pointer;
+	font-weight: bold;
+	text-decoration: underline;
+	font-size: 13px;
+	&:hover {
+		color: var(--primaryBlueDarker);
+	}
+`;
+
+const MapContainer = styled.div`
+	width: 100%; /* Default width to take the full width */
+	height: 300px; /* Keep the height constant */
+	border-radius: 10px;
+	margin-top: 15px;
+
+	@media (min-width: 1024px) {
+		width: 600px; /* Wider width for larger screens */
+	}
+
+	@media (min-width: 1440px) {
+		width: 1000px; /* Even wider width for very large screens */
+	}
+`;
+
+// const ThumbnailImage = styled.img`
+// 	width: 100%;
+// 	height: 120px;
+// 	object-fit: cover;
+// 	border-radius: 10px;
+// 	cursor: pointer;
+
+// 	@media (max-width: 800px) {
+// 		height: 80px;
+// 	}
+// `;
 
 const RoomThumbnailImage = styled.img`
 	width: 90%;
@@ -488,10 +680,18 @@ const RoomsSection = styled.div`
 	max-width: 1200px;
 
 	h2 {
-		text-align: center;
+		/* text-align: center; */
 		color: var(--primaryBlue);
 		margin-bottom: 20px;
 		text-transform: capitalize;
+		margin-left: 5px;
+		margin-right: 5px;
+		font-weight: bold;
+	}
+
+	@media (max-width: 750px) {
+		width: 100%;
+		padding: 5px;
 	}
 `;
 
@@ -598,37 +798,6 @@ const AmenityItem = styled.div`
 
 	span {
 		margin-left: 5px;
-	}
-`;
-
-const HotelInfo = styled.div`
-	margin: 20px 0;
-	text-align: center;
-	text-transform: capitalize;
-
-	h1 {
-		font-size: 36px;
-		color: var(--primaryBlue);
-		margin-bottom: 10px;
-		text-transform: capitalize;
-	}
-
-	p {
-		margin: 5px 0;
-		font-size: 18px;
-		color: var(--darkGrey);
-		white-space: pre-wrap;
-		line-height: 1.5;
-	}
-
-	@media (max-width: 768px) {
-		h1 {
-			font-size: 28px;
-		}
-
-		p {
-			font-size: 16px;
-		}
 	}
 `;
 

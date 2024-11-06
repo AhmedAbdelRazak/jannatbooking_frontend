@@ -59,7 +59,7 @@ const Section2Container = styled.div`
 	display: flex;
 	justify-content: center;
 	width: 100%;
-	background-color: var(--background-color, #f9f9f9);
+	/* background-color: var(--background-color, #f9f9f9); */
 	padding: 30px 0;
 `;
 

@@ -133,6 +133,7 @@ const OurHotelsWrapper = styled.div`
 	width: 100%;
 	padding: 70px 250px;
 	background-color: #f9f9f9;
+	margin-top: 290px;
 
 	@media (max-width: 1000px) {
 		padding: 70px 0px;
