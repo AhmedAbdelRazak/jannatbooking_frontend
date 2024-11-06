@@ -79,7 +79,13 @@ const Hero = ({ homePage }) => {
 							className='swiper-slide'
 							style={{ backgroundImage: `url(${item.sImg})` }}
 						>
-							<div className='slide-inner slide-bg-image'>
+							<div
+								className='slide-inner slide-bg-image'
+								dir={chosenLanguage === "Arabic" ? "rtl" : ""}
+								style={{
+									textAlign: chosenLanguage === "Arabic" ? "right" : "",
+								}}
+							>
 								<div className='container-fluid'>
 									<div className='slide-content'>
 										<div data-swiper-parallax='100' className='slide-title'>
@@ -126,7 +132,7 @@ const HeroWrapper = styled.section`
 	}
 
 	@media (max-width: 767px) {
-		height: 470px;
+		height: 440px;
 	}
 
 	.swiper-slide {
@@ -179,6 +185,8 @@ const HeroWrapper = styled.section`
 
 		@media (max-width: 767px) {
 			padding-left: 5px;
+			padding-bottom: 10px; /* Move content slightly higher on mobile */
+			margin-top: -40px; /* Adjust spacing from the top */
 		}
 	}
 
@@ -202,8 +210,9 @@ const HeroWrapper = styled.section`
 		}
 
 		@media (max-width: 767px) {
-			font-size: 23px;
-			line-height: 36px;
+			font-size: 24px; /* Increase text size slightly for readability */
+			line-height: 30px;
+			margin-top: 10px; /* Move title up */
 		}
 	}
 
@@ -220,7 +229,8 @@ const HeroWrapper = styled.section`
 		@media (max-width: 767px) {
 			font-size: 16px;
 			line-height: 22px;
-			margin-bottom: 30px;
+			margin-bottom: 20px; /* Reduce space below subtitle */
+			margin-top: 5px; /* Move subtitle up */
 		}
 	}
 
@@ -257,16 +267,19 @@ const HeroWrapper = styled.section`
 	.slide-btns {
 		margin-left: 40px;
 		.theme-btn {
-			padding: 10px 30px;
+			padding: 8px 20px; /* Adjust button padding for mobile */
 			color: white;
 			font-weight: bold;
 			cursor: pointer;
 			text-decoration: none;
 			display: inline-block;
-		}
 
-		@media (max-width: 767px) {
-			margin-left: 20px;
+			@media (max-width: 767px) {
+				margin-left: 0;
+				margin-top: 10px; /* Move button closer to text */
+				padding: 6px 15px;
+				font-size: 0.9rem;
+			}
 		}
 	}
 `;

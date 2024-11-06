@@ -54,7 +54,10 @@ const Navbar = () => {
 		<>
 			<HeaderTopbar />
 
-			<NavbarWrapper inTop={inTop}>
+			<NavbarWrapper
+				inTop={inTop}
+				dir={chosenLanguage === "Arabic" ? "rtl" : ""}
+			>
 				<LogoSection>
 					<img
 						src={
@@ -220,8 +223,8 @@ const LogoSection = styled.div`
 
 	@media (max-width: 768px) {
 		img {
-			width: 140px;
-			height: 60px;
+			width: 130px;
+			height: 55px;
 			object-fit: cover;
 		}
 	}
