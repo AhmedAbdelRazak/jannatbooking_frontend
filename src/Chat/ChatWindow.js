@@ -17,7 +17,7 @@ import ReactGA from "react-ga4";
 
 const { Option } = Select;
 
-const ChatWindow = ({ closeChatWindow }) => {
+const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 	const [activeHotels, setActiveHotels] = useState([]);
 	const [customerName, setCustomerName] = useState("");
 	const [customerEmail, setCustomerEmail] = useState("");
@@ -41,6 +41,13 @@ const ChatWindow = ({ closeChatWindow }) => {
 	// eslint-disable-next-line
 	const [isMinimized, setIsMinimized] = useState(false);
 	const messagesEndRef = useRef(null);
+
+	useEffect(() => {
+		if (selectedHotel && selectedHotel.hotelName) {
+			setHotelName(selectedHotel.hotelName);
+			setHotelId(selectedHotel._id);
+		}
+	}, [selectedHotel]);
 
 	useEffect(() => {
 		if (isAuthenticated()) {
@@ -462,11 +469,24 @@ const ChatWindow = ({ closeChatWindow }) => {
 							showSearch
 							placeholder='Select a hotel'
 							optionFilterProp='children'
+							value={hotelId || undefined} // Set the current value based on state
 							onChange={handleHotelChange}
 							filterOption={(input, option) =>
 								option.children.toLowerCase().includes(input.toLowerCase())
 							}
+							style={{ textTransform: "capitalize" }}
 						>
+							<Option
+								key='jklasdjklasd'
+								value='Speak With Jannat Booking'
+								style={{
+									textTransform: "capitalize",
+									fontWeight: "bold",
+									color: "darkred",
+								}}
+							>
+								Speak With Jannat Booking
+							</Option>
 							{activeHotels &&
 								activeHotels.map((hotel) => (
 									<Option
@@ -481,6 +501,16 @@ const ChatWindow = ({ closeChatWindow }) => {
 					</Form.Item>
 					<Form.Item label='Inquiry About' required>
 						<Select value={inquiryAbout} onChange={handleInquiryChange}>
+							<Option
+								value='Speak With Jannat Booking'
+								style={{
+									textTransform: "capitalize",
+									fontWeight: "bold",
+									color: "darkred",
+								}}
+							>
+								Speak With Jannat Booking
+							</Option>
 							<Option value='reserve_room'>Reserve A Room</Option>
 							<Option value='reserve_bed'>Reserve A Bed</Option>
 							<Option value='payment_inquiry'>Payment Inquiry</Option>

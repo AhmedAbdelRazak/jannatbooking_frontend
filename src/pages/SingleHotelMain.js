@@ -48,6 +48,7 @@ export default SingleHotelMain;
 
 const SingleHotelMainWrapper = styled.div`
 	min-height: 800px;
+	background-color: white;
 `;
 
 const SpinWrapper = styled.div`

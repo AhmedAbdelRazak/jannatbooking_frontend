@@ -93,7 +93,7 @@ const OurHotelRooms = () => {
 	const [loading, setLoading] = useState(true);
 	const [roomData, setRoomData] = useState(null);
 	const [distinctRoomTypes, setDistinctRoomTypes] = useState([]);
-
+	const [showAllAmenities, setShowAllAmenities] = useState(false);
 	const location = useLocation();
 	const queryParams = getQueryParams(location.search);
 
@@ -218,6 +218,8 @@ const OurHotelRooms = () => {
 								roomColor={room.roomColor}
 								adults={queryParams.adults}
 								children={queryParams.children}
+								showAllAmenities={showAllAmenities}
+								setShowAllAmenities={setShowAllAmenities}
 							/>
 						))
 					)}
@@ -245,6 +247,8 @@ const RoomCard = ({
 	roomColor,
 	adults,
 	children,
+	showAllAmenities,
+	setShowAllAmenities,
 }) => {
 	const [thumbsSwiper, setThumbsSwiper] = useState(null);
 	const averagePrice = calculateAveragePrice(
@@ -271,6 +275,10 @@ const RoomCard = ({
 		...room.extraAmenities,
 	];
 	const uniqueFeatures = [...new Set(combinedFeatures)].slice(0, 12);
+	// Determine visible features: show only the first 4 by default
+	const visibleFeatures = showAllAmenities
+		? uniqueFeatures
+		: uniqueFeatures.slice(0, 4);
 
 	const handleAddToCart = () => {
 		addRoomToCart(
@@ -359,13 +367,20 @@ const RoomCard = ({
 					starDimension='20px'
 					starSpacing='3px'
 				/> */}
-				<AmenitiesWrapper>
-					{uniqueFeatures.map((feature, index) => (
+				<AmenitiesWrapper className='p-0 m-0'>
+					{visibleFeatures.map((feature, index) => (
 						<AmenityItem key={index}>
 							{getIcon(feature)} <span>{feature}</span>
 						</AmenityItem>
 					))}
 				</AmenitiesWrapper>
+
+				{/* Show more/less link */}
+				{uniqueFeatures.length > 4 && (
+					<ShowMoreText onClick={() => setShowAllAmenities(!showAllAmenities)}>
+						{showAllAmenities ? "Show less..." : "Show more..."}
+					</ShowMoreText>
+				)}
 				<PriceWrapper>
 					Price from {startDate} to {endDate}: <span>{displayedPrice} SAR</span>{" "}
 					per night
@@ -505,6 +520,11 @@ const RoomDisplayName = styled.h3`
 	color: #333;
 	margin-bottom: 5px;
 	text-transform: capitalize;
+
+	@media (max-width: 750px) {
+		font-size: 1rem;
+		font-weight: bold;
+	}
 `;
 
 const HotelName = styled.p`
@@ -534,15 +554,12 @@ const PriceWrapper = styled.p`
 
 const AmenitiesWrapper = styled.div`
 	display: grid;
-	grid-template-columns: repeat(3, 1fr); /* Default to 3 amenities per row */
+	grid-template-columns: repeat(2, 1fr);
 	grid-gap: 10px;
 	margin-top: 15px;
 
 	@media (max-width: 768px) {
-		grid-template-columns: repeat(
-			2,
-			1fr
-		); /* Display 2 amenities per row on smaller screens */
+		grid-template-columns: repeat(2, 1fr);
 	}
 `;
 
@@ -554,6 +571,20 @@ const AmenityItem = styled.div`
 
 	span {
 		margin-left: 5px;
+	}
+`;
+
+const ShowMoreText = styled.span`
+	color: var(--primaryBlue);
+	cursor: pointer;
+	font-weight: bold;
+	text-decoration: underline;
+	margin-top: 10px;
+	display: inline-block;
+	font-size: 13px;
+
+	&:hover {
+		color: var(--primaryBlueDarker);
 	}
 `;
 

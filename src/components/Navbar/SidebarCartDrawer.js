@@ -157,6 +157,7 @@ const DrawerWrapper = styled.div`
 	display: flex;
 	flex-direction: column;
 	z-index: 200;
+	z-index: 10000;
 	overflow-y: auto;
 	transition:
 		transform 0.3s ease-in-out,

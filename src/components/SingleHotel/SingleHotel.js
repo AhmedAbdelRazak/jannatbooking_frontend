@@ -12,6 +12,7 @@ import { useCartContext } from "../../cart_context";
 import { DatePicker, Button } from "antd";
 import Tabs from "./Tabs";
 import dayjs from "dayjs";
+import StaticRating from "./StaticRating";
 
 const { RangePicker } = DatePicker;
 
@@ -66,6 +67,7 @@ const calculatePricingByDay = (pricingRate, startDate, endDate, basePrice) => {
 const SingleHotel = ({ selectedHotel }) => {
 	// eslint-disable-next-line
 	const [thumbsSwiper, setThumbsSwiper] = useState(null);
+	// eslint-disable-next-line
 	const [roomThumbsSwipers, setRoomThumbsSwipers] = useState([]);
 	const [dateRange, setDateRange] = useState([
 		dayjs().add(1, "day"),
@@ -73,6 +75,7 @@ const SingleHotel = ({ selectedHotel }) => {
 	]);
 
 	const [showAllAmenities, setShowAllAmenities] = useState(false);
+	const [showFullDescription, setShowFullDescription] = useState(false);
 
 	const handleAmenitiesToggle = () => {
 		setShowAllAmenities((prev) => !prev);
@@ -133,6 +136,7 @@ const SingleHotel = ({ selectedHotel }) => {
 		return addressParts.slice(1).join(", ").trim();
 	};
 
+	// eslint-disable-next-line
 	const handleRoomThumbsSwiper = (index) => (swiper) => {
 		setRoomThumbsSwipers((prev) => {
 			const newSwipers = [...prev];
@@ -275,12 +279,13 @@ const SingleHotel = ({ selectedHotel }) => {
 				<p>{formatAddress(selectedHotel.hotelAddress)}</p>
 				<StarRatings
 					rating={selectedHotel.hotelRating || 0}
-					starRatedColor='var(--orangeDark)'
+					starRatedColor='orange'
 					numberOfStars={5}
 					name='rating'
-					starDimension='24px'
-					starSpacing='3px'
+					starDimension='15px'
+					starSpacing='1px'
 				/>
+				<StaticRating />
 				<p>Phone: {selectedHotel.phone}</p>
 			</HotelInfo>
 
@@ -304,7 +309,7 @@ const SingleHotel = ({ selectedHotel }) => {
 
 				{combinedFeatures.length > 4 && (
 					<ToggleText onClick={handleAmenitiesToggle}>
-						{showAllAmenities ? "Hide..." : "See More..."}
+						{showAllAmenities ? "Hide..." : "Show More..."}
 					</ToggleText>
 				)}
 
@@ -333,20 +338,37 @@ const SingleHotel = ({ selectedHotel }) => {
 				</LoadScript>
 			</HotelOverview>
 
-			{/* Date Range Picker */}
-			<DateRangeWrapper>
-				<RangePicker
-					format='YYYY-MM-DD'
-					value={dateRange}
-					onChange={handleDateChange}
-					disabledDate={(current) => current && current < dayjs().endOf("day")}
-				/>
-			</DateRangeWrapper>
-
 			{/* Rooms Section */}
 			<RoomsSection ref={roomsRef} id='rooms'>
-				<h2>Rooms</h2>
+				<h2>Choose Your Room</h2>
+				{/* Date Range Picker */}
+				<DateRangeWrapper>
+					<ResponsiveRangePicker
+						format='YYYY-MM-DD'
+						value={dateRange}
+						onChange={handleDateChange}
+						disabledDate={(current) =>
+							current && current < dayjs().endOf("day")
+						}
+						panelRender={panelRender} // Add this to customize the panel rendering
+					/>
+				</DateRangeWrapper>
+
 				{selectedHotel.roomCountDetails.map((room, index) => {
+					// Combine all room-specific amenities
+					const roomAmenities = [
+						...new Set([
+							...room.amenities,
+							...room.views,
+							...room.extraAmenities,
+						]),
+					];
+
+					// Display only the first four amenities by default
+					const visibleAmenities = showAllAmenities
+						? roomAmenities
+						: roomAmenities.slice(0, 3);
+
 					const startDate = dateRange[0].format("YYYY-MM-DD");
 					const endDate = dateRange[1].format("YYYY-MM-DD");
 
@@ -394,7 +416,7 @@ const SingleHotel = ({ selectedHotel }) => {
 									))}
 								</Swiper>
 
-								<Swiper
+								{/* <Swiper
 									modules={[Thumbs]}
 									onSwiper={handleRoomThumbsSwiper(index)}
 									spaceBetween={2}
@@ -418,7 +440,7 @@ const SingleHotel = ({ selectedHotel }) => {
 											/>
 										</SwiperSlide>
 									))}
-								</Swiper>
+								</Swiper> */}
 							</RoomImageWrapper>
 
 							{/* Room Details */}
@@ -428,41 +450,78 @@ const SingleHotel = ({ selectedHotel }) => {
 										? room.displayName_OtherLanguage || room.displayName
 										: room.displayName}
 								</h3>
-								<p>
+								{/* <p className='m-0'>
 									Price: {displayTotalPrice}{" "}
 									<span style={{ textTransform: "uppercase" }}>
 										{selectedHotel.currency}
 									</span>{" "}
 									/ Total for {numberOfNights} nights{" "}
+								</p> */}
+								<p className='m-0'>
+									{
+										chosenLanguage === "Arabic"
+											? showFullDescription
+												? room.description_OtherLanguage || room.description // Show full Arabic description if available, else fallback to default
+												: (room.description_OtherLanguage || room.description)
+														.split(" ")
+														.slice(0, 8)
+														.join(" ") // Show only the first 8 words
+											: showFullDescription
+												? room.description // Show full English description
+												: room.description.split(" ").slice(0, 9).join(" ") // Show only the first 8 words
+									}
+									...
+									{!showFullDescription &&
+										((chosenLanguage === "Arabic" &&
+											(
+												room.description_OtherLanguage || room.description
+											).split(" ").length > 8) ||
+											(chosenLanguage !== "Arabic" &&
+												room.description.split(" ").length > 8)) && (
+											<div
+												onClick={() => setShowFullDescription(true)}
+												style={{
+													color: "var(--primaryBlue)",
+													cursor: "pointer",
+													fontWeight: "bold",
+													textDecoration: "underline",
+												}}
+											>
+												{chosenLanguage === "Arabic"
+													? "إظهار المزيد..."
+													: "show more..."}
+											</div>
+										)}
 								</p>
-								{chosenLanguage === "Arabic" ? (
-									<p>
-										{(room.description_OtherLanguage.length > 200
-											? `${room.description_OtherLanguage.slice(0, 200)}...`
-											: room.description_OtherLanguage) ||
-											(room.description.length > 200
-												? `${room.description.slice(0, 200)}...`
-												: room.description)}
-									</p>
-								) : (
-									<p>
-										{room.description.length > 200
-											? `${room.description.slice(0, 200)}...`
-											: room.description}
-									</p>
+								{showFullDescription && (
+									<span
+										onClick={() => setShowFullDescription(false)}
+										style={{
+											color: "var(--primaryBlue)",
+											cursor: "pointer",
+											fontWeight: "bold",
+											textDecoration: "underline",
+										}}
+									>
+										{chosenLanguage === "Arabic" ? "إظهار أقل" : "show less..."}
+									</span>
 								)}
 
 								<AmenitiesWrapper>
 									<h4>Amenities:</h4>
-									{combinedFeatures.map((feature, idx) => (
+									{visibleAmenities.map((feature, idx) => (
 										<AmenityItem key={idx}>
 											{getIcon(feature)} <span>{feature}</span>
 										</AmenityItem>
 									))}
+									{roomAmenities.length > 4 && (
+										<ToggleText
+											onClick={() => setShowAllAmenities(!showAllAmenities)}
+										>
+											{showAllAmenities ? "Hide" : "Show More..."}
+										</ToggleText>
+									)}
 								</AmenitiesWrapper>
-								<StyledButton onClick={() => handleAddRoomToCart(room)}>
-									Add Room To Reservation
-								</StyledButton>
 							</RoomDetails>
 
 							{/* Price Section */}
@@ -474,10 +533,15 @@ const SingleHotel = ({ selectedHotel }) => {
 										).toFixed(2)}{" "}
 										SAR / Night
 									</span>
-									<div>{numberOfNights} nights</div>
-									<div>Total: {displayTotalPrice} SAR</div>
+									<div className='nights'>{numberOfNights} nights</div>
+									<div className='finalTotal'>
+										Total: {displayTotalPrice} SAR
+									</div>
 								</FinalPrice>
 							</PriceSection>
+							<StyledButton onClick={() => handleAddRoomToCart(room)}>
+								Add Room To Reservation
+							</StyledButton>
 						</RoomCardWrapper>
 					);
 				})}
@@ -568,13 +632,17 @@ const HotelInfo = styled.div`
 		/* text-align: center; */
 		text-align: left; /* Aligns text to the left */
 		width: 100%;
-
+		margin: 5px 0;
 		h1 {
 			font-size: 28px;
+			padding: 0px;
+			margin: 0px;
 		}
 
 		p {
 			font-size: 16px;
+			padding: 0px;
+			margin: 0px;
 		}
 	}
 `;
@@ -658,6 +726,7 @@ const MapContainer = styled.div`
 // 	}
 // `;
 
+// eslint-disable-next-line
 const RoomThumbnailImage = styled.img`
 	width: 90%;
 	height: 80px;
@@ -692,14 +761,11 @@ const RoomsSection = styled.div`
 	@media (max-width: 750px) {
 		width: 100%;
 		padding: 5px;
-	}
-`;
 
-const DateRangeWrapper = styled.div`
-	margin-bottom: 20px;
-	margin-top: 20px;
-	display: flex;
-	justify-content: center;
+		h2 {
+			font-size: 1.35rem;
+		}
+	}
 `;
 
 const RoomCardWrapper = styled.div`
@@ -715,6 +781,7 @@ const RoomCardWrapper = styled.div`
 
 	@media (max-width: 768px) {
 		display: block; /* Stack the elements vertically for mobile */
+		padding: 5px;
 	}
 `;
 
@@ -730,6 +797,10 @@ const RoomImage = styled.img`
 	height: 300px;
 	object-fit: cover;
 	border-radius: 10px;
+
+	@media (max-width: 750px) {
+		height: 220px;
+	}
 `;
 
 const RoomDetails = styled.div`
@@ -742,11 +813,27 @@ const RoomDetails = styled.div`
 		font-size: 1.5rem;
 		color: var(--primaryBlue);
 		margin-bottom: 10px;
+		text-transform: capitalize;
+		text-align: left;
 	}
 
 	p {
 		font-size: 1rem;
 		margin-bottom: 10px;
+	}
+
+	@media (max-width: 750px) {
+		padding: 0 0px;
+
+		h3 {
+			font-size: 1.15rem;
+			margin-top: 10px;
+			font-weight: bold;
+		}
+
+		p {
+			font-size: 13px;
+		}
 	}
 `;
 
@@ -757,8 +844,9 @@ const PriceSection = styled.div`
 	justify-content: space-between;
 
 	@media (max-width: 768px) {
-		align-items: center;
+		align-items: left;
 		margin-top: 20px;
+		align-items: flex-start;
 	}
 `;
 
@@ -775,7 +863,18 @@ const FinalPrice = styled.div`
 	}
 
 	@media (max-width: 768px) {
-		align-items: center;
+		align-items: left;
+		align-items: flex-start;
+
+		.current-price {
+			font-size: 1rem;
+		}
+
+		.finalTotal,
+		.nights {
+			font-size: 0.75rem;
+			font-weight: bold;
+		}
 	}
 `;
 
@@ -786,7 +885,13 @@ const AmenitiesWrapper = styled.div`
 	margin-top: 15px;
 
 	@media (max-width: 768px) {
-		grid-template-columns: repeat(2, 1fr);
+		grid-template-columns: 1fr; /* Change to 1 column on smaller screens */
+		margin-top: 5px;
+		grid-gap: 5px;
+
+		h4 {
+			font-size: 1.15rem;
+		}
 	}
 `;
 
@@ -795,6 +900,7 @@ const AmenityItem = styled.div`
 	align-items: center;
 	font-size: 12px;
 	color: var(--text-color-primary);
+	font-weight: bold;
 
 	span {
 		margin-left: 5px;
@@ -834,4 +940,53 @@ const StyledButton = styled(Button)`
 		border-color: var(--primary-color-darker);
 		box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 	}
+`;
+
+// Styled RangePicker container for customizing panel rendering
+const StyledRangePickerContainer = styled.div`
+	@media (max-width: 768px) {
+		.ant-picker-panel:last-child {
+			width: 0;
+			overflow: hidden;
+			.ant-picker-header,
+			.ant-picker-body {
+				display: none;
+			}
+		}
+	}
+`;
+
+// Panel render function
+const panelRender = (panelNode) => (
+	<StyledRangePickerContainer>{panelNode}</StyledRangePickerContainer>
+);
+
+// Responsive RangePicker styled component
+const ResponsiveRangePicker = styled(RangePicker)`
+	width: 100%;
+	.ant-picker-input {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding-top: 7px;
+		padding-bottom: 7px;
+	}
+	.ant-picker {
+		border-radius: 10px;
+	}
+
+	@media (max-width: 768px) {
+		.ant-picker {
+			width: 100%;
+		}
+	}
+`;
+
+// DateRangeWrapper for consistent layout
+const DateRangeWrapper = styled.div`
+	margin-top: 20px;
+	margin-bottom: 20px;
+	display: flex;
+	justify-content: center;
+	width: 100%;
 `;

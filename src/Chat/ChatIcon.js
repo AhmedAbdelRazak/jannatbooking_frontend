@@ -3,7 +3,10 @@ import { Badge, Button } from "antd";
 import { MessageOutlined } from "@ant-design/icons";
 import ChatWindow from "./ChatWindow";
 import styled from "styled-components";
-import { getUnseenMessagesCountByCustomer } from "../apiCore"; // Import the function to fetch unseen messages count
+import {
+	gettingSingleHotel,
+	getUnseenMessagesCountByCustomer,
+} from "../apiCore"; // Import the function to fetch unseen messages count
 import notificationSound from "./Notification.wav"; // Import the notification sound
 import socket from "./socket"; // Ensure this is correctly imported
 import ReactGA from "react-ga4";
@@ -13,6 +16,8 @@ const ChatIconWrapper = styled.div`
 	bottom: 20px;
 	right: 20px;
 	z-index: 1000;
+	display: flex;
+	align-items: center;
 
 	@media (max-width: 750px) {
 		bottom: 70px;
@@ -22,12 +27,49 @@ const ChatIconWrapper = styled.div`
 const StyledButton = styled(Button)`
 	background-color: var(--primary-color);
 	border: none;
+	margin-right: 10px; /* Add some spacing between the icon and the message */
+`;
+
+const ChatMessage = styled.div`
+	cursor: pointer;
+	/* color: var(--primary-color); */
+	color: #1890ff;
+	font-weight: bold;
+	text-transform: capitalize;
+	background-color: white;
+	font-size: 15px;
+	padding: 3px;
+	border-radius: 10px;
+	&:hover {
+		text-decoration: underline;
+	}
 `;
 
 const ChatIcon = () => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [unseenCount, setUnseenCount] = useState(0);
 	const [hasInteracted, setHasInteracted] = useState(false); // Track user interaction
+	const [selectedHotel, setSelectedHotel] = useState(null); // Track selected hotel
+
+	// Extract the hotelNameSlug from window.location.pathname
+	useEffect(() => {
+		const path = window.location.pathname;
+		if (path.includes("/single-hotel/")) {
+			const slug = path.split("/single-hotel/")[1];
+			if (slug) {
+				fetchHotel(slug);
+			}
+		}
+	}, []);
+
+	const fetchHotel = async (slug) => {
+		try {
+			const hotelData = await gettingSingleHotel(slug);
+			setSelectedHotel(hotelData);
+		} catch (error) {
+			console.error("Error fetching hotel:", error);
+		}
+	};
 
 	const toggleChatWindow = () => {
 		ReactGA.event({
@@ -111,7 +153,17 @@ const ChatIcon = () => {
 					onClick={toggleChatWindow}
 				/>
 			</Badge>
-			{isOpen && <ChatWindow closeChatWindow={toggleChatWindow} />}
+			{selectedHotel && (
+				<ChatMessage onClick={toggleChatWindow}>
+					Speak with {selectedHotel.hotelName} reception
+				</ChatMessage>
+			)}
+			{isOpen && (
+				<ChatWindow
+					closeChatWindow={toggleChatWindow}
+					selectedHotel={selectedHotel}
+				/>
+			)}
 		</ChatIconWrapper>
 	);
 };

@@ -53,6 +53,8 @@ const TabsWrapper = styled.div`
 	z-index: 10;
 	margin-top: -20px;
 	min-width: 1200px;
+	justify-content: center;
+	text-align: center;
 
 	@media (max-width: 500px) {
 		min-width: 430px;

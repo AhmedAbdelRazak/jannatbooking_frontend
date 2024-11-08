@@ -30,23 +30,11 @@ const getIcon = (item) => {
 	return null;
 };
 
-// Function to get unique amenities, views, and extra amenities, limit to 12
-const getUniqueFeatures = (featuresArray) => {
-	const uniqueFeatures = [];
-
-	featuresArray.forEach((feature) => {
-		if (!uniqueFeatures.includes(feature)) {
-			uniqueFeatures.push(feature);
-		}
-	});
-
-	return uniqueFeatures.slice(0, 12);
-};
-
 // HotelCard component for individual hotels
 const HotelCard = ({ hotel }) => {
 	const [thumbsSwiper, setThumbsSwiper] = useState(null); // Each hotel has its own thumbsSwiper
 	const [mainSwiper, setMainSwiper] = useState(null); // Main swiper reference to control autoplay
+	const [showAllAmenities, setShowAllAmenities] = useState(false); // State to show/hide all amenities
 
 	const combinedFeatures = [
 		...hotel.roomCountDetails.flatMap((room) => room.amenities),
@@ -54,7 +42,12 @@ const HotelCard = ({ hotel }) => {
 		...hotel.roomCountDetails.flatMap((room) => room.extraAmenities),
 	];
 
-	const uniqueFeatures = getUniqueFeatures(combinedFeatures);
+	const uniqueFeatures = [...new Set(combinedFeatures)]; // Get unique features
+
+	// Determine visible features based on state
+	const visibleFeatures = showAllAmenities
+		? uniqueFeatures
+		: uniqueFeatures.slice(0, 4);
 
 	// Stop autoplay when user hovers over the image
 	const handleMouseEnter = () => {
@@ -136,25 +129,37 @@ const HotelCard = ({ hotel }) => {
 			{/* Hotel details section */}
 			<HotelDetails>
 				<div>
-					<HotelName>{hotel.hotelName}</HotelName>
-					<Location>{formatAddress(hotel.hotelAddress)}</Location>
+					<HotelName className='p-0 m-1'>{hotel.hotelName}</HotelName>
+					<Location className='p-0 m-1'>
+						{formatAddress(hotel.hotelAddress)}
+					</Location>
 					<StarRatings
+						className='p-0 m-1'
 						rating={hotel.hotelRating || 0}
 						starRatedColor='orange'
 						numberOfStars={5}
 						name='rating'
-						starDimension='20px'
-						starSpacing='3px'
+						starDimension='15px'
+						starSpacing='1px'
 					/>
 
 					{/* Display unique amenities, views, and extra amenities */}
-					<AmenitiesWrapper>
-						{uniqueFeatures.map((feature, index) => (
+					<AmenitiesWrapper className='p-0 m-1'>
+						{visibleFeatures.map((feature, index) => (
 							<AmenityItem key={index}>
 								{getIcon(feature)} <span>{feature}</span>
 							</AmenityItem>
 						))}
 					</AmenitiesWrapper>
+
+					{/* Show more/less link */}
+					{uniqueFeatures.length > 6 && (
+						<ShowMoreText
+							onClick={() => setShowAllAmenities(!showAllAmenities)}
+						>
+							{showAllAmenities ? "Show less..." : "Show more..."}
+						</ShowMoreText>
+					)}
 
 					<PriceWrapper className='mt-3'>
 						Starting from:{" "}
@@ -166,9 +171,9 @@ const HotelCard = ({ hotel }) => {
 
 			{/* Price and Offer section */}
 			<PriceSection>
-				<OfferTag>Limited Offer</OfferTag>
+				{/* <OfferTag>Limited Offer</OfferTag> */}
 				<FinalPrice>
-					<span className='old-price'>136 SAR</span>
+					{/* <span className='old-price'>136 SAR</span> */}
 					<span className='current-price'>
 						{hotel.roomCountDetails[0]?.price.basePrice} SAR
 					</span>
@@ -194,6 +199,25 @@ const HotelList = ({ activeHotels }) => {
 };
 
 export default HotelList;
+
+// Styled-components for the new show more text
+const ShowMoreText = styled.span`
+	color: var(--primaryBlue);
+	cursor: pointer;
+	font-weight: bold;
+	text-decoration: underline;
+	margin-top: 10px;
+	display: inline-block;
+
+	&:hover {
+		color: var(--primaryBlueDarker);
+	}
+
+	@media (max-width: 750px) {
+		font-size: 13px;
+		margin-top: 5px;
+	}
+`;
 
 // Styled-components for the component
 const HotelListWrapper = styled.div`
@@ -235,6 +259,7 @@ const HotelCardWrapper = styled.div`
 	/* Mobile view adjustments */
 	@media (max-width: 768px) {
 		display: block; /* Stack the elements vertically for mobile */
+		padding: 0px;
 	}
 
 	/* Ensure that the images take full width for small screens */
@@ -243,6 +268,7 @@ const HotelCardWrapper = styled.div`
 		height: auto; /* Automatically adjust the height based on the width */
 		object-fit: cover;
 		border-radius: 10px;
+		padding: 0px;
 	}
 
 	/* For tablets and larger screens, keep the grid layout */
@@ -272,6 +298,7 @@ const HotelImageWrapper = styled.div`
 			width: 100%;
 			object-fit: cover;
 			border-radius: 10px 10px 0 0; /* Optional: Rounded top corners */
+			height: 240px;
 		}
 	}
 
@@ -348,10 +375,11 @@ const PriceSection = styled.div`
 
 	@media (max-width: 768px) {
 		align-items: center;
-		margin-top: 20px;
+		margin-top: 0px;
 	}
 `;
 
+// eslint-disable-next-line
 const OfferTag = styled.div`
 	background-color: var(--secondary-color);
 	color: var(--mainWhite);
@@ -368,20 +396,25 @@ const FinalPrice = styled.div`
 	align-items: flex-end;
 	font-size: 1.25rem;
 
-	.old-price {
-		text-decoration: line-through;
-		color: var(--neutral-dark);
-		font-size: 1rem;
-	}
-
 	.current-price {
 		font-weight: bold;
 		color: var(--secondary-color);
-		font-size: 1.5rem;
+		font-size: 1.3rem;
 	}
 
 	@media (max-width: 768px) {
-		align-items: center;
+		align-items: left;
+		align-items: flex-start;
+
+		.current-price {
+			font-size: 1rem;
+		}
+
+		.finalTotal,
+		.nights {
+			font-size: 0.75rem;
+			font-weight: bold;
+		}
 	}
 `;
 
