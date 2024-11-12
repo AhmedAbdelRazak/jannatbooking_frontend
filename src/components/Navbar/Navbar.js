@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import { AiOutlineShoppingCart, AiOutlineUser } from "react-icons/ai";
+import { AiOutlineShoppingCart } from "react-icons/ai";
 import {
 	FaAddressBook,
 	FaBuilding,
@@ -8,7 +8,6 @@ import {
 	FaHome,
 	FaPhoneVolume,
 	FaRegBell,
-	FaRegUserCircle,
 } from "react-icons/fa";
 import { RiLoginCircleLine } from "react-icons/ri";
 import SidebarCartDrawer from "./SidebarCartDrawer";
@@ -200,7 +199,7 @@ const Navbar = () => {
 							}}
 						>
 							<Link to='/'>
-								<FaRegUserCircle /> الرئيسية
+								<FaHome /> الرئيسية
 							</Link>
 						</li>
 						<li
@@ -211,17 +210,17 @@ const Navbar = () => {
 							}}
 						>
 							<Link to='/our-hotels'>
-								<AiOutlineUser /> فنادقنا
+								<FaBuilding /> فنادقنا
 							</Link>
 						</li>
 						<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
 							<Link to='/about'>
-								<FaRegUserCircle /> معلومات عنا
+								<FaAddressBook /> معلومات عنا
 							</Link>
 						</li>
 						<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
 							<Link to='/contact'>
-								<FaRegUserCircle /> اتصل بنا
+								<FaPhoneVolume /> اتصل بنا
 							</Link>
 						</li>
 						<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
@@ -231,7 +230,7 @@ const Navbar = () => {
 						</li>
 						<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
 							<Link to='/register'>
-								<RiLoginCircleLine /> تسجيل
+								<FaRegBell /> تسجيل
 							</Link>
 						</li>
 					</React.Fragment>
