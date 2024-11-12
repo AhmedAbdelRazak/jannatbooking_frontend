@@ -1,7 +1,16 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import { AiOutlineShoppingCart } from "react-icons/ai";
-import { FaHeart } from "react-icons/fa";
+import { AiOutlineShoppingCart, AiOutlineUser } from "react-icons/ai";
+import {
+	FaAddressBook,
+	FaBuilding,
+	FaHeart,
+	FaHome,
+	FaPhoneVolume,
+	FaRegBell,
+	FaRegUserCircle,
+} from "react-icons/fa";
+import { RiLoginCircleLine } from "react-icons/ri";
 import SidebarCartDrawer from "./SidebarCartDrawer";
 import { Link } from "react-router-dom";
 import { useCartContext } from "../../cart_context";
@@ -58,7 +67,12 @@ const Navbar = () => {
 				inTop={inTop}
 				dir={chosenLanguage === "Arabic" ? "rtl" : ""}
 			>
-				<LogoSection onClick={() => (window.location.href = "/")}>
+				<LogoSection
+					onClick={() => {
+						window.scrollTo({ top: 0 });
+						window.location.href = "/";
+					}}
+				>
 					<img
 						src={
 							homePage && homePage.janatLogo && homePage.janatLogo.url
@@ -66,6 +80,7 @@ const Navbar = () => {
 								: "https://res.cloudinary.com/infiniteapps/image/upload/v1707282182/janat/1707282182070.png"
 						}
 						alt='jannatbooking umrah trips'
+						style={{ cursor: "pointer" }}
 					/>
 				</LogoSection>
 
@@ -75,12 +90,20 @@ const Navbar = () => {
 				>
 					{chosenLanguage === "Arabic" ? (
 						<>
-							<li>
+							<li
+								onClick={() => {
+									window.location.href = "/";
+								}}
+							>
 								<Link to='/' onClick={() => window.scrollTo({ top: 0 })}>
 									الرئيسية
 								</Link>
 							</li>
-							<li>
+							<li
+								onClick={() => {
+									window.location.href = "/our-hotels";
+								}}
+							>
 								<Link
 									to='/our-hotels'
 									onClick={() => window.scrollTo({ top: 8 })}
@@ -101,12 +124,20 @@ const Navbar = () => {
 						</>
 					) : (
 						<>
-							<li>
+							<li
+								onClick={() => {
+									window.location.href = "/";
+								}}
+							>
 								<Link to='/' onClick={() => window.scrollTo({ top: 0 })}>
 									Home
 								</Link>
 							</li>
-							<li>
+							<li
+								onClick={() => {
+									window.location.href = "/our-hotels";
+								}}
+							>
 								<Link
 									to='/our-hotels'
 									onClick={() => window.scrollTo({ top: 8 })}
@@ -114,12 +145,20 @@ const Navbar = () => {
 									Our Hotels
 								</Link>
 							</li>
-							<li>
+							<li
+								onClick={() => {
+									window.location.href = "/about";
+								}}
+							>
 								<Link to='/about' onClick={() => window.scrollTo({ top: 8 })}>
 									About Us
 								</Link>
 							</li>
-							<li>
+							<li
+								onClick={() => {
+									window.location.href = "/contact";
+								}}
+							>
 								<Link to='/contact' onClick={() => window.scrollTo({ top: 8 })}>
 									Call Us
 								</Link>
@@ -152,36 +191,115 @@ const Navbar = () => {
 			</NavbarWrapper>
 			<SideDrawer isOpen={isDrawerOpen} language={chosenLanguage === "Arabic"}>
 				{chosenLanguage === "Arabic" ? (
-					<>
-						<li onClick={() => setIsDrawerOpen(false)}>
-							<Link to='/'>الرئيسية</Link>
+					<React.Fragment>
+						<li
+							dir='rtl'
+							onClick={() => {
+								setIsDrawerOpen(false);
+								window.location.href = "/";
+							}}
+						>
+							<Link to='/'>
+								<FaRegUserCircle /> الرئيسية
+							</Link>
 						</li>
-						<li onClick={() => setIsDrawerOpen(false)}>
-							<Link to='/our-hotels'>فنادقنا</Link>
+						<li
+							dir='rtl'
+							onClick={() => {
+								setIsDrawerOpen(false);
+								window.location.href = "/our-hotels";
+							}}
+						>
+							<Link to='/our-hotels'>
+								<AiOutlineUser /> فنادقنا
+							</Link>
 						</li>
-						<li onClick={() => setIsDrawerOpen(false)}>
-							<Link to='/about'>معلومات عنا</Link>
+						<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
+							<Link to='/about'>
+								<FaRegUserCircle /> معلومات عنا
+							</Link>
 						</li>
-						<li onClick={() => setIsDrawerOpen(false)}>
-							<Link to='/contact'>اتصل بنا</Link>
+						<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
+							<Link to='/contact'>
+								<FaRegUserCircle /> اتصل بنا
+							</Link>
 						</li>
-					</>
+						<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
+							<Link to='/login'>
+								<RiLoginCircleLine /> تسجيل الدخول
+							</Link>
+						</li>
+						<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
+							<Link to='/register'>
+								<RiLoginCircleLine /> تسجيل
+							</Link>
+						</li>
+					</React.Fragment>
 				) : (
 					<>
-						<li onClick={() => setIsDrawerOpen(false)}>
-							<Link to='/'>Home</Link>
+						<li
+							onClick={() => {
+								setIsDrawerOpen(false);
+								window.location.href = "/";
+							}}
+						>
+							<Link to='/'>
+								<FaHome /> Home
+							</Link>
+						</li>
+						<li
+							onClick={() => {
+								setIsDrawerOpen(false);
+								window.location.href = "/our-hotels";
+							}}
+						>
+							<Link to='/our-hotels'>
+								<FaBuilding /> Our Hotels
+							</Link>
 						</li>
 						<li onClick={() => setIsDrawerOpen(false)}>
-							<Link to='/our-hotels'>Our Hotels</Link>
+							<Link to='/about'>
+								<FaAddressBook /> About Us
+							</Link>
 						</li>
 						<li onClick={() => setIsDrawerOpen(false)}>
-							<Link to='/about'>About Us</Link>
+							<Link to='/contact'>
+								<FaPhoneVolume /> Call Us
+							</Link>
 						</li>
 						<li onClick={() => setIsDrawerOpen(false)}>
-							<Link to='/contact'>Call Us</Link>
+							<Link to='/login'>
+								<RiLoginCircleLine /> Login
+							</Link>
+						</li>
+						<li onClick={() => setIsDrawerOpen(false)}>
+							<Link to='/register'>
+								<FaRegBell /> Register
+							</Link>
 						</li>
 					</>
 				)}
+
+				{/* Additional functionality in the drawer */}
+				<div className='icon-container'>
+					<LanguageToggle>
+						{chosenLanguage === "Arabic" ? (
+							<span onClick={() => languageToggle("English")}>
+								<i className='fa-solid fa-earth-americas'></i> En
+							</span>
+						) : (
+							<span onClick={() => languageToggle("Arabic")}>
+								<i className='fa-solid fa-earth-americas'></i> Ar
+							</span>
+						)}
+					</LanguageToggle>
+
+					<WishlistIcon />
+					<CartIconWrapper>
+						<CartIcon onClick={openSidebar2} />
+						{total_rooms > 0 && <Badge>{total_rooms}</Badge>}
+					</CartIconWrapper>
+				</div>
 			</SideDrawer>
 			<Backdrop isOpen={isDrawerOpen} onClick={closeDrawer} />
 			<SidebarCartDrawer from='Navbar' />
@@ -317,17 +435,32 @@ const MobileIcon = styled.div`
 const SideDrawer = styled.div`
 	position: fixed;
 	top: 0;
-	right: 0;
-	width: 250px;
+	${({ language }) => (language ? "right: 0;" : "left: 0;")}
+	width: 80%; /* 80% of the screen */
 	height: 100%;
 	background: white;
-	transform: ${({ isOpen }) => (isOpen ? "translateX(0)" : "translateX(100%)")};
+	transform: ${({ isOpen, language }) =>
+		isOpen
+			? "translateX(0)"
+			: language
+				? "translateX(100%)"
+				: "translateX(-100%)"};
 	transition: transform 0.3s ease-in-out;
 	z-index: 50;
 	background-color: var(--primaryBlue);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding-top: 20px;
 
 	a {
 		color: white;
+		text-decoration: none;
+		font-size: 1rem;
+		font-weight: bold;
+		display: flex;
+		align-items: center;
+		gap: 10px;
 	}
 
 	@media (min-width: 769px) {
@@ -335,11 +468,18 @@ const SideDrawer = styled.div`
 	}
 
 	& li {
+		width: 100%;
+		text-align: ${({ language }) => (language ? "right" : "left")};
 		padding: 20px;
 		list-style: none;
-		text-align: ${({ language }) => (language ? "right" : "left")};
-		font-weight: bold;
-		color: white;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	.icon-container {
+		width: 100%;
+		display: flex;
+		justify-content: space-around;
+		margin-top: 20px;
 	}
 `;
 

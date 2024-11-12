@@ -127,7 +127,7 @@ const PopularHotelsContainer = styled.div`
 	width: 75%;
 	margin: 0 auto;
 	background: var(--neutral-light2);
-	padding: 50px 0;
+	padding: 20px 0;
 	border-radius: 5px;
 	overflow-x: hidden;
 

@@ -181,7 +181,7 @@ export default Search;
 // Wrapper for the entire search component
 const SearchWrapper = styled.div`
 	position: absolute;
-	top: 96%;
+	top: 95%; /* Overlaps the bottom of the Hero by 5% */
 	left: 50%;
 	transform: translate(-50%, -50%);
 	background-color: white;
@@ -201,14 +201,25 @@ const SearchWrapper = styled.div`
 		align-items: center;
 	}
 
-	// Increase the height of the container on larger screens for a spacious layout
+	// Maintain the current look for larger screens
 	@media (min-width: 1024px) {
 		padding: 50px;
+		top: 96%; /* Restore to the current position for larger screens */
 	}
 
+	// Responsive styling for smaller screens
 	@media (max-width: 768px) {
 		width: 95%;
-		top: 65%;
+		top: 105%; /* Adjust to overlap 5% more with Hero */
+		padding: 20px; /* Reduce padding for better fit */
+		border-radius: 15px;
+	}
+
+	@media (max-width: 480px) {
+		top: 62%; /* Adjust top value for very small screens */
+		width: 100%; /* Full width for better fit */
+		padding: 15px; /* Further reduce padding for compact layout */
+		border-radius: 10px;
 	}
 `;
 

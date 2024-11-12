@@ -33,7 +33,7 @@ const Section2 = () => {
 						</ImageWrapper>
 						<Info>
 							<h3>Makkah</h3>
-							<p>362339 properties</p>
+							{/* <p>362339 properties</p> */}
 						</Info>
 					</Destination>
 					<Destination onClick={() => handleImageClick("Madinah")}>
@@ -42,7 +42,7 @@ const Section2 = () => {
 						</ImageWrapper>
 						<Info>
 							<h3>Madinah</h3>
-							<p>224506 properties</p>
+							{/* <p>224506 properties</p> */}
 						</Info>
 					</Destination>
 				</Content>
@@ -69,7 +69,7 @@ const Section2Wrapper = styled.div`
 
 	@media (max-width: 800px) {
 		width: 100%;
-		margin-top: 700px;
+		margin-top: 735px;
 	}
 `;
 
@@ -82,6 +82,7 @@ const Title = styled.h2`
 	@media (max-width: 768px) {
 		margin-left: 10px;
 		font-size: 1.35rem;
+		padding: 5px 0px;
 	}
 `;
 
