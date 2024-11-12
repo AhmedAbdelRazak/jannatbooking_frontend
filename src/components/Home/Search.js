@@ -216,7 +216,7 @@ const SearchWrapper = styled.div`
 	}
 
 	@media (max-width: 480px) {
-		top: 62%; /* Adjust top value for very small screens */
+		top: 65%; /* Adjust top value for very small screens */
 		width: 100%; /* Full width for better fit */
 		padding: 15px; /* Further reduce padding for compact layout */
 		border-radius: 10px;

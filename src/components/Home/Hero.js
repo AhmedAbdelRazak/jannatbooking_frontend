@@ -197,7 +197,7 @@ const HeroWrapper = styled.section`
 		@media (max-width: 767px) {
 			padding-left: 5px;
 			padding-bottom: 30px; /* Move content slightly higher on mobile */
-			margin-top: -20px; /* Adjust spacing from the top */
+			margin-top: -50px; /* Adjust spacing from the top */
 		}
 	}
 
