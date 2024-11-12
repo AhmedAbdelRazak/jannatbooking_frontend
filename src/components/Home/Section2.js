@@ -69,7 +69,7 @@ const Section2Wrapper = styled.div`
 
 	@media (max-width: 800px) {
 		width: 100%;
-		margin-top: 735px;
+		margin-top: 700px;
 	}
 `;
 
@@ -82,7 +82,6 @@ const Title = styled.h2`
 	@media (max-width: 768px) {
 		margin-left: 10px;
 		font-size: 1.35rem;
-		padding: 5px 0px;
 	}
 `;
 
