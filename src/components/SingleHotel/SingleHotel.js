@@ -75,6 +75,7 @@ const SingleHotel = ({ selectedHotel }) => {
 	]);
 
 	const [showAllAmenities, setShowAllAmenities] = useState(false);
+	const [showAllAmenities2, setShowAllAmenities2] = useState(false);
 	const [showFullDescription, setShowFullDescription] = useState(false);
 
 	const handleAmenitiesToggle = () => {
@@ -365,7 +366,7 @@ const SingleHotel = ({ selectedHotel }) => {
 					];
 
 					// Display only the first four amenities by default
-					const visibleAmenities = showAllAmenities
+					const visibleAmenities = showAllAmenities2
 						? roomAmenities
 						: roomAmenities.slice(0, 3);
 
@@ -516,9 +517,9 @@ const SingleHotel = ({ selectedHotel }) => {
 									))}
 									{roomAmenities.length > 4 && (
 										<ToggleText
-											onClick={() => setShowAllAmenities(!showAllAmenities)}
+											onClick={() => setShowAllAmenities2(!showAllAmenities2)}
 										>
-											{showAllAmenities ? "Hide" : "Show More..."}
+											{showAllAmenities2 ? "Hide" : "Show More..."}
 										</ToggleText>
 									)}
 								</AmenitiesWrapper>
@@ -561,6 +562,7 @@ const SingleHotelWrapper = styled.div`
 	overflow: hidden;
 	@media (max-width: 800px) {
 		margin-top: 40px;
+		padding: 10px;
 	}
 `;
 

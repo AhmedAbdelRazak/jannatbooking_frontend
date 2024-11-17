@@ -403,7 +403,7 @@ const OurHotelRoomsWrapper = styled.div`
 	min-height: 700px;
 
 	@media (max-width: 1000px) {
-		padding: 160px 0px;
+		padding: 200px 0px;
 	}
 `;
 
@@ -532,6 +532,11 @@ const HotelName = styled.p`
 	color: #555;
 	margin-bottom: 5px;
 	text-transform: capitalize;
+	font-weight: bold;
+
+	@media (max-width: 700px) {
+		font-size: 0.9rem;
+	}
 `;
 
 const Location = styled.p`
@@ -539,6 +544,10 @@ const Location = styled.p`
 	color: #888;
 	margin-bottom: 10px;
 	text-transform: capitalize;
+
+	@media (max-width: 700px) {
+		font-size: 0.8rem;
+	}
 `;
 
 const PriceWrapper = styled.p`

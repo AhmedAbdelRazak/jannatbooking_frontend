@@ -1,6 +1,6 @@
 /** @format */
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useHistory, useLocation } from "react-router-dom";
 import styled from "styled-components";
 import { authenticate, isAuthenticated, signin } from "../auth";
 import { ToastContainer, toast } from "react-toastify";
@@ -12,6 +12,10 @@ import { MailOutlined, PhoneOutlined, LockOutlined } from "@ant-design/icons";
 const { Title } = Typography;
 
 const Signin = ({ history }) => {
+	const location = useLocation();
+	// eslint-disable-next-line
+	const historyInstance = useHistory();
+
 	const [values, setValues] = useState({
 		emailOrPhone: "",
 		password: "",
@@ -21,6 +25,10 @@ const Signin = ({ history }) => {
 
 	const { emailOrPhone, password, loading, redirectToReferrer } = values;
 	const { user } = isAuthenticated();
+
+	// Extract the returnUrl from query params
+	const params = new URLSearchParams(location.search);
+	const returnUrl = params.get("returnUrl") || "/our-hotels";
 
 	const handleChange = (name) => (event) => {
 		setValues({ ...values, error: false, [name]: event.target.value });
@@ -69,13 +77,10 @@ const Signin = ({ history }) => {
 						...values,
 					});
 					if (data.user.role === 1) {
-						window.location.href = "/admin/dashboard";
-					} else if (data.user.role === 3) {
-						window.location.href = "/order-taker/create-new-order";
-					} else if (data.user.role === 4) {
-						window.location.href = "/operations/sales-history";
+						window.location.href = `${process.env.REACT_APP_XHOTEL}/admin/dashboard`;
 					} else {
-						window.location.href = "/";
+						window.location.href = returnUrl;
+						// historyInstance.push(returnUrl); // Redirect to the returnUrl or default route
 					}
 				});
 			}
@@ -177,28 +182,16 @@ const Signin = ({ history }) => {
 		<WholeSignin>
 			<Helmet>
 				<meta charSet='utf-8' />
-				<title>Serene Jannat Gift Shop | Account Login</title>
-				<meta
-					name='description'
-					content='Login to your Serene Jannat account to access exclusive offers, manage your orders, and stay updated with the latest products. Experience the best of online shopping with our wide range of gifts, candles, and glass items. Your satisfaction is our priority.'
-				/>
-				<meta
-					name='keywords'
-					content='Serene Jannat, login, account, gift shop, candles, glass items, online shopping, exclusive offers, order management'
-				/>
-				<meta
-					property='og:title'
-					content='Serene Jannat Gift Shop | Account Login'
-				/>
-				<meta
-					property='og:description'
-					content='Login to your Serene Jannat account to access exclusive offers, manage your orders, and stay updated with the latest products. Experience the best of online shopping with our wide range of gifts, candles, and glass items. Your satisfaction is our priority.'
-				/>
-				<meta property='og:url' content='https://serenejannat.com/signin' />
+				<title>Jannat Booking | Account Login</title>
+				<meta name='description' content='' />
+				<meta name='keywords' content='' />
+				<meta property='og:title' content='Jannat Booking | Account Login' />
+				<meta property='og:description' content='' />
+				<meta property='og:url' content='https://jannatbooking.com/signin' />
 				<meta property='og:type' content='website' />
 				<meta property='og:locale' content='en_US' />
-				<link rel='icon' href='serene_frontend/src/GeneralImgs/favicon.ico' />
-				<link rel='canonical' href='https://serenejannat.com/signin' />
+				{/* <link rel='icon' href='serene_frontend/src/GeneralImgs/favicon.ico' /> */}
+				<link rel='canonical' href='https://jannatbooking.com/signin' />
 			</Helmet>
 			<ToastContainer />
 			{showLoading()}

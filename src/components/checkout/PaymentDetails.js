@@ -148,6 +148,12 @@ const PaymentWrapper = styled.div`
 		font-weight: bold;
 		margin-bottom: 20px;
 	}
+
+	@media (max-width: 700px) {
+		h3 {
+			font-size: 1.1rem;
+		}
+	}
 `;
 
 const TitleWrapper = styled.div`

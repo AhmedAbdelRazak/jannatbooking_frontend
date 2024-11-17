@@ -343,3 +343,42 @@ export const createNewReservationClient = async (reservationData) => {
 			console.error("API error: ", err);
 		});
 };
+
+export const gettingUserAndReservationData = async (userId) => {
+	return fetch(`${process.env.REACT_APP_API_URL}/user/reservations/${userId}`, {
+		method: "GET",
+		headers: {
+			Accept: "application/json",
+			"Content-Type": "application/json",
+		},
+	})
+		.then((response) => response.json())
+		.catch((err) => {
+			console.error("API error: ", err);
+		});
+};
+
+export const updateUser = (user, next) => {
+	if (typeof window !== "undefined") {
+		if (localStorage.getItem("jwt")) {
+			let auth = JSON.parse(localStorage.getItem("jwt"));
+			auth.user = user;
+			localStorage.setItem("jwt", JSON.stringify(auth));
+			next();
+		}
+	}
+};
+
+export const gettingHotelDetailsById = async (hotelId) => {
+	return fetch(`${process.env.REACT_APP_API_URL}/user/hotel/${hotelId}`, {
+		method: "GET",
+		headers: {
+			Accept: "application/json",
+			"Content-Type": "application/json",
+		},
+	})
+		.then((response) => response.json())
+		.catch((err) => {
+			console.error("API error: ", err);
+		});
+};

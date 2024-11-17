@@ -214,7 +214,7 @@ const SearchWrapper = styled.div`
 
 	@media (max-width: 768px) {
 		width: 95%;
-		top: 33%;
+		top: 36%;
 	}
 `;
 

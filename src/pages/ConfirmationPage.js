@@ -156,9 +156,11 @@ const MessageWrapper = styled.div`
 		padding: 20px;
 		h2 {
 			font-size: 1.6rem;
+			margin-bottom: 5px !important;
 		}
 		p {
 			font-size: 1rem;
+			margin: 5px 0;
 		}
 	}
 `;
@@ -184,7 +186,7 @@ const ReservationDetails = styled.div`
 			align-items: center;
 
 			.grid-item {
-				margin-bottom: 10px;
+				margin-bottom: 5px;
 				text-align: center;
 			}
 		}

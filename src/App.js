@@ -17,6 +17,9 @@ import SingleHotelMain from "./pages/SingleHotelMain";
 import OurHotelRooms from "./pages/OurHotelRooms";
 import Checkout from "./pages/Checkout";
 import ConfirmationPage from "./pages/ConfirmationPage";
+import PrivateRoute from "./auth/PrivateRoute";
+import UserDashboard from "./pages/UserDashboard";
+import GeneratedLinkCheckout from "./pages/GeneratedLinkCheckout";
 
 const App = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
@@ -65,10 +68,16 @@ const App = () => {
 					<Route path='/our-hotels-rooms' exact component={OurHotelRooms} />
 					<Route path='/checkout' exact component={Checkout} />
 					<Route
+						path='/generated-link'
+						exact
+						component={GeneratedLinkCheckout}
+					/>
+					<Route
 						path='/reservation-confirmed'
 						exact
 						component={ConfirmationPage}
 					/>
+					<PrivateRoute path='/dashboard' exact component={UserDashboard} />
 				</Switch>
 			</>
 

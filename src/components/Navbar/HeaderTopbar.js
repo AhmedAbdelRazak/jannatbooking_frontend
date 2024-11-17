@@ -1,10 +1,23 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useHistory } from "react-router-dom";
 import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
+import { isAuthenticated, signout } from "../../auth";
 
 const HeaderTopbar = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
+	const { user } = isAuthenticated();
+	const history = useHistory();
+
+	// Extract first name
+	const getFirstName = (fullName) => fullName.split(" ")[0];
+
+	// Handle signout
+	const handleSignout = () => {
+		signout(() => {
+			window.location.href = "/";
+		});
+	};
 
 	return (
 		<HeaderTopbarWrapper>
@@ -46,70 +59,103 @@ const HeaderTopbar = () => {
 										<option value='Arabic'>Arabic</option>
 									</select>
 								</li>
+
+								{/* Social media links */}
 								<li
-									onClick={() => {
-										window.scrollTo({ top: 8, behavior: "smooth" });
-									}}
+									onClick={() =>
+										window.scrollTo({ top: 8, behavior: "smooth" })
+									}
 								>
 									<Link to='/'>
 										<i className='fa-brands fa-facebook'></i>
 									</Link>
 								</li>
-
 								<li
-									onClick={() => {
-										window.scrollTo({ top: 8, behavior: "smooth" });
-									}}
+									onClick={() =>
+										window.scrollTo({ top: 8, behavior: "smooth" })
+									}
 								>
 									<Link to='/'>
 										<i className='fa-brands fa-instagram'></i>
 									</Link>
 								</li>
-
 								<li
-									onClick={() => {
-										window.scrollTo({ top: 8, behavior: "smooth" });
-									}}
+									onClick={() =>
+										window.scrollTo({ top: 8, behavior: "smooth" })
+									}
 								>
 									<Link to='/'>
 										<i className='fa-brands fa-youtube'></i>
 									</Link>
 								</li>
-								<li
-									onClick={() => {
-										window.scrollTo({ top: 8, behavior: "smooth" });
-									}}
-									style={{
-										fontWeight: "bold",
-										fontSize: "0.85rem",
-										textDecoration: "underline",
-										cursor: "pointer",
-									}}
-								>
-									<Link to='/list-property'>List Your Property</Link>
-								</li>
-								<li
-									onClick={() => {
-										window.scrollTo({ top: 8, behavior: "smooth" });
-									}}
-									style={{
-										fontSize: "0.85rem",
-										cursor: "pointer",
-									}}
-								>
-									<Link to='/signup'>Signup</Link>
-								</li>
-								<li
-									onClick={() => {
-										window.scrollTo({ top: 8, behavior: "smooth" });
-									}}
-									style={{
-										fontSize: "0.85rem",
-										cursor: "pointer",
-									}}
-								>
-									<Link to='/signin'>Signin</Link>
-								</li>
+
+								{!user ? (
+									<li
+										onClick={() =>
+											window.scrollTo({ top: 8, behavior: "smooth" })
+										}
+										style={{
+											fontWeight: "bold",
+											fontSize: "0.85rem",
+											textDecoration: "underline",
+											cursor: "pointer",
+										}}
+									>
+										<Link to='/list-property'>List Your Property</Link>
+									</li>
+								) : null}
+
+								{/* User greeting and Signout */}
+								{user && user.name ? (
+									<>
+										<li
+											style={{
+												fontSize: "1rem",
+												cursor: "pointer",
+												color: "white",
+												fontWeight: "bold",
+											}}
+											onClick={() => history.push("/dashboard")}
+										>
+											Hello {getFirstName(user.name)}
+										</li>
+										<li
+											style={{
+												color: "var(--orangeLight)",
+												fontWeight: "bold",
+												textDecoration: "underline",
+											}}
+											onClick={handleSignout}
+										>
+											Signout
+										</li>
+									</>
+								) : (
+									<>
+										<li
+											onClick={() =>
+												window.scrollTo({ top: 8, behavior: "smooth" })
+											}
+											style={{
+												fontSize: "0.85rem",
+												cursor: "pointer",
+											}}
+										>
+											<Link to='/signup'>Signup</Link>
+										</li>
+										<li
+											onClick={() =>
+												window.scrollTo({ top: 8, behavior: "smooth" })
+											}
+											style={{
+												fontSize: "0.85rem",
+												cursor: "pointer",
+											}}
+										>
+											<Link to='/signin'>Signin</Link>
+										</li>
+									</>
+								)}
 							</ul>
 						</div>
 					</div>

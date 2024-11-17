@@ -8,6 +8,8 @@ import { countryList } from "../../Assets"; // Ensure this file contains an arra
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { createNewReservationClient } from "../../apiCore";
 import { FaMinus, FaPlus } from "react-icons/fa";
+import { authenticate, isAuthenticated, signin } from "../../auth";
+import { useHistory } from "react-router-dom";
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
@@ -23,6 +25,8 @@ const CheckoutContent = () => {
 		clearRoomCart,
 		toggleRoomAmount,
 	} = useCartContext();
+	const { user } = isAuthenticated();
+	const history = useHistory();
 
 	const [expanded, setExpanded] = useState({});
 	const [mobileExpanded, setMobileExpanded] = useState(false); // Mobile collapse
@@ -33,9 +37,9 @@ const CheckoutContent = () => {
 	const [postalCode, setPostalCode] = useState("");
 	const [nationality, setNationality] = useState("");
 	const [customerDetails, setCustomerDetails] = useState({
-		name: "",
-		phone: "",
-		email: "",
+		name: user ? user.name : "",
+		phone: user ? user.phone : "",
+		email: user ? user.email : "",
 		passport: "",
 		passportExpiry: "",
 		nationality: "",
@@ -73,7 +77,15 @@ const CheckoutContent = () => {
 	const disabledDate = (current) => current && current < dayjs().endOf("day");
 
 	const createNewReservation = async () => {
-		const { name, phone, email, passport, passportExpiry } = customerDetails;
+		const {
+			name,
+			phone,
+			email,
+			passport,
+			passportExpiry,
+			password,
+			confirmPassword,
+		} = customerDetails;
 
 		// Full name validation
 		if (!name || name.trim().split(" ").length < 2) {
@@ -95,16 +107,74 @@ const CheckoutContent = () => {
 			return;
 		}
 
+		// Password validation (only for non-authenticated users)
+		if (!user) {
+			if (!password || !confirmPassword) {
+				message.error("Please enter your password and confirm it.");
+				return;
+			}
+
+			if (password !== confirmPassword) {
+				message.error("Passwords do not match.");
+				return;
+			}
+
+			const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
+			if (!passwordRegex.test(password)) {
+				message.error(
+					"Password must be at least 6 characters long and include both letters and numbers."
+				);
+				return;
+			}
+		}
+
 		// Passport validation
 		if (!passport) {
 			message.error("Please provide your passport number.");
 			return;
 		}
 
-		// Passport Expiry validation
-		if (!passportExpiry) {
+		// Passport Expiry validation (less than 6 months check)
+		if (passportExpiry) {
+			const expiryDate = dayjs(passportExpiry);
+			const sixMonthsFromNow = dayjs().add(6, "month");
+
+			if (expiryDate.isBefore(sixMonthsFromNow)) {
+				message.error(
+					"Passport expiry date should be at least 6 months from today's date."
+				);
+				return;
+			}
+		} else {
 			message.error("Please provide your passport expiry date.");
 			return;
+		}
+
+		// Card expiry validation
+		if (expiryDate) {
+			// Ensure the input format is correct (MM/YYYY)
+			const [month, year] = expiryDate.split("/");
+
+			if (month && year && month.length === 2 && year.length === 4) {
+				const cardExpiryDate = dayjs(`${year}-${month}-01`); // Construct the date as YYYY-MM-01
+				const currentDate = dayjs();
+				const tenYearsFromNow = currentDate.add(10, "year");
+
+				if (cardExpiryDate.isBefore(currentDate, "month")) {
+					message.error("The card expiry date is invalid or expired.");
+					return;
+				}
+
+				if (cardExpiryDate.isAfter(tenYearsFromNow, "month")) {
+					message.error(
+						"The card expiry date cannot be more than 10 years from today's date."
+					);
+					return;
+				}
+			} else {
+				message.error("Please enter a valid expiry date in MM/YYYY format.");
+				return;
+			}
 		}
 
 		// Nationality validation
@@ -125,7 +195,7 @@ const CheckoutContent = () => {
 			return;
 		}
 
-		// Proceed with the reservation creation if all validations pass
+		// Prepare reservation data
 		const paymentDetails = {
 			cardNumber,
 			cardExpiryDate: expiryDate,
@@ -136,6 +206,7 @@ const CheckoutContent = () => {
 		const pickedRoomsType = transformRoomCartToPickedRoomsType(roomCart);
 
 		const reservationData = {
+			userId: user ? user._id : null,
 			hotelId: roomCart[0].hotelId,
 			belongsTo: roomCart[0].belongsTo,
 			customerDetails: {
@@ -164,8 +235,6 @@ const CheckoutContent = () => {
 			if (response && response.message === "Reservation created successfully") {
 				message.success("Reservation created successfully");
 
-				clearRoomCart();
-
 				// Construct query params
 				const queryParams = new URLSearchParams();
 				queryParams.append("name", customerDetails.name);
@@ -182,8 +251,27 @@ const CheckoutContent = () => {
 					queryParams.append(`checkout_date_${index}`, room.endDate);
 				});
 
-				// Redirect with all room details in query
-				window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
+				// Automatically sign in the user if the account was just created
+				if (!user) {
+					const signInResponse = await signin({
+						emailOrPhone: email,
+						password: password,
+					});
+
+					if (signInResponse.error) {
+						message.error(
+							"Failed to sign in automatically after account creation."
+						);
+					} else {
+						authenticate(signInResponse, () => {
+							clearRoomCart();
+							window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
+						});
+					}
+				} else {
+					clearRoomCart();
+					window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
+				}
 			} else {
 				message.error(response.message || "Error creating reservation");
 			}
@@ -191,6 +279,11 @@ const CheckoutContent = () => {
 			console.error("Error creating reservation", error);
 			message.error("An error occurred while creating the reservation");
 		}
+	};
+
+	const redirectToSignin = () => {
+		const currentUrl = window.location.pathname + window.location.search;
+		history.push(`/signin?returnUrl=${encodeURIComponent(currentUrl)}`);
 	};
 
 	return (
@@ -357,6 +450,62 @@ const CheckoutContent = () => {
 							}
 						/>
 					</InputGroup>
+
+					{!user ? (
+						<div className='row'>
+							<div className='col-md-12 mt-1'>
+								<p style={{ fontWeight: "bold", fontSize: "13px" }}>
+									Already Have An Account?{" "}
+									<span
+										onClick={redirectToSignin}
+										style={{
+											color: "blue",
+											cursor: "pointer",
+											textDecoration: "underline",
+										}}
+									>
+										Please Click Here To Signin
+									</span>
+								</p>
+							</div>
+							<div className='col-md-6'>
+								<InputGroup>
+									<label>Password</label>
+									<input
+										type='password'
+										name='password'
+										placeholder='Password'
+										value={customerDetails.password}
+										onChange={(e) =>
+											setCustomerDetails({
+												...customerDetails,
+												password: e.target.value,
+											})
+										}
+									/>
+								</InputGroup>
+							</div>
+
+							<div className='col-md-6'>
+								<InputGroup>
+									<label>Confirm Password</label>
+									<input
+										type='password'
+										name='confirmPassword'
+										placeholder='Confirm Password'
+										value={customerDetails.confirmPassword}
+										onChange={(e) =>
+											setCustomerDetails({
+												...customerDetails,
+												confirmPassword: e.target.value,
+											})
+										}
+									/>
+								</InputGroup>
+							</div>
+						</div>
+					) : null}
+
 					<InputGroup>
 						<label>Passport</label>
 						<input
@@ -473,6 +622,62 @@ const CheckoutContent = () => {
 								}
 							/>
 						</InputGroup>
+						{!user ? (
+							<div className='row'>
+								<div className='col-md-12 mt-1'>
+									<p style={{ fontWeight: "bold", fontSize: "13px" }}>
+										Already Have An Account?{" "}
+										<span
+											onClick={redirectToSignin}
+											style={{
+												color: "blue",
+												cursor: "pointer",
+												textDecoration: "underline",
+											}}
+										>
+											Please Click Here To Signin
+										</span>
+									</p>
+								</div>
+
+								<div className='col-md-6'>
+									<InputGroup>
+										<label>Password</label>
+										<input
+											type='password'
+											name='password'
+											placeholder='Password'
+											value={customerDetails.password}
+											onChange={(e) =>
+												setCustomerDetails({
+													...customerDetails,
+													password: e.target.value,
+												})
+											}
+										/>
+									</InputGroup>
+								</div>
+
+								<div className='col-md-6'>
+									<InputGroup>
+										<label>Confirm Password</label>
+										<input
+											type='password'
+											name='confirmpassword'
+											placeholder='Confirm Password'
+											value={customerDetails.confirmPassword}
+											onChange={(e) =>
+												setCustomerDetails({
+													...customerDetails,
+													confirmPassword: e.target.value,
+												})
+											}
+										/>
+									</InputGroup>
+								</div>
+							</div>
+						) : null}
+
 						<InputGroup>
 							<label>Passport</label>
 							<input
@@ -671,6 +876,8 @@ const MobileAccordion = styled(Collapse)`
 	@media (max-width: 768px) {
 		display: block;
 		margin-top: 50px;
+		background-color: white;
+		font-weight: bolder;
 	}
 `;
 
@@ -680,6 +887,12 @@ const MobileFormWrapper = styled.div`
 
 	@media (min-width: 768px) {
 		display: none;
+	}
+
+	@media (max-width: 768px) {
+		h2 {
+			font-size: 1.6rem;
+		}
 	}
 `;
 

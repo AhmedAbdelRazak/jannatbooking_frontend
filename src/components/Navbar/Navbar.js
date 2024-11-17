@@ -15,6 +15,7 @@ import { Link } from "react-router-dom";
 import { useCartContext } from "../../cart_context";
 import HeaderTopbar from "./HeaderTopbar";
 import { gettingJannatWebsiteData } from "../../apiCore";
+import { isAuthenticated, signout } from "../../auth";
 
 const Navbar = () => {
 	const { languageToggle, chosenLanguage, total_rooms, openSidebar2 } =
@@ -22,6 +23,7 @@ const Navbar = () => {
 	const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 	const [inTop, setInTop] = useState(true);
 	const [homePage, setHomePage] = useState({});
+	const { user } = isAuthenticated();
 
 	const gettingAllHomes = () => {
 		gettingJannatWebsiteData().then((data) => {
@@ -57,6 +59,15 @@ const Navbar = () => {
 		};
 		// eslint-disable-next-line
 	}, [window.location.pathname]);
+
+	// Handle signout
+	const handleSignout = () => {
+		signout(() => {
+			window.location.href = "/";
+		});
+	};
+
+	const getFirstName = (fullName) => fullName.split(" ")[0];
 
 	return (
 		<>
@@ -223,16 +234,37 @@ const Navbar = () => {
 								<FaPhoneVolume /> اتصل بنا
 							</Link>
 						</li>
-						<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
-							<Link to='/login'>
-								<RiLoginCircleLine /> تسجيل الدخول
-							</Link>
-						</li>
-						<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
-							<Link to='/register'>
-								<FaRegBell /> تسجيل
-							</Link>
-						</li>
+						{user && user.name ? (
+							<>
+								<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
+									<Link to='/dashboard'>Hello {getFirstName(user.name)}</Link>
+								</li>
+								<li
+									dir='rtl'
+									onClick={handleSignout}
+									style={{
+										color: "var(--orangeLight)",
+										fontWeight: "bold",
+										textDecoration: "underline",
+									}}
+								>
+									Signout
+								</li>
+							</>
+						) : (
+							<>
+								<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
+									<Link to='/login'>
+										<RiLoginCircleLine /> تسجيل الدخول
+									</Link>
+								</li>
+								<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
+									<Link to='/register'>
+										<FaRegBell /> تسجيل
+									</Link>
+								</li>
+							</>
+						)}
 					</React.Fragment>
 				) : (
 					<>
@@ -266,16 +298,36 @@ const Navbar = () => {
 								<FaPhoneVolume /> Call Us
 							</Link>
 						</li>
-						<li onClick={() => setIsDrawerOpen(false)}>
-							<Link to='/login'>
-								<RiLoginCircleLine /> Login
-							</Link>
-						</li>
-						<li onClick={() => setIsDrawerOpen(false)}>
-							<Link to='/register'>
-								<FaRegBell /> Register
-							</Link>
-						</li>
+						{user && user.name ? (
+							<>
+								<li onClick={() => setIsDrawerOpen(false)}>
+									<Link to='/dashboard'>Hello {getFirstName(user.name)}</Link>
+								</li>
+								<li
+									onClick={handleSignout}
+									style={{
+										color: "var(--orangeLight)",
+										fontWeight: "bold",
+										textDecoration: "underline",
+									}}
+								>
+									Signout
+								</li>
+							</>
+						) : (
+							<>
+								<li onClick={() => setIsDrawerOpen(false)}>
+									<Link to='/login'>
+										<RiLoginCircleLine /> Login
+									</Link>
+								</li>
+								<li onClick={() => setIsDrawerOpen(false)}>
+									<Link to='/register'>
+										<FaRegBell /> Register
+									</Link>
+								</li>
+							</>
+						)}
 					</>
 				)}
 
@@ -333,15 +385,15 @@ const LogoSection = styled.div`
 	justify-content: flex-start;
 
 	img {
-		width: 180px;
-		height: 60px;
+		width: 170px;
+		height: 55px;
 		object-fit: cover;
 	}
 
 	@media (max-width: 768px) {
 		img {
-			width: 130px;
-			height: 55px;
+			width: 120px;
+			height: 50px;
 			object-fit: cover;
 		}
 	}
