@@ -224,7 +224,13 @@ const Navbar = () => {
 								<FaBuilding /> فنادقنا
 							</Link>
 						</li>
-						<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
+						<li
+							dir='rtl'
+							onClick={() => {
+								setIsDrawerOpen(false);
+								window.location.href = "/about";
+							}}
+						>
 							<Link to='/about'>
 								<FaAddressBook /> معلومات عنا
 							</Link>
@@ -250,18 +256,36 @@ const Navbar = () => {
 								>
 									Signout
 								</li>
+								<li
+									dir='rtl'
+									onClick={() => {
+										setIsDrawerOpen(false);
+										window.location.href = "/terms-conditions";
+									}}
+								>
+									<Link to='/terms-conditions'>Terms & Conditions</Link>
+								</li>
 							</>
 						) : (
 							<>
 								<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
-									<Link to='/login'>
+									<Link to='/signin'>
 										<RiLoginCircleLine /> تسجيل الدخول
 									</Link>
 								</li>
 								<li dir='rtl' onClick={() => setIsDrawerOpen(false)}>
-									<Link to='/register'>
+									<Link to='/signup'>
 										<FaRegBell /> تسجيل
 									</Link>
+								</li>
+								<li
+									dir='rtl'
+									onClick={() => {
+										setIsDrawerOpen(false);
+										window.location.href = "/terms-conditions";
+									}}
+								>
+									<Link to='/terms-conditions'>Terms & Conditions</Link>
 								</li>
 							</>
 						)}
@@ -288,7 +312,12 @@ const Navbar = () => {
 								<FaBuilding /> Our Hotels
 							</Link>
 						</li>
-						<li onClick={() => setIsDrawerOpen(false)}>
+						<li
+							onClick={() => {
+								setIsDrawerOpen(false);
+								window.location.href = "/about";
+							}}
+						>
 							<Link to='/about'>
 								<FaAddressBook /> About Us
 							</Link>
@@ -313,18 +342,34 @@ const Navbar = () => {
 								>
 									Signout
 								</li>
+								<li
+									onClick={() => {
+										setIsDrawerOpen(false);
+										window.location.href = "/terms-conditions";
+									}}
+								>
+									<Link to='/terms-conditions'>Terms & Conditions</Link>
+								</li>
 							</>
 						) : (
 							<>
 								<li onClick={() => setIsDrawerOpen(false)}>
-									<Link to='/login'>
+									<Link to='/signin'>
 										<RiLoginCircleLine /> Login
 									</Link>
 								</li>
 								<li onClick={() => setIsDrawerOpen(false)}>
-									<Link to='/register'>
+									<Link to='/signup'>
 										<FaRegBell /> Register
 									</Link>
+								</li>
+								<li
+									onClick={() => {
+										setIsDrawerOpen(false);
+										window.location.href = "/terms-conditions";
+									}}
+								>
+									<Link to='/terms-conditions'>Terms & Conditions</Link>
 								</li>
 							</>
 						)}

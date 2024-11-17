@@ -18,18 +18,28 @@ const ConfirmationPage = () => {
 	// Extracting general reservation details
 	const name = searchParams.get("name");
 	const totalPrice = searchParams.get("total_price");
-	const totalRooms = searchParams.get("total_rooms");
-	const hotelName = searchParams.get("hotel_name_0"); // Hotel name for the first room
-	const checkinDate = searchParams.get("checkin_date_0"); // Check-in date for the first room
-	const checkoutDate = searchParams.get("checkout_date_0"); // Check-out date for the first room
-	const nights = searchParams.get("nights_0"); // Nights for the first room
+	const totalRooms =
+		searchParams.get("total_rooms") ||
+		parseInt(searchParams.get("total_rooms"), 10);
+	const hotelName =
+		searchParams.get("hotel_name_0") || searchParams.get("hotel_name"); // Hotel name for the first room
+	const checkinDate =
+		searchParams.get("checkin_date_0") || searchParams.get("checkin_date"); // Check-in date for the first room
+	const checkoutDate =
+		searchParams.get("checkout_date_0") || searchParams.get("checkout_date"); // Check-out date for the first room
+	const nights =
+		searchParams.get("nights_0") ||
+		searchParams.get("nights") ||
+		searchParams.get("total_nights"); // Nights for the first room
 
 	// Extract room details for multiple rooms
 	const rooms = [];
-	for (let i = 0; i < totalRooms; i++) {
+	for (let i = 1; i <= totalRooms; i++) {
 		const room = {
-			roomType: searchParams.get(`room_type_${i}`),
-			roomDisplayName: searchParams.get(`room_display_name_${i}`),
+			roomType: searchParams.get(`room_type${i}`),
+			roomDisplayName: searchParams.get(`room_display_name${i}`),
+			pricePerNight: searchParams.get(`price_per_night${i}`),
+			roomCount: searchParams.get(`room_count${i}`),
 		};
 		rooms.push(room);
 	}

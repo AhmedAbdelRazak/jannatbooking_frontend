@@ -14,6 +14,7 @@ import { amenitiesList, viewsList, extraAmenitiesList } from "../Assets";
 import Search from "../components/OurHotels/Search";
 import { useCartContext } from "../cart_context";
 import dayjs from "dayjs";
+import { FaCar, FaWalking } from "react-icons/fa";
 
 const generateDateRange = (startDate, endDate) => {
 	const start = dayjs(startDate);
@@ -206,7 +207,16 @@ const OurHotelRooms = () => {
 								room={room}
 								hotelName={hotel.hotelName}
 								hotelRating={hotel.hotelRating}
-								hotelAddress={hotel.hotelAddress}
+								hotelAddress={hotel.hotelAddress
+									.split(",")
+									.slice(0, 2)
+									.join(", ")}
+								distanceToElHaramWalking={
+									hotel.distances?.walkingToElHaram || "N/A"
+								}
+								distanceToElHaramDriving={
+									hotel.distances?.drivingToElHaram || "N/A"
+								}
 								startDate={queryParams.startDate}
 								endDate={queryParams.endDate}
 								chosenLanguage={chosenLanguage}
@@ -249,6 +259,8 @@ const RoomCard = ({
 	children,
 	showAllAmenities,
 	setShowAllAmenities,
+	distanceToElHaramWalking,
+	distanceToElHaramDriving,
 }) => {
 	const [thumbsSwiper, setThumbsSwiper] = useState(null);
 	const averagePrice = calculateAveragePrice(
@@ -278,7 +290,7 @@ const RoomCard = ({
 	// Determine visible features: show only the first 4 by default
 	const visibleFeatures = showAllAmenities
 		? uniqueFeatures
-		: uniqueFeatures.slice(0, 4);
+		: uniqueFeatures.slice(0, 2);
 
 	const handleAddToCart = () => {
 		addRoomToCart(
@@ -358,6 +370,12 @@ const RoomCard = ({
 						: room.displayName}
 				</RoomDisplayName>
 				<HotelName>{hotelName}</HotelName>
+				<Distances>
+					<FaCar /> {distanceToElHaramDriving} Driving to El Haram
+				</Distances>
+				<Distances>
+					<FaWalking /> {distanceToElHaramWalking} Walking to El Haram
+				</Distances>
 				<Location>{hotelAddress}</Location>
 				{/* <StarRatings
 					rating={hotelRating || 0}
@@ -382,8 +400,7 @@ const RoomCard = ({
 					</ShowMoreText>
 				)}
 				<PriceWrapper>
-					Price from {startDate} to {endDate}: <span>{displayedPrice} SAR</span>{" "}
-					per night
+					<span>{displayedPrice} SAR</span> per night
 				</PriceWrapper>
 				<StyledButton onClick={handleAddToCart}>
 					Add Room To Reservation
@@ -497,14 +514,14 @@ const RoomImageWrapper = styled.div`
 
 	@media (max-width: 768px) {
 		.room-image {
-			height: 200px; /* Adjust image height for mobile */
+			height: 180px; /* Adjust image height for mobile */
 		}
 	}
 `;
 
 const ThumbnailImage = styled.img`
 	width: 100%;
-	height: 60px;
+	height: 40px;
 	object-fit: cover;
 	border-radius: 5px;
 `;
@@ -522,7 +539,7 @@ const RoomDisplayName = styled.h3`
 	text-transform: capitalize;
 
 	@media (max-width: 750px) {
-		font-size: 1rem;
+		font-size: 0.85rem;
 		font-weight: bold;
 	}
 `;
@@ -535,7 +552,19 @@ const HotelName = styled.p`
 	font-weight: bold;
 
 	@media (max-width: 700px) {
-		font-size: 0.9rem;
+		font-size: 0.85rem;
+	}
+`;
+
+const Distances = styled.div`
+	font-size: 1rem;
+	color: #555;
+	margin-bottom: 2px;
+	text-transform: capitalize;
+	font-weight: bold;
+
+	@media (max-width: 700px) {
+		font-size: 0.7rem;
 	}
 `;
 
@@ -546,14 +575,15 @@ const Location = styled.p`
 	text-transform: capitalize;
 
 	@media (max-width: 700px) {
-		font-size: 0.8rem;
+		font-size: 0.7rem;
 	}
 `;
 
 const PriceWrapper = styled.p`
-	font-size: 0.85rem;
+	font-size: 1rem;
 	font-weight: bold;
 	color: #444;
+	margin-top: 10px;
 
 	span {
 		font-weight: bold;

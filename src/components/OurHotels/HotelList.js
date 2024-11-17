@@ -7,6 +7,7 @@ import "swiper/css/pagination";
 import "swiper/css/thumbs";
 import StarRatings from "react-star-ratings";
 import { amenitiesList, viewsList, extraAmenitiesList } from "../../Assets";
+import { FaCar, FaWalking } from "react-icons/fa";
 
 // Helper function to format the address
 const formatAddress = (address) => {
@@ -47,7 +48,7 @@ const HotelCard = ({ hotel }) => {
 	// Determine visible features based on state
 	const visibleFeatures = showAllAmenities
 		? uniqueFeatures
-		: uniqueFeatures.slice(0, 4);
+		: uniqueFeatures.slice(0, 2);
 
 	// Stop autoplay when user hovers over the image
 	const handleMouseEnter = () => {
@@ -129,12 +130,16 @@ const HotelCard = ({ hotel }) => {
 			{/* Hotel details section */}
 			<HotelDetails>
 				<div>
-					<HotelName className='p-0 m-1'>{hotel.hotelName}</HotelName>
-					<Location className='p-0 m-1'>
-						{formatAddress(hotel.hotelAddress)}
+					<HotelName className='p-0 m-0'>{hotel.hotelName}</HotelName>
+
+					<Location className='p-0 m-0'>
+						{formatAddress(hotel.hotelAddress)
+							.split(",")
+							.slice(0, 2)
+							.join(", ")}
 					</Location>
 					<StarRatings
-						className='p-0 m-1'
+						className='p-0 m-0'
 						rating={hotel.hotelRating || 0}
 						starRatedColor='orange'
 						numberOfStars={5}
@@ -143,6 +148,13 @@ const HotelCard = ({ hotel }) => {
 						starSpacing='1px'
 					/>
 
+					<Distances>
+						<FaCar /> {hotel.distances?.drivingToElHaram} Driving to El Haram
+					</Distances>
+					<Distances>
+						<FaWalking /> {hotel.distances?.walkingToElHaram} Walking to El
+						Haram
+					</Distances>
 					{/* Display unique amenities, views, and extra amenities */}
 					<AmenitiesWrapper className='p-0 m-1'>
 						{visibleFeatures.map((feature, index) => (
@@ -161,10 +173,12 @@ const HotelCard = ({ hotel }) => {
 						</ShowMoreText>
 					)}
 
-					<PriceWrapper className='mt-3'>
-						Starting from:{" "}
-						<span>{hotel.roomCountDetails[0]?.price.basePrice} SAR</span> per
-						night
+					<PriceWrapper className='mt-1'>
+						Starting From:{" "}
+						<span style={{ fontWeight: "bold", textDecoration: "underline" }}>
+							{hotel.roomCountDetails[0]?.price.basePrice} SAR
+						</span>{" "}
+						Per Night
 					</PriceWrapper>
 				</div>
 			</HotelDetails>
@@ -172,12 +186,12 @@ const HotelCard = ({ hotel }) => {
 			{/* Price and Offer section */}
 			<PriceSection>
 				{/* <OfferTag>Limited Offer</OfferTag> */}
-				<FinalPrice>
-					{/* <span className='old-price'>136 SAR</span> */}
+				{/* <FinalPrice>
+					<span className='old-price'>136 SAR</span>
 					<span className='current-price'>
 						{hotel.roomCountDetails[0]?.price.basePrice} SAR
 					</span>
-				</FinalPrice>
+				</FinalPrice> */}
 				<FreeCancellation>+ FREE CANCELLATION</FreeCancellation>
 			</PriceSection>
 		</HotelCardWrapper>
@@ -227,6 +241,13 @@ const HotelListWrapper = styled.div`
 	padding: 20px;
 	background-color: var(--neutral-light);
 	overflow-x: hidden; /* Prevent horizontal scroll */
+
+	.star-container,
+	svg,
+	.widget-svg {
+		padding-top: -20px !important;
+		margin-top: -3px !important;
+	}
 
 	.swiper-button-prev,
 	.swiper-button-next {
@@ -298,7 +319,7 @@ const HotelImageWrapper = styled.div`
 			width: 100%;
 			object-fit: cover;
 			border-radius: 10px 10px 0 0; /* Optional: Rounded top corners */
-			height: 240px;
+			height: 220px;
 		}
 	}
 
@@ -321,7 +342,7 @@ const HotelImageWrapper = styled.div`
 
 const ThumbnailImage = styled.img`
 	width: 100%;
-	height: 60px !important; /* Smaller thumbnail size */
+	height: 40px !important; /* Smaller thumbnail size */
 	object-fit: cover;
 	border-radius: 10px;
 	cursor: pointer;
@@ -338,23 +359,39 @@ const HotelDetails = styled.div`
 	justify-content: space-between;
 `;
 
-const HotelName = styled.h3`
-	font-size: 1.5rem;
-	color: var(--primaryBlue);
-	margin-bottom: 5px;
+const HotelName = styled.p`
+	font-size: 1rem;
+	color: #555;
+	margin-bottom: 0px;
 	text-transform: capitalize;
-	cursor: pointer;
+	font-weight: bold;
 
-	&:hover {
-		color: var(--primaryBlueDarker);
+	@media (max-width: 700px) {
+		font-size: 1.1rem;
+	}
+`;
+
+const Distances = styled.div`
+	font-size: 1rem;
+	color: #555;
+	margin-bottom: 2px;
+	text-transform: capitalize;
+	font-weight: bold;
+
+	@media (max-width: 700px) {
+		font-size: 0.7rem;
 	}
 `;
 
 const Location = styled.p`
 	color: var(--text-color-secondary);
 	font-size: 1rem;
-	margin-bottom: 10px;
+	margin-bottom: 0px;
 	text-transform: capitalize;
+
+	@media (max-width: 700px) {
+		font-size: 0.7rem;
+	}
 `;
 
 const PriceWrapper = styled.p`
@@ -364,6 +401,13 @@ const PriceWrapper = styled.p`
 	span {
 		font-weight: bold;
 		color: var(--secondary-color);
+	}
+
+	@media (max-width: 700px) {
+		font-size: 0.9rem;
+		font-weight: bold;
+		margin: 0px !important;
+		padding: 0px !important;
 	}
 `;
 
@@ -375,7 +419,6 @@ const PriceSection = styled.div`
 
 	@media (max-width: 768px) {
 		align-items: center;
-		margin-top: 0px;
 	}
 `;
 
@@ -390,6 +433,7 @@ const OfferTag = styled.div`
 	text-transform: uppercase;
 `;
 
+// eslint-disable-next-line
 const FinalPrice = styled.div`
 	display: flex;
 	flex-direction: column;
@@ -426,6 +470,8 @@ const FreeCancellation = styled.p`
 
 	@media (max-width: 768px) {
 		text-align: center;
+		margin-top: 0px !important;
+		padding-top: 0px !important;
 	}
 `;
 
@@ -437,6 +483,8 @@ const AmenitiesWrapper = styled.div`
 
 	@media (max-width: 768px) {
 		grid-template-columns: repeat(2, 1fr);
+		margin-top: 0px !important;
+		padding-top: 0px !important;
 	}
 `;
 

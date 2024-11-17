@@ -5,6 +5,9 @@ import { gettingJannatWebsiteData } from "../../apiCore";
 
 const Footer = (props) => {
 	const [homePage, setHomePage] = useState({});
+	const [startDate, setStartDate] = useState("");
+	const [endDate, setEndDate] = useState("");
+
 	const ClickHandler = () => {
 		window.scrollTo(10, 0);
 	};
@@ -19,8 +22,30 @@ const Footer = (props) => {
 		});
 	};
 
+	// Function to get tomorrow's date and three days after tomorrow
+	const calculateDates = () => {
+		const today = new Date();
+		const tomorrow = new Date(today);
+		tomorrow.setDate(today.getDate() + 1);
+
+		const threeDaysAfterTomorrow = new Date(tomorrow);
+		threeDaysAfterTomorrow.setDate(tomorrow.getDate() + 3);
+
+		// Format dates as YYYY-MM-DD
+		const formatDate = (date) => {
+			const year = date.getFullYear();
+			const month = String(date.getMonth() + 1).padStart(2, "0");
+			const day = String(date.getDate()).padStart(2, "0");
+			return `${year}-${month}-${day}`;
+		};
+
+		setStartDate(formatDate(tomorrow));
+		setEndDate(formatDate(threeDaysAfterTomorrow));
+	};
+
 	useEffect(() => {
 		gettingAllHomes();
+		calculateDates();
 		// eslint-disable-next-line
 	}, []);
 
@@ -101,23 +126,31 @@ const Footer = (props) => {
 										</Link>
 									</li>
 									<li>
-										<Link onClick={ClickHandler} to='/destination'>
+										<Link onClick={ClickHandler} to='/our-hotels'>
 											Popular Hotels
 										</Link>
 									</li>
 									<li>
-										<Link onClick={ClickHandler} to='/room'>
+										<Link
+											onClick={ClickHandler}
+											to={`/our-hotels-rooms?destination=Makkah&startDate=${startDate}&endDate=${endDate}&roomType=all&adults=1&children=`}
+										>
 											Awesome Rooms
 										</Link>
 									</li>
 									<li>
-										<Link onClick={ClickHandler} to='/service'>
+										<Link onClick={ClickHandler} to='/our-hotels'>
 											Our Services
 										</Link>
 									</li>
 									<li>
 										<Link onClick={ClickHandler} to='/pricing'>
 											Pricing Plan
+										</Link>
+									</li>
+									<li>
+										<Link onClick={ClickHandler} to='/terms-conditions'>
+											Terms & Conditions
 										</Link>
 									</li>
 								</ul>

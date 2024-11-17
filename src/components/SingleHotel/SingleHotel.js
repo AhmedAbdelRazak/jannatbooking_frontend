@@ -13,6 +13,7 @@ import { DatePicker, Button } from "antd";
 import Tabs from "./Tabs";
 import dayjs from "dayjs";
 import StaticRating from "./StaticRating";
+import { FaCar, FaWalking } from "react-icons/fa";
 
 const { RangePicker } = DatePicker;
 
@@ -277,7 +278,20 @@ const SingleHotel = ({ selectedHotel }) => {
 			{/* Hotel Overview */}
 			<HotelInfo ref={overviewRef} id='overview'>
 				<h1>{selectedHotel.hotelName}</h1>
-				<p>{formatAddress(selectedHotel.hotelAddress)}</p>
+				<p>
+					{formatAddress(selectedHotel.hotelAddress)
+						.split(",")
+						.slice(0, 2)
+						.join(", ")}
+				</p>
+				<Distances>
+					<FaCar /> {selectedHotel.distances?.drivingToElHaram} Driving to El
+					Haram
+				</Distances>
+				<Distances>
+					<FaWalking /> {selectedHotel.distances?.walkingToElHaram} Walking to
+					El Haram
+				</Distances>
 				<StarRatings
 					rating={selectedHotel.hotelRating || 0}
 					starRatedColor='orange'
@@ -287,7 +301,7 @@ const SingleHotel = ({ selectedHotel }) => {
 					starSpacing='1px'
 				/>
 				<StaticRating />
-				<p>Phone: {selectedHotel.phone}</p>
+				{/* <p>Phone: {selectedHotel.phone}</p> */}
 			</HotelInfo>
 
 			{/* Hotel About */}
@@ -727,6 +741,18 @@ const MapContainer = styled.div`
 // 		height: 80px;
 // 	}
 // `;
+
+const Distances = styled.div`
+	font-size: 1rem;
+	color: #555;
+	margin-bottom: 2px;
+	text-transform: capitalize;
+	font-weight: bold;
+
+	@media (max-width: 700px) {
+		font-size: 0.7rem;
+	}
+`;
 
 // eslint-disable-next-line
 const RoomThumbnailImage = styled.img`

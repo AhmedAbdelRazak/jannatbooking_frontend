@@ -3,6 +3,7 @@ import "./App.css";
 import { Route, Switch, BrowserRouter } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import "react-quill/dist/quill.snow.css";
 import { useCartContext } from "./cart_context";
 import Signup from "./pages/Signup";
 import Signin from "./pages/Signin";
@@ -20,6 +21,9 @@ import ConfirmationPage from "./pages/ConfirmationPage";
 import PrivateRoute from "./auth/PrivateRoute";
 import UserDashboard from "./pages/UserDashboard";
 import GeneratedLinkCheckout from "./pages/GeneratedLinkCheckout";
+import About from "./pages/About";
+import TermsAndConditions from "./pages/TermsAndConditions";
+import ContactUs from "./pages/ContactUs";
 
 const App = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
@@ -59,6 +63,13 @@ const App = () => {
 					<Route path='/hotel/:hotelslug' exact component={SingleHotelPage} />
 					<Route path='/signup' exact component={Signup} />
 					<Route path='/signin' exact component={Signin} />
+					<Route path='/about' exact component={About} />
+					<Route path='/contact' exact component={ContactUs} />
+					<Route
+						path='/terms-conditions'
+						exact
+						component={TermsAndConditions}
+					/>
 					<Route path='/list-property' exact component={ListProperty} />
 					<Route
 						path='/single-hotel/:hotelNameSlug'

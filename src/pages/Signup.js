@@ -248,33 +248,24 @@ const Signup = () => {
 			style={{
 				paddingBottom: "15px",
 				minHeight: "800px",
+				marginTop: "50px",
 			}}
 		>
+			{window.scrollTo({ top: 8, behavior: "smooth" })}
+
 			<Helmet>
 				<meta charSet='utf-8' />
 				<title>Jannat Booking | Account Register</title>
-				<meta
-					name='description'
-					content='Register for an account at Serene Jannat to access exclusive offers and manage your orders. Enjoy a seamless shopping experience with our wide range of gifts, candles, and glass items. Join our community and show your loved ones how much you care with Serene Jannat.'
-				/>
-				<meta
-					name='keywords'
-					content='Serene Jannat, register, account, gift shop, candles, glass items, online shopping, exclusive offers, order management'
-				/>
-				<meta
-					property='og:title'
-					content='Serene Jannat Online Shop | Account Register'
-				/>
-				<meta
-					property='og:description'
-					content='Register for an account at Serene Jannat to access exclusive offers and manage your orders. Enjoy a seamless shopping experience with our wide range of gifts, candles, and glass items. Join our community and show your loved ones how much you care with Serene Jannat.'
-				/>
+				<meta name='description' content='' />
+				<meta name='keywords' content='' />
+				<meta property='og:title' content='' />
+				<meta property='og:description' content='' />
 				<meta property='og:image' content='%PUBLIC_URL%/logo192.png' />
-				<meta property='og:url' content='https://serenejannat.com/signup' />
+				<meta property='og:url' content='https://jannatbooking.com/signup' />
 				<meta property='og:type' content='website' />
 				<meta property='og:locale' content='en_US' />
-				<link rel='icon' href='gq_frontend/src/GeneralImgs/favicon.ico' />
-				<link rel='canonical' href='https://serenejannat.com/signup' />
+				{/* <link rel='icon' href='gq_frontend/src/GeneralImgs/favicon.ico' /> */}
+				<link rel='canonical' href='https://jannatbooking.com/signup' />
 			</Helmet>
 			<br />
 			<ToastContainer className='toast-top-center' position='top-center' />

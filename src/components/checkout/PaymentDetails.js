@@ -25,6 +25,8 @@ const PaymentDetails = ({
 	postalCode,
 	setPostalCode,
 	handleReservation,
+	pricePerNight,
+	total,
 }) => {
 	// Handle card number input with formatting
 	const handleCardNumberChange = (e) => {
@@ -117,6 +119,10 @@ const PaymentDetails = ({
 					onFocus={handleFocus} // Prevent auto-fill warning
 				/>
 			</InputGroup>
+			<PriceWrapper>
+				{pricePerNight ? <h4>{pricePerNight} SAR per night</h4> : null}
+				<h4>Total Amount: {total} SAR</h4>
+			</PriceWrapper>
 
 			<SubmitButton
 				type='primary'
@@ -192,6 +198,16 @@ const StyledInput = styled(Input)`
 	width: 100%;
 	padding: 10px;
 	border-radius: 5px;
+`;
+
+const PriceWrapper = styled.div`
+	h3 {
+		font-size: 1.2rem;
+	}
+	h4 {
+		font-size: 1.1rem;
+		color: #555;
+	}
 `;
 
 const SubmitButton = styled(Button)`

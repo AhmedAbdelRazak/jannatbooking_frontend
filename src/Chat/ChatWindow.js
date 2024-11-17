@@ -131,6 +131,21 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 		caseId,
 	]);
 
+	// Function to make URLs in a message clickable
+	const renderMessageWithLinks = (text) => {
+		const urlRegex = /(https?:\/\/[^\s]+)/g;
+		return text.split(urlRegex).map((part, index) => {
+			if (part.match(urlRegex)) {
+				return (
+					<a key={index} href={part} target='_blank' rel='noopener noreferrer'>
+						{part}
+					</a>
+				);
+			}
+			return part;
+		});
+	};
+
 	const fetchSupportCase = async (id) => {
 		try {
 			const supportCase = await getSupportCaseById(id);
@@ -393,17 +408,16 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 					<MessagesContainer>
 						{messages &&
 							messages.map((msg, index) => (
-								<Message key={index}>
-									{msg.message ===
-									"A representative will be with you in 3 to 5 minutes" ? (
-										msg.message
-									) : (
-										<>
-											<strong>{msg.messageBy.customerName}:</strong>{" "}
-											{msg.message}
-										</>
-									)}
-								</Message>
+								<MessagesContainer>
+									{messages &&
+										messages.map((msg, index) => (
+											<Message key={index}>
+												<strong>{msg.messageBy.customerName}:</strong>{" "}
+												{renderMessageWithLinks(msg.message)}
+											</Message>
+										))}
+									<div ref={messagesEndRef} />
+								</MessagesContainer>
 							))}
 						<div ref={messagesEndRef} />
 					</MessagesContainer>

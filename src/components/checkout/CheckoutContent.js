@@ -568,6 +568,7 @@ const CheckoutContent = () => {
 							postalCode={postalCode}
 							setPostalCode={setPostalCode}
 							handleReservation={createNewReservation}
+							total={total_price}
 						/>
 					</div>
 				</form>
@@ -741,6 +742,7 @@ const CheckoutContent = () => {
 								postalCode={postalCode}
 								setPostalCode={setPostalCode}
 								handleReservation={createNewReservation}
+								total={total_price}
 							/>
 						</div>
 					</form>

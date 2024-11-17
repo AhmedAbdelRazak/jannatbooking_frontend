@@ -110,6 +110,7 @@ const Signin = ({ history }) => {
 
 	const signinForm = () => (
 		<Row justify='center' style={{ marginTop: "50px" }}>
+			{window.scrollTo({ top: 8, behavior: "smooth" })}
 			<Col xs={24} sm={20} md={17} lg={14} xl={15}>
 				<Card>
 					<Title level={2} className='text-center'>
@@ -218,6 +219,8 @@ const WholeSignin = styled.div`
 	}
 
 	@media (max-width: 1000px) {
+		margin-top: 100px !important;
+
 		.infiniteAppsLogo {
 			width: 48px;
 			height: 48px;
