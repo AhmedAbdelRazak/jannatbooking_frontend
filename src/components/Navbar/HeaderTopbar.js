@@ -19,6 +19,11 @@ const HeaderTopbar = () => {
 		});
 	};
 
+	const ClickHandler = () => {
+		window.scrollTo(10, 0);
+		window.location.href = "/terms-conditions";
+	};
+
 	return (
 		<HeaderTopbarWrapper>
 			<div className='container-fluid'>
@@ -27,14 +32,24 @@ const HeaderTopbar = () => {
 						<div className='contact-intro'>
 							<ul>
 								<li>
-									<i className='fa fa-envelope'></i>info@jannatbooking.com
+									<i className='fa fa-envelope'></i>support@jannatbooking.com
 								</li>
 								<li>
 									<i className='fa fa-phone'></i> +1909 (991) 4386
 								</li>
 								<li>
-									<i className='fa fa-map-marker'></i>PO 322, Crestline, CA
-									92325
+									<Link
+										onClick={ClickHandler}
+										to='/terms-conditions'
+										style={{
+											fontWeight: "bold",
+											textDecoration: "underline",
+											fontStyle: "italic",
+											fontSize: "0.9rem",
+										}}
+									>
+										Terms & Conditions
+									</Link>
 								</li>
 							</ul>
 						</div>
@@ -206,7 +221,7 @@ const HeaderTopbarWrapper = styled.div`
 	}
 
 	i {
-		margin-right: 5px;
+		margin-right: 3px;
 	}
 
 	.language select {

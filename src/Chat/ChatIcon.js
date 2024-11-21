@@ -62,6 +62,32 @@ const ChatIcon = () => {
 		}
 	}, []);
 
+	useEffect(() => {
+		const params = new URLSearchParams(window.location.search);
+		const hotelNameSlug = params.get("hotelNameSlug");
+
+		if (hotelNameSlug) {
+			fetchHotel(hotelNameSlug);
+			setIsOpen(true); // Automatically open chat window if slug is present
+		}
+
+		// Listen for custom event when search changes
+		const handleSearchChange = () => {
+			const updatedParams = new URLSearchParams(window.location.search);
+			const updatedSlug = updatedParams.get("hotelNameSlug");
+			if (updatedSlug) {
+				fetchHotel(updatedSlug);
+				setIsOpen(true);
+			}
+		};
+
+		window.addEventListener("searchChange", handleSearchChange);
+
+		return () => {
+			window.removeEventListener("searchChange", handleSearchChange);
+		};
+	}, []); // Only run on mount, no unnecessary dependencies
+
 	const fetchHotel = async (slug) => {
 		try {
 			const hotelData = await gettingSingleHotel(slug);

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Autoplay, Thumbs } from "swiper/modules";
@@ -7,6 +7,7 @@ import "swiper/css/pagination";
 import "swiper/css/thumbs";
 import StarRatings from "react-star-ratings";
 import { amenitiesList, viewsList, extraAmenitiesList } from "../../Assets";
+// eslint-disable-next-line
 import { FaCar, FaWalking } from "react-icons/fa";
 
 // Helper function to format the address
@@ -36,6 +37,43 @@ const HotelCard = ({ hotel }) => {
 	const [thumbsSwiper, setThumbsSwiper] = useState(null); // Each hotel has its own thumbsSwiper
 	const [mainSwiper, setMainSwiper] = useState(null); // Main swiper reference to control autoplay
 	const [showAllAmenities, setShowAllAmenities] = useState(false); // State to show/hide all amenities
+
+	useEffect(() => {
+		const handleResize = () => {
+			if (window.innerWidth > 768) {
+				setShowAllAmenities(true); // For larger screens
+			} else {
+				setShowAllAmenities(false); // For smaller screens
+			}
+		};
+
+		// Run on initial load
+		handleResize();
+
+		// Listen to resize events
+		window.addEventListener("resize", handleResize);
+
+		// Cleanup listener on component unmount
+		return () => {
+			window.removeEventListener("resize", handleResize);
+		};
+	}, []);
+
+	const handleChatClick = () => {
+		const hotelNameSlug = hotel.hotelName.replace(/\s+/g, "-").toLowerCase();
+
+		// Use URLSearchParams to update the search query without refreshing
+		const params = new URLSearchParams(window.location.search);
+		params.set("hotelNameSlug", hotelNameSlug);
+
+		// Update the URL without refreshing
+		const newUrl = `${window.location.pathname}?${params.toString()}`;
+		window.history.pushState({}, "", newUrl); // Push the new URL to browser history
+
+		// Trigger a custom event for ChatIcon to detect changes (optional)
+		const searchChangeEvent = new CustomEvent("searchChange");
+		window.dispatchEvent(searchChangeEvent);
+	};
 
 	const combinedFeatures = [
 		...hotel.roomCountDetails.flatMap((room) => room.amenities),
@@ -147,16 +185,23 @@ const HotelCard = ({ hotel }) => {
 						starDimension='15px'
 						starSpacing='1px'
 					/>
+					<PriceWrapper className='mb-2'>
+						{/* Starting From:{" "} */}
+						<span
+							style={{
+								fontWeight: "bolder",
+								// textDecoration: "underline",
+								fontSize: "1.5rem",
+								color: "black",
+							}}
+						>
+							SAR {hotel.roomCountDetails[0]?.price.basePrice}
+						</span>{" "}
+						<span style={{ fontSize: "0.85rem" }}>/ NIGHT</span>
+					</PriceWrapper>
 
-					<Distances>
-						<FaCar /> {hotel.distances?.drivingToElHaram} Driving to El Haram
-					</Distances>
-					<Distances>
-						<FaWalking /> {hotel.distances?.walkingToElHaram} Walking to El
-						Haram
-					</Distances>
 					{/* Display unique amenities, views, and extra amenities */}
-					<AmenitiesWrapper className='p-0 m-1'>
+					<AmenitiesWrapper className='p-0 mt-1'>
 						{visibleFeatures.map((feature, index) => (
 							<AmenityItem key={index}>
 								{getIcon(feature)} <span>{feature}</span>
@@ -173,17 +218,19 @@ const HotelCard = ({ hotel }) => {
 						</ShowMoreText>
 					)}
 
-					<PriceWrapper className='mt-1'>
-						Starting From:{" "}
-						<span style={{ fontWeight: "bold", textDecoration: "underline" }}>
-							{hotel.roomCountDetails[0]?.price.basePrice} SAR
-						</span>{" "}
-						Per Night
-					</PriceWrapper>
+					<Distances className='mt-1'>
+						<FaCar /> {hotel.distances?.drivingToElHaram} Driving to El Haram
+					</Distances>
+					{/* <Distances>
+						<FaWalking /> {hotel.distances?.walkingToElHaram} Walking to El
+						Haram
+					</Distances> */}
 				</div>
 			</HotelDetails>
 
 			{/* Price and Offer section */}
+			<div className='habal'></div>
+
 			<PriceSection>
 				{/* <OfferTag>Limited Offer</OfferTag> */}
 				{/* <FinalPrice>
@@ -194,11 +241,32 @@ const HotelCard = ({ hotel }) => {
 				</FinalPrice> */}
 				<FreeCancellation>+ FREE CANCELLATION</FreeCancellation>
 			</PriceSection>
+			<div>
+				<ReceptionChat className='float-right mr-3' onClick={handleChatClick}>
+					Reception
+					<div className='row'>
+						<div className='col-3'>Chat</div>
+						<div className='col-9'>
+							<span style={{ fontSize: "8px", marginLeft: "10px" }}>
+								<span
+									className='mx-1'
+									style={{
+										backgroundColor: "#00ff00",
+										padding: "0px 5px",
+										borderRadius: "50%",
+									}}
+								></span>{" "}
+								Available
+							</span>
+						</div>
+					</div>
+				</ReceptionChat>
+			</div>
 		</HotelCardWrapper>
 	);
 };
 
-const HotelList = ({ activeHotels }) => {
+const HotelList2 = ({ activeHotels }) => {
 	return (
 		<HotelListWrapper>
 			{activeHotels && activeHotels.length > 0 ? (
@@ -212,7 +280,7 @@ const HotelList = ({ activeHotels }) => {
 	);
 };
 
-export default HotelList;
+export default HotelList2;
 
 // Styled-components for the new show more text
 const ShowMoreText = styled.span`
@@ -228,7 +296,7 @@ const ShowMoreText = styled.span`
 	}
 
 	@media (max-width: 750px) {
-		font-size: 13px;
+		font-size: 12px;
 		margin-top: 5px;
 	}
 `;
@@ -261,11 +329,17 @@ const HotelListWrapper = styled.div`
 	.swiper-pagination-bullet-active {
 		background-color: black !important; /* Active dot color */
 	}
+
+	@media (max-width: 800px) {
+		.habal {
+			display: none;
+		}
+	}
 `;
 
 const HotelCardWrapper = styled.div`
 	display: grid;
-	grid-template-columns: 35% 45% 20%;
+	grid-template-columns: 35% 45% 20%; /* Desktop layout */
 	background-color: var(--mainWhite);
 	border: 1px solid var(--border-color-light);
 	border-radius: 10px;
@@ -277,27 +351,11 @@ const HotelCardWrapper = styled.div`
 		box-shadow: var(--box-shadow-dark);
 	}
 
-	/* Mobile view adjustments */
 	@media (max-width: 768px) {
-		display: block; /* Stack the elements vertically for mobile */
+		grid-template-columns: 40% 60%; /* Image takes 35%, content takes 65% */
+		display: grid;
+		gap: 10px;
 		padding: 0px;
-	}
-
-	/* Ensure that the images take full width for small screens */
-	img {
-		width: 100%;
-		height: auto; /* Automatically adjust the height based on the width */
-		object-fit: cover;
-		border-radius: 10px;
-		padding: 0px;
-	}
-
-	/* For tablets and larger screens, keep the grid layout */
-	@media (min-width: 769px) {
-		img {
-			height: 300px; /* Adjust the height for larger screens */
-			object-fit: cover; /* Ensure the image maintains its aspect ratio */
-		}
 	}
 `;
 
@@ -313,36 +371,29 @@ const HotelImageWrapper = styled.div`
 	}
 
 	@media (max-width: 768px) {
-		grid-column: 1 / -1; /* Make the image span the full width on mobile */
-
 		.hotel-image {
-			width: 100%;
+			height: 200px; /* Adjust height for smaller screens */
 			object-fit: cover;
-			border-radius: 10px 10px 0 0; /* Optional: Rounded top corners */
-			height: 220px;
+			border-radius: 5px;
 		}
 	}
+`;
 
-	.thumbnail-swiper {
-		margin-top: 2px; /* Reduced margin to ensure smaller gaps */
-		width: 100%; /* Thumbnails take full width */
+const HotelDetails = styled.div`
+	padding: 0 15px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
 
-		.swiper-slide {
-			opacity: 0.6;
-			margin: 2px; /* Reduced margin to 2 pixels */
-		}
-
-		.swiper-slide-thumb-active {
-			opacity: 1;
-			border: 2px solid var(--primary-color); /* Highlight the active thumbnail */
-			border-radius: 10px;
-		}
+	@media (max-width: 768px) {
+		padding: 0 0px;
+		margin-top: 15px;
 	}
 `;
 
 const ThumbnailImage = styled.img`
 	width: 100%;
-	height: 40px !important; /* Smaller thumbnail size */
+	height: 60px !important; /* Smaller thumbnail size */
 	object-fit: cover;
 	border-radius: 10px;
 	cursor: pointer;
@@ -354,13 +405,6 @@ const ThumbnailImage = styled.img`
 	@media (max-width: 700px) {
 		display: none;
 	}
-`;
-
-const HotelDetails = styled.div`
-	padding: 0 15px;
-	display: flex;
-	flex-direction: column;
-	justify-content: space-between;
 `;
 
 const HotelName = styled.p`
@@ -383,7 +427,7 @@ const Distances = styled.div`
 	font-weight: bold;
 
 	@media (max-width: 700px) {
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 	}
 `;
 
@@ -471,6 +515,7 @@ const FreeCancellation = styled.p`
 	color: var(--primaryBlueDarker);
 	font-weight: bold;
 	text-align: right;
+	margin-top: 12px;
 
 	@media (max-width: 768px) {
 		text-align: center;
@@ -487,7 +532,7 @@ const AmenitiesWrapper = styled.div`
 
 	@media (max-width: 768px) {
 		grid-template-columns: repeat(2, 1fr);
-		margin-top: 0px !important;
+		margin-top: 5px !important;
 		padding-top: 0px !important;
 	}
 `;
@@ -500,5 +545,23 @@ const AmenityItem = styled.div`
 
 	span {
 		margin-left: 5px;
+	}
+`;
+
+const ReceptionChat = styled.div`
+	background-color: darkorange;
+	padding: 5px 10px;
+	border-radius: 20px;
+	font-size: 11px;
+	font-weight: bold;
+	color: white;
+	align-items: center;
+	cursor: pointer;
+
+	.status-dot {
+		width: 8px; /* Size of the green dot */
+		height: 8px;
+		background-color: green;
+		border-radius: 50%;
 	}
 `;

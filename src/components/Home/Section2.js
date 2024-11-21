@@ -65,7 +65,7 @@ const Section2Container = styled.div`
 
 const Section2Wrapper = styled.div`
 	width: 68%;
-	margin-top: 950px;
+	margin-top: 920px;
 
 	@media (max-width: 800px) {
 		width: 100%;

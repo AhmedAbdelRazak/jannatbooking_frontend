@@ -172,7 +172,8 @@ const Footer = (props) => {
 											<i className='fi flaticon-phone-call'></i>+1909 (991) 4386
 										</li>
 										<li>
-											<i className='fi flaticon-send'></i>info@jannatbooking.com
+											<i className='fi flaticon-send'></i>
+											support@jannatbooking.com
 										</li>
 									</ul>
 								</div>

@@ -15,6 +15,7 @@ import Footer from "./components/Footer/Footer";
 import ListProperty from "./pages/ListProperty";
 import ChatIcon from "./Chat/ChatIcon";
 import SingleHotelMain from "./pages/SingleHotelMain";
+// eslint-disable-next-line
 import OurHotelRooms from "./pages/OurHotelRooms";
 import Checkout from "./pages/Checkout";
 import ConfirmationPage from "./pages/ConfirmationPage";
@@ -24,6 +25,7 @@ import GeneratedLinkCheckout from "./pages/GeneratedLinkCheckout";
 import About from "./pages/About";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import ContactUs from "./pages/ContactUs";
+import OurHotelRooms2 from "./pages/OurHotelRooms2";
 
 const App = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
@@ -76,7 +78,8 @@ const App = () => {
 						exact
 						component={SingleHotelMain}
 					/>
-					<Route path='/our-hotels-rooms' exact component={OurHotelRooms} />
+					{/* <Route path='/our-hotels-rooms' exact component={OurHotelRooms} /> */}
+					<Route path='/our-hotels-rooms' exact component={OurHotelRooms2} />
 					<Route path='/checkout' exact component={Checkout} />
 					<Route
 						path='/generated-link'

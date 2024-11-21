@@ -408,19 +408,14 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 					<MessagesContainer>
 						{messages &&
 							messages.map((msg, index) => (
-								<MessagesContainer>
-									{messages &&
-										messages.map((msg, index) => (
-											<Message key={index}>
-												<strong>{msg.messageBy.customerName}:</strong>{" "}
-												{renderMessageWithLinks(msg.message)}
-											</Message>
-										))}
-									<div ref={messagesEndRef} />
-								</MessagesContainer>
+								<Message key={index}>
+									<strong>{msg.messageBy.customerName}:</strong>{" "}
+									{renderMessageWithLinks(msg.message)}
+								</Message>
 							))}
 						<div ref={messagesEndRef} />
 					</MessagesContainer>
+
 					{typingStatus && <TypingStatus>{typingStatus}</TypingStatus>}
 					<Form.Item>
 						<ChatInputContainer>

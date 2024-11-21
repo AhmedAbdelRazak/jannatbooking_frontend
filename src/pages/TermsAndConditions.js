@@ -27,6 +27,7 @@ const TermsAndConditions = () => {
 
 	return (
 		<TermsAndConditionsWrapper
+			isArabic={chosenLanguage === "Arabic"}
 			dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
 		>
 			{window.scrollTo({ top: 8, behavior: "smooth" })}
@@ -57,10 +58,40 @@ const TermsAndConditions = () => {
 export default TermsAndConditions;
 
 const TermsAndConditionsWrapper = styled.div`
-	margin-top: 90px;
 	min-height: 750px;
-	padding: 20px;
+	padding: 50px 200px;
 	background-color: #f9f9f9;
+
+	ul,
+	ol {
+		margin-left: ${(props) => (props.isArabic ? "" : "1.5em")};
+		padding-left: ${(props) => (props.isArabic ? "" : "1.5em")};
+
+		margin-right: ${(props) => (props.isArabic ? "1.5em" : "")};
+		padding-right: ${(props) => (props.isArabic ? "1.5em" : "")};
+	}
+
+	h2 {
+		font-weight: bold;
+	}
+
+	@media (max-width: 800px) {
+		margin-top: 100px;
+		padding: 10px 25px;
+
+		h2 {
+			font-size: 1.3rem;
+			font-weight: bold;
+		}
+
+		ul,
+		ol {
+			margin-left: ${(props) => (props.isArabic ? "" : "1em")};
+			padding-left: ${(props) => (props.isArabic ? "" : "1em")};
+			margin-right: ${(props) => (props.isArabic ? "1em" : "")};
+			padding-right: ${(props) => (props.isArabic ? "1em" : "")};
+		}
+	}
 `;
 
 // eslint-disable-next-line

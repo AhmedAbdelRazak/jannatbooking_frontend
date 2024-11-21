@@ -4,8 +4,10 @@ import { gettingActiveHotelList, gettingDistinctRoomTypes } from "../apiCore";
 import { Spin, Drawer } from "antd"; // Import Spin, Drawer, and Button from Ant Design
 // eslint-disable-next-line
 import { FilterOutlined } from "@ant-design/icons"; // Import filter icon
+// eslint-disable-next-line
 import HotelList from "../components/OurHotels/HotelList";
 import Search from "../components/OurHotels/Search"; // Your search component
+import HotelList2 from "../components/OurHotels/HotelList2";
 
 const OurHotels = () => {
 	const [activeHotels, setActiveHotels] = useState(null); // State for selected hotel
@@ -113,12 +115,20 @@ const OurHotels = () => {
 
 				{/* Hotel list or loading spinner */}
 				<HotelListSection>
-					{loading ? (
+					{/* {loading ? (
 						<SpinWrapper>
 							<Spin size='large' />
 						</SpinWrapper>
 					) : (
 						<HotelList activeHotels={activeHotels} />
+					)} */}
+
+					{loading ? (
+						<SpinWrapper>
+							<Spin size='large' />
+						</SpinWrapper>
+					) : (
+						<HotelList2 activeHotels={activeHotels} />
 					)}
 				</HotelListSection>
 			</ContentWrapper>

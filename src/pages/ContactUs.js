@@ -79,6 +79,7 @@ const ContactUs = () => {
 
 	return (
 		<ContactUsWrapper>
+			{window.scrollTo({ top: 10, behavior: "smooth" })}
 			<Row justify='center' align='middle'>
 				<Col xs={24} sm={20} md={16} lg={12} xl={16}>
 					<ContactUsContent>
@@ -94,10 +95,10 @@ const ContactUs = () => {
 						</Paragraph>
 						<Paragraph>
 							<MailOutlined /> Email:{" "}
-							{contact.email || "info@jannatbooking.com"}
+							{contact.email || "support@jannatbooking.com"}
 						</Paragraph>
 						<Paragraph>
-							<PhoneOutlined /> Phone: {contact.phone || "(123) 456-7890"}
+							<PhoneOutlined /> Phone: {contact.phone || "(+1909) 991-4386"}
 						</Paragraph>
 						<Paragraph>
 							Please allow us 24 hours to respond to your inquiry.

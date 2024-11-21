@@ -14,6 +14,7 @@ import { amenitiesList, viewsList, extraAmenitiesList } from "../Assets";
 import Search from "../components/OurHotels/Search";
 import { useCartContext } from "../cart_context";
 import dayjs from "dayjs";
+// eslint-disable-next-line
 import { FaCar, FaWalking } from "react-icons/fa";
 
 const generateDateRange = (startDate, endDate) => {
@@ -88,15 +89,70 @@ const getIcon = (item) => {
 	return null;
 };
 
-const OurHotelRooms = () => {
+// Helper function to format the address
+// eslint-disable-next-line
+const formatAddress = (address) => {
+	const addressParts = address.split(",");
+	return addressParts.slice(1).join(", ").trim().toUpperCase();
+};
+
+// Function to calculate the total price for the stay
+const calculateTotalPrice = (averagePrice, startDate, endDate) => {
+	if (!averagePrice || !startDate || !endDate) {
+		console.error("Missing data for calculating total price", {
+			averagePrice,
+			startDate,
+			endDate,
+		});
+		return null;
+	}
+
+	const nights = dayjs(endDate).diff(dayjs(startDate), "day");
+
+	if (nights <= 0) {
+		console.error("Invalid date range for calculating total price", {
+			startDate,
+			endDate,
+			nights,
+		});
+		return null;
+	}
+
+	return (averagePrice * nights).toFixed(2);
+};
+
+const OurHotelRooms2 = () => {
 	const { chosenLanguage, addRoomToCart, openSidebar2 } = useCartContext();
 
 	const [loading, setLoading] = useState(true);
 	const [roomData, setRoomData] = useState(null);
 	const [distinctRoomTypes, setDistinctRoomTypes] = useState([]);
+	// eslint-disable-next-line
 	const [showAllAmenities, setShowAllAmenities] = useState(false);
+	const [showAmenitiesState, setShowAmenitiesState] = useState({}); // State to track showAllAmenities per room
 	const location = useLocation();
 	const queryParams = getQueryParams(location.search);
+
+	useEffect(() => {
+		const handleResize = () => {
+			if (window.innerWidth > 768) {
+				setShowAllAmenities(true); // For larger screens
+			} else {
+				setShowAllAmenities(false); // For smaller screens
+			}
+		};
+
+		// Run on initial load
+		handleResize();
+
+		// Listen to resize events
+		window.addEventListener("resize", handleResize);
+
+		// Cleanup listener on component unmount
+		return () => {
+			window.removeEventListener("resize", handleResize);
+		};
+	}, []);
 
 	const roomTypesMapping = useMemo(
 		() => [
@@ -176,8 +232,16 @@ const OurHotelRooms = () => {
 		gettingDistinctRooms();
 	}, [roomTypesMapping]);
 
+	// Function to toggle showAllAmenities for a specific room
+	const toggleShowAmenities = (roomId) => {
+		setShowAmenitiesState((prevState) => ({
+			...prevState,
+			[roomId]: !prevState[roomId], // Toggle the state for the specific room ID
+		}));
+	};
+
 	return (
-		<OurHotelRoomsWrapper>
+		<OurHotelRooms2Wrapper>
 			{loading ? (
 				<LoadingOverlay>
 					<Spin size='large' tip='Loading room data...' />
@@ -207,10 +271,7 @@ const OurHotelRooms = () => {
 								room={room}
 								hotelName={hotel.hotelName}
 								hotelRating={hotel.hotelRating}
-								hotelAddress={hotel.hotelAddress
-									.split(",")
-									.slice(0, 2)
-									.join(", ")}
+								hotelAddress={hotel.hotelAddress}
 								distanceToElHaramWalking={
 									hotel.distances?.walkingToElHaram || "N/A"
 								}
@@ -228,8 +289,9 @@ const OurHotelRooms = () => {
 								roomColor={room.roomColor}
 								adults={queryParams.adults}
 								children={queryParams.children}
-								showAllAmenities={showAllAmenities}
 								setShowAllAmenities={setShowAllAmenities}
+								showAllAmenities={!!showAmenitiesState[room._id]} // Pass room-specific state
+								toggleShowAmenities={() => toggleShowAmenities(room._id)} // Pass toggle handler
 							/>
 						))
 					)}
@@ -237,7 +299,7 @@ const OurHotelRooms = () => {
 			) : (
 				<div>No data found.</div>
 			)}
-		</OurHotelRoomsWrapper>
+		</OurHotelRooms2Wrapper>
 	);
 };
 
@@ -257,11 +319,13 @@ const RoomCard = ({
 	roomColor,
 	adults,
 	children,
-	showAllAmenities,
 	setShowAllAmenities,
 	distanceToElHaramWalking,
 	distanceToElHaramDriving,
+	showAllAmenities, // Room-specific state
+	toggleShowAmenities, // Handler to toggle state
 }) => {
+	// eslint-disable-next-line
 	const [thumbsSwiper, setThumbsSwiper] = useState(null);
 	const averagePrice = calculateAveragePrice(
 		room.pricingRate,
@@ -277,7 +341,8 @@ const RoomCard = ({
 		room.price.basePrice
 	);
 
-	// console.log(pricingByDay, "pricingByDaypricingByDay");
+	// Calculate total price
+	const totalPrice = calculateTotalPrice(displayedPrice, startDate, endDate);
 
 	const firstImage = room.photos[0]?.url || "";
 
@@ -317,6 +382,23 @@ const RoomCard = ({
 		openSidebar2(); // Open the cart drawer after adding a room
 	};
 
+	const handleChatClick = () => {
+		const hotelNameSlug = hotelName.replace(/\s+/g, "-").toLowerCase();
+
+		// Use URLSearchParams to update the search query without refreshing
+		const params = new URLSearchParams(window.location.search);
+		params.set("hotelNameSlug", hotelNameSlug);
+
+		// Update the URL without refreshing
+		const newUrl = `${window.location.pathname}?${params.toString()}`;
+		window.history.pushState({}, "", newUrl); // Push the new URL to browser history
+
+		// Trigger a custom event for ChatIcon to detect changes (optional)
+		const searchChangeEvent = new CustomEvent("searchChange");
+		window.dispatchEvent(searchChangeEvent);
+	};
+
+	console.log(totalPrice, "totalPrice");
 	return (
 		<RoomCardWrapper>
 			<RoomImageWrapper>
@@ -347,7 +429,7 @@ const RoomCard = ({
 						</SwiperSlide>
 					))}
 				</Swiper>
-				<Swiper
+				{/* <Swiper
 					modules={[Thumbs]}
 					onSwiper={setThumbsSwiper}
 					spaceBetween={2}
@@ -360,7 +442,7 @@ const RoomCard = ({
 							<ThumbnailImage src={photo.url} alt={room.displayName} />
 						</SwiperSlide>
 					))}
-				</Swiper>
+				</Swiper> */}
 			</RoomImageWrapper>
 
 			<RoomDetails>
@@ -370,21 +452,44 @@ const RoomCard = ({
 						: room.displayName}
 				</RoomDisplayName>
 				<HotelName>{hotelName}</HotelName>
-				<Distances>
-					<FaCar /> {distanceToElHaramDriving} Driving to El Haram
-				</Distances>
-				<Distances>
-					<FaWalking /> {distanceToElHaramWalking} Walking to El Haram
-				</Distances>
-				<Location>{hotelAddress}</Location>
-				{/* <StarRatings
+
+				{/* <Location>
+					{formatAddress(hotelAddress).split(",").slice(0, 2).join(", ")}
+				</Location> */}
+				<StarRatings
 					rating={hotelRating || 0}
 					starRatedColor='orange'
 					numberOfStars={5}
 					name='rating'
-					starDimension='20px'
-					starSpacing='3px'
-				/> */}
+					starDimension='15px'
+					starSpacing='1px'
+				/>
+				<PriceWrapper>
+					<span
+						style={{
+							fontWeight: "bolder",
+							// textDecoration: "underline",
+							fontSize: "1.5rem",
+							color: "black",
+						}}
+					>
+						SAR {displayedPrice}
+					</span>{" "}
+					<span style={{ fontSize: "0.82rem", color: "black" }}>/ NIGHT</span>
+					{totalPrice && (
+						<div
+							className='mb-1'
+							style={{
+								fontSize: "0.7rem",
+								color: "var(--darkGrey)",
+								fontWeight: "bold",
+							}}
+						>
+							Total {dayjs(endDate).diff(dayjs(startDate), "day")} nights:{" "}
+							<strong>SAR {totalPrice}</strong>
+						</div>
+					)}
+				</PriceWrapper>
 				<AmenitiesWrapper className='p-0 m-0'>
 					{visibleFeatures.map((feature, index) => (
 						<AmenityItem key={index}>
@@ -395,25 +500,54 @@ const RoomCard = ({
 
 				{/* Show more/less link */}
 				{uniqueFeatures.length > 4 && (
-					<ShowMoreText onClick={() => setShowAllAmenities(!showAllAmenities)}>
+					<ShowMoreText onClick={toggleShowAmenities}>
 						{showAllAmenities ? "Show less..." : "Show more..."}
 					</ShowMoreText>
 				)}
-				<PriceWrapper>
-					<span>{displayedPrice} SAR</span> per night
-				</PriceWrapper>
-				<StyledButton onClick={handleAddToCart}>
-					Add Room To Reservation
-				</StyledButton>
+				<Distances className='mt-1'>
+					<FaCar /> {distanceToElHaramDriving} Driving to El Haram
+				</Distances>
+				{/* <Distances>
+					<FaWalking /> {distanceToElHaramWalking} Walking to El Haram
+				</Distances> */}
 			</RoomDetails>
+			<div className='habal'></div>
+			<StyledButton
+				className='mb-2 mt-1'
+				style={{ textAlign: "left" }}
+				onClick={handleAddToCart}
+			>
+				Add to Reservation
+			</StyledButton>
+			<div>
+				<ReceptionChat className='float-right mr-3' onClick={handleChatClick}>
+					Reception
+					<div className='row'>
+						<div className='col-3'>Chat</div>
+						<div className='col-9'>
+							<span style={{ fontSize: "8px", marginLeft: "10px" }}>
+								<span
+									className='mx-1'
+									style={{
+										backgroundColor: "#00ff00",
+										padding: "0px 5px",
+										borderRadius: "50%",
+									}}
+								></span>{" "}
+								Available
+							</span>
+						</div>
+					</div>
+				</ReceptionChat>
+			</div>
 		</RoomCardWrapper>
 	);
 };
 
-export default OurHotelRooms;
+export default OurHotelRooms2;
 
 // Styled-components for the component
-const OurHotelRoomsWrapper = styled.div`
+const OurHotelRooms2Wrapper = styled.div`
 	width: 100%;
 	padding: 220px 250px;
 	background-color: #f9f9f9;
@@ -421,6 +555,10 @@ const OurHotelRoomsWrapper = styled.div`
 
 	@media (max-width: 1000px) {
 		padding: 200px 0px;
+
+		.habal {
+			display: none;
+		}
 	}
 `;
 
@@ -457,24 +595,23 @@ const RoomListWrapper = styled.div`
 
 const RoomCardWrapper = styled.div`
 	display: grid;
-	grid-template-columns: 35% 65%;
-	background-color: #fff;
-	border: 1px solid #ddd;
+	grid-template-columns: 35% 45% 20%; /* Desktop layout */
+	background-color: var(--mainWhite);
+	border: 1px solid var(--border-color-light);
 	border-radius: 10px;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-	transition: box-shadow 0.3s ease;
+	box-shadow: var(--box-shadow-light);
+	padding: 20px;
+	transition: var(--main-transition);
 
 	&:hover {
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+		box-shadow: var(--box-shadow-dark);
 	}
 
 	@media (max-width: 768px) {
-		grid-template-columns: 1fr;
-	}
-
-	/* Mobile view adjustments */
-	@media (max-width: 768px) {
-		display: block; /* Stack the elements vertically for mobile */
+		grid-template-columns: 40% 60%; /* Image takes 35%, content takes 65% */
+		display: grid;
+		gap: 0px;
+		padding: 0px;
 	}
 `;
 
@@ -514,11 +651,12 @@ const RoomImageWrapper = styled.div`
 
 	@media (max-width: 768px) {
 		.room-image {
-			height: 180px; /* Adjust image height for mobile */
+			height: 200px; /* Adjust image height for mobile */
 		}
 	}
 `;
 
+// eslint-disable-next-line
 const ThumbnailImage = styled.img`
 	width: 100%;
 	height: 40px;
@@ -543,8 +681,9 @@ const RoomDisplayName = styled.h3`
 	text-transform: capitalize;
 
 	@media (max-width: 750px) {
-		font-size: 0.85rem;
+		font-size: 0.8rem;
 		font-weight: bold;
+		margin-bottom: 0px;
 	}
 `;
 
@@ -556,7 +695,8 @@ const HotelName = styled.p`
 	font-weight: bold;
 
 	@media (max-width: 700px) {
-		font-size: 0.85rem;
+		font-size: 0.9rem;
+		margin-bottom: 0px;
 	}
 `;
 
@@ -569,9 +709,11 @@ const Distances = styled.div`
 
 	@media (max-width: 700px) {
 		font-size: 0.7rem;
+		margin-bottom: 0px;
 	}
 `;
 
+// eslint-disable-next-line
 const Location = styled.p`
 	font-size: 0.9rem;
 	color: #888;
@@ -580,6 +722,7 @@ const Location = styled.p`
 
 	@media (max-width: 700px) {
 		font-size: 0.7rem;
+		margin-bottom: 0px;
 	}
 `;
 
@@ -593,6 +736,11 @@ const PriceWrapper = styled.p`
 		font-weight: bold;
 		color: #1e90ff;
 	}
+
+	@media (max-width: 800px) {
+		margin: 0px;
+		padding: 0px;
+	}
 `;
 
 const AmenitiesWrapper = styled.div`
@@ -603,6 +751,7 @@ const AmenitiesWrapper = styled.div`
 
 	@media (max-width: 768px) {
 		grid-template-columns: repeat(2, 1fr);
+		margin-top: 0px !important;
 	}
 `;
 
@@ -614,6 +763,8 @@ const AmenityItem = styled.div`
 
 	span {
 		margin-left: 5px;
+		font-size: 9px;
+		font-weight: bold;
 	}
 `;
 
@@ -622,17 +773,20 @@ const ShowMoreText = styled.span`
 	cursor: pointer;
 	font-weight: bold;
 	text-decoration: underline;
-	margin-top: 10px;
 	display: inline-block;
 	font-size: 13px;
 
 	&:hover {
 		color: var(--primaryBlueDarker);
 	}
+
+	@media (max-width: 800px) {
+		font-size: 11px;
+	}
 `;
 
 const StyledButton = styled(Button)`
-	width: 75%;
+	width: 100%;
 	margin: 0 auto;
 	background-color: var(--button-bg-primary);
 	color: var(--button-font-color);
@@ -664,4 +818,21 @@ const StyledButton = styled(Button)`
 		border-color: var(--primary-color-darker);
 		box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 	}
+
+	@media (max-width: 800px) {
+		font-size: 0.7rem;
+		font-weight: bolder;
+	}
+`;
+
+const ReceptionChat = styled.div`
+	background-color: darkorange;
+	padding: 5px 10px;
+	border-radius: 20px;
+	font-size: 11px;
+	font-weight: bold;
+	color: white;
+	align-items: center;
+	margin-top: -5px !important;
+	cursor: pointer;
 `;
