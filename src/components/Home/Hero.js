@@ -144,7 +144,7 @@ const HeroWrapper = styled.section`
 	}
 
 	.slide-inner {
-		width: 100%;
+		width: 100vw;
 		height: 100%;
 		left: 0;
 		top: 0;

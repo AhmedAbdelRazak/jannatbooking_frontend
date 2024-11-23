@@ -64,23 +64,29 @@ const About = () => {
 export default About;
 
 const AboutWrapper = styled.div`
-	margin-top: 90px;
 	min-height: 750px;
 	padding: 20px;
 	background-color: #f9f9f9;
+
+	@media (max-width: 800px) {
+		margin-top: 90px;
+		padding: 5px;
+	}
 `;
 
 const BannerWrapper = styled.div`
 	margin-bottom: 30px;
+
 	img {
 		width: 100%;
 		height: auto;
-		border-radius: 10px;
+		border-radius: 5px;
+		max-height: 600px;
+		object-fit: cover;
 	}
 `;
 
 const DescriptionWrapper = styled.div`
 	font-size: 1rem;
-	line-height: 1.6;
 	color: #333;
 `;
