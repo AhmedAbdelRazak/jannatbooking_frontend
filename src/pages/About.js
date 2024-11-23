@@ -18,6 +18,7 @@ const About = () => {
 	//Chat icon when going to the hotel single page
 	//Data validation in the search
 	//Privacy Policy 3araby w english
+	//Adult beside the Children count in the search
 
 	const gettingJannatBookingData = () => {
 		setLoading(true);
