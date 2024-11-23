@@ -19,7 +19,7 @@ body {
 }
 
 :root {
-	--primaryBlue: #303443;
+	--primaryBlue: #20212c;
 	--primaryBlueDarker: #1e2332;
 	--orangeDark: #501500;
 	--orangeLight: #ffe3d9;
@@ -31,7 +31,7 @@ body {
 	--mainSpacing: 0.3rem;
 
 	/* Primary Colors */
-	--primary-color: #303443; /* Base primary color */
+	--primary-color: #20212c; /* Base primary color */
 	--primary-color-light: #3e4358; /* Slightly lighter shade of primary */
 	--primary-color-lighter: #4c536c; /* Lighter shade */
 	--primary-color-dark: #1e2332; /* Darker shade */

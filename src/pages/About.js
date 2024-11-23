@@ -89,4 +89,12 @@ const BannerWrapper = styled.div`
 const DescriptionWrapper = styled.div`
 	font-size: 1rem;
 	color: #333;
+
+	img {
+		width: 100%;
+		height: auto;
+		border-radius: 5px;
+		max-height: 600px;
+		object-fit: cover;
+	}
 `;

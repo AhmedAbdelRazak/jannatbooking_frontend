@@ -437,8 +437,8 @@ const LogoSection = styled.div`
 
 	@media (max-width: 768px) {
 		img {
-			width: 120px;
-			height: 50px;
+			width: 105px;
+			height: 44px;
 			object-fit: cover;
 		}
 	}
