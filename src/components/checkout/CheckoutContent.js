@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
 import dayjs from "dayjs";
-import { DatePicker, Button, Collapse, Select, message } from "antd";
+import { DatePicker, Button, Collapse, Select, message, Checkbox } from "antd";
 import PaymentDetails from "./PaymentDetails";
 import { countryList } from "../../Assets"; // Ensure this file contains an array of countries
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
@@ -10,6 +10,7 @@ import { createNewReservationClient } from "../../apiCore";
 import { FaMinus, FaPlus } from "react-icons/fa";
 import { authenticate, isAuthenticated, signin } from "../../auth";
 import { useHistory } from "react-router-dom";
+import DesktopCheckout from "./DesktopCheckout";
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
@@ -30,7 +31,11 @@ const CheckoutContent = () => {
 
 	const [expanded, setExpanded] = useState({});
 	const [mobileExpanded, setMobileExpanded] = useState(false); // Mobile collapse
+	const [guestAgreedOnTermsAndConditions, setGuestAgreedOnTermsAndConditions] =
+		useState(false);
 	const [cardNumber, setCardNumber] = useState("");
+	const [pay10Percent, setPay10Percent] = useState(false);
+	const [payWholeAmount, setPayWholeAmount] = useState(false);
 	const [expiryDate, setExpiryDate] = useState("");
 	const [cvv, setCvv] = useState("");
 	const [cardHolderName, setCardHolderName] = useState("");
@@ -86,6 +91,14 @@ const CheckoutContent = () => {
 			password,
 			confirmPassword,
 		} = customerDetails;
+
+		// Check if terms and conditions are agreed
+		if (!guestAgreedOnTermsAndConditions) {
+			message.error(
+				"You must accept the Terms & Conditions before proceeding."
+			);
+			return;
+		}
 
 		// Full name validation
 		if (!name || name.trim().split(" ").length < 2) {
@@ -206,6 +219,7 @@ const CheckoutContent = () => {
 		const pickedRoomsType = transformRoomCartToPickedRoomsType(roomCart);
 
 		const reservationData = {
+			guestAgreedOnTermsAndConditions: guestAgreedOnTermsAndConditions,
 			userId: user ? user._id : null,
 			hotelId: roomCart[0].hotelId,
 			belongsTo: roomCart[0].belongsTo,
@@ -214,19 +228,22 @@ const CheckoutContent = () => {
 				nationality,
 			},
 			paymentDetails,
-			payment: "Paid",
 			total_rooms,
 			total_guests: Number(roomCart[0].adults) + Number(roomCart[0].children),
 			adults: Number(roomCart[0].adults),
 			children: 0,
 			total_amount: total_price,
+			payment: pay10Percent ? "Deposit Paid" : "Paid",
+			paid_amount: pay10Percent
+				? Number(total_price * 0.1).toFixed(2)
+				: total_price,
 			checkin_date: roomCart[0].startDate,
 			checkout_date: roomCart[0].endDate,
 			days_of_residence: dayjs(roomCart[0].endDate).diff(
 				dayjs(roomCart[0].startDate),
 				"days"
 			),
-			booking_source: "Jannat Booking",
+			booking_source: "Online Jannat Booking",
 			pickedRoomsType,
 		};
 
@@ -556,180 +573,51 @@ const CheckoutContent = () => {
 						</Select>
 					</InputGroup>
 					<div>
-						<PaymentDetails
-							cardNumber={cardNumber}
-							setCardNumber={setCardNumber}
-							expiryDate={expiryDate}
-							setExpiryDate={setExpiryDate}
-							cvv={cvv}
-							setCvv={setCvv}
-							cardHolderName={cardHolderName}
-							setCardHolderName={setCardHolderName}
-							postalCode={postalCode}
-							setPostalCode={setPostalCode}
-							handleReservation={createNewReservation}
-							total={total_price}
-						/>
-					</div>
-				</form>
-			</MobileFormWrapper>
-
-			<DesktopWrapper>
-				<LeftSection>
-					<h2>Customer Details</h2>
-					<form>
-						<InputGroup>
-							<label>Name</label>
-							<input
-								type='text'
-								name='name'
-								placeholder='First & Last Name'
-								value={customerDetails.name}
+						<TermsWrapper>
+							<Checkbox
+								checked={guestAgreedOnTermsAndConditions}
 								onChange={(e) =>
-									setCustomerDetails({
-										...customerDetails,
-										name: e.target.value,
-									})
+									setGuestAgreedOnTermsAndConditions(e.target.checked)
 								}
-							/>
-						</InputGroup>
-						<InputGroup>
-							<label>Phone</label>
-							<input
-								type='text'
-								name='phone'
-								placeholder='Phone Number'
-								value={customerDetails.phone}
-								onChange={(e) =>
-									setCustomerDetails({
-										...customerDetails,
-										phone: e.target.value,
-									})
-								}
-							/>
-						</InputGroup>
-						<InputGroup>
-							<label>Email</label>
-							<input
-								type='email'
-								name='email'
-								placeholder='Email Address'
-								value={customerDetails.email}
-								onChange={(e) =>
-									setCustomerDetails({
-										...customerDetails,
-										email: e.target.value,
-									})
-								}
-							/>
-						</InputGroup>
-						{!user ? (
-							<div className='row'>
-								<div className='col-md-12 mt-1'>
-									<p style={{ fontWeight: "bold", fontSize: "13px" }}>
-										Already Have An Account?{" "}
-										<span
-											onClick={redirectToSignin}
-											style={{
-												color: "blue",
-												cursor: "pointer",
-												textDecoration: "underline",
-											}}
-										>
-											Please Click Here To Signin
-										</span>
-									</p>
-								</div>
-
-								<div className='col-md-6'>
-									<InputGroup>
-										<label>Password</label>
-										<input
-											type='password'
-											name='password'
-											placeholder='Password'
-											value={customerDetails.password}
-											onChange={(e) =>
-												setCustomerDetails({
-													...customerDetails,
-													password: e.target.value,
-												})
-											}
-										/>
-									</InputGroup>
-								</div>
-
-								<div className='col-md-6'>
-									<InputGroup>
-										<label>Confirm Password</label>
-										<input
-											type='password'
-											name='confirmpassword'
-											placeholder='Confirm Password'
-											value={customerDetails.confirmPassword}
-											onChange={(e) =>
-												setCustomerDetails({
-													...customerDetails,
-													confirmPassword: e.target.value,
-												})
-											}
-										/>
-									</InputGroup>
-								</div>
-							</div>
-						) : null}
-
-						<InputGroup>
-							<label>Passport</label>
-							<input
-								type='text'
-								name='passport'
-								placeholder='Passport Number'
-								value={customerDetails.passport}
-								onChange={(e) =>
-									setCustomerDetails({
-										...customerDetails,
-										passport: e.target.value,
-									})
-								}
-							/>
-						</InputGroup>
-						<InputGroup>
-							<label>Passport Expiry</label>
-							<input
-								type='date'
-								name='passportExpiry'
-								value={customerDetails.passportExpiry}
-								onChange={(e) =>
-									setCustomerDetails({
-										...customerDetails,
-										passportExpiry: e.target.value,
-									})
-								}
-							/>
-						</InputGroup>
-						<InputGroup>
-							<label>Nationality</label>
-							<Select
-								showSearch
-								placeholder='Select a country'
-								optionFilterProp='children'
-								filterOption={(input, option) =>
-									option.children.toLowerCase().includes(input.toLowerCase())
-								}
-								value={nationality}
-								onChange={(value) => setNationality(value)}
-								style={{ width: "100%" }}
 							>
-								{countryList.map((country) => (
-									<Option key={country} value={country}>
-										{country}
-									</Option>
-								))}
-							</Select>
-						</InputGroup>
+								Accept Terms & Conditions
+							</Checkbox>
+						</TermsWrapper>
+						<small onClick={() => window.open("/terms-conditions", "_blank")}>
+							It's highly recommended to check our terms & conditions specially
+							for refund and cancellation sections 4 & 5{" "}
+						</small>
 
-						<div>
+						<TermsWrapper>
+							<Checkbox
+								checked={pay10Percent}
+								onChange={(e) => {
+									setPayWholeAmount(false);
+									setPay10Percent(e.target.checked);
+								}}
+							>
+								Pay 10% Deposit{" "}
+								<span style={{ fontWeight: "bold" }}>
+									(SAR {Number(total_price * 0.1).toFixed(2)})
+								</span>
+							</Checkbox>
+						</TermsWrapper>
+						<TermsWrapper>
+							<Checkbox
+								checked={payWholeAmount}
+								onChange={(e) => {
+									setPay10Percent(false);
+									setPayWholeAmount(e.target.checked);
+								}}
+							>
+								Pay the whole Total Amount{" "}
+								<span style={{ fontWeight: "bold" }}>
+									(SAR {Number(total_price).toFixed(2)})
+								</span>
+							</Checkbox>
+						</TermsWrapper>
+						{guestAgreedOnTermsAndConditions &&
+						(pay10Percent || payWholeAmount) ? (
 							<PaymentDetails
 								cardNumber={cardNumber}
 								setCardNumber={setCardNumber}
@@ -743,119 +631,48 @@ const CheckoutContent = () => {
 								setPostalCode={setPostalCode}
 								handleReservation={createNewReservation}
 								total={total_price}
+								pay10Percent={pay10Percent}
 							/>
-						</div>
-					</form>
-				</LeftSection>
+						) : null}
+					</div>
+				</form>
+			</MobileFormWrapper>
 
-				<RightSection>
-					<h2>Your Reservation</h2>
-
-					{/* Ant Design Date Range Picker */}
-					<DateRangePickerWrapper>
-						<RangePicker
-							format='YYYY-MM-DD'
-							disabledDate={disabledDate}
-							onChange={handleDateChange}
-							defaultValue={[
-								dayjs(roomCart[0]?.startDate),
-								dayjs(roomCart[0]?.endDate),
-							]}
-							style={{ width: "100%" }}
-							dropdownClassName='mobile-friendly-picker'
-						/>
-					</DateRangePickerWrapper>
-
-					{roomCart.length > 0 ? (
-						roomCart.map((room) => (
-							<RoomItem key={room.id}>
-								<RoomImage src={room.photos[0]?.url} alt={room.name} />
-
-								<RoomDetails>
-									<h3>{room.name}</h3>
-									<p>{room.amount} room(s)</p>
-									<DateRangeWrapper>
-										<label>Dates:</label>
-										<p>
-											{room.startDate} to {room.endDate}
-										</p>
-									</DateRangeWrapper>
-									<p className='total'>
-										Price for {room.nights} night(s): {room.amount * room.price}{" "}
-										SAR
-									</p>
-									<h4>{room.price} SAR per night</h4>
-
-									{/* Room Quantity Controls */}
-									<QuantityControls>
-										<MinusIcon
-											onClick={() => toggleRoomAmount(room.id, "dec")}
-										/>
-										<Quantity>{room.amount}</Quantity>
-										<PlusIcon
-											onClick={() => toggleRoomAmount(room.id, "inc")}
-										/>
-									</QuantityControls>
-
-									{/* Updated Accordion for Price Breakdown */}
-									<Collapse
-										accordion
-										expandIcon={({ isActive }) => (
-											<CaretRightOutlined
-												rotate={isActive ? 90 : 0}
-												style={{ color: "var(--primary-color)" }}
-											/>
-										)}
-										onChange={() =>
-											setExpanded((prev) => ({
-												...prev,
-												[room.id]: !prev[room.id],
-											}))
-										}
-										activeKey={expanded[room.id] ? "1" : null}
-									>
-										<Panel
-											header={
-												<PriceDetailsHeader>
-													<InfoCircleOutlined /> Price Breakdown
-												</PriceDetailsHeader>
-											}
-											key='1'
-										>
-											<PricingList>
-												{/* Ensure pricingByDay is mapped correctly */}
-												{room.pricingByDay && room.pricingByDay.length > 0 ? (
-													room.pricingByDay.map(({ date, price }, index) => {
-														return (
-															<li key={index}>
-																{date}: {price} SAR
-															</li>
-														);
-													})
-												) : (
-													<li>No price breakdown available</li>
-												)}
-											</PricingList>
-										</Panel>
-									</Collapse>
-
-									<RemoveButton onClick={() => removeRoomItem(room.id)}>
-										Remove
-									</RemoveButton>
-								</RoomDetails>
-							</RoomItem>
-						))
-					) : (
-						<p>No rooms selected.</p>
-					)}
-
-					{/* Totals Section */}
-					<TotalsWrapper>
-						<p>Total Rooms: {total_rooms}</p>
-						<p className='total-price'>Total Price: {total_price} SAR</p>
-					</TotalsWrapper>
-				</RightSection>
-			</DesktopWrapper>
+			<DesktopCheckout
+				customerDetails={customerDetails}
+				setCustomerDetails={setCustomerDetails}
+				redirectToSignin={redirectToSignin}
+				cardNumber={cardNumber}
+				setCardNumber={setCardNumber}
+				expiryDate={expiryDate}
+				setExpiryDate={setExpiryDate}
+				cvv={cvv}
+				setCvv={setCvv}
+				cardHolderName={cardHolderName}
+				setCardHolderName={setCardHolderName}
+				postalCode={postalCode}
+				setPostalCode={setPostalCode}
+				handleReservation={createNewReservation}
+				guestAgreedOnTermsAndConditions={guestAgreedOnTermsAndConditions}
+				setGuestAgreedOnTermsAndConditions={setGuestAgreedOnTermsAndConditions}
+				user={user}
+				nationality={nationality}
+				setNationality={setNationality}
+				countryList={countryList}
+				total_price={total_price}
+				handleDateChange={handleDateChange}
+				disabledDate={disabledDate}
+				roomCart={roomCart}
+				toggleRoomAmount={toggleRoomAmount}
+				removeRoomItem={removeRoomItem}
+				expanded={expanded}
+				setExpanded={setExpanded}
+				total_rooms={total_rooms}
+				pay10Percent={pay10Percent}
+				setPay10Percent={setPay10Percent}
+				payWholeAmount={payWholeAmount}
+				setPayWholeAmount={setPayWholeAmount}
+			/>
 		</CheckoutContentWrapper>
 	);
 };
@@ -870,6 +687,13 @@ const CheckoutContentWrapper = styled.div`
 
 	@media (max-width: 800px) {
 		padding: 25px 0px;
+	}
+
+	small {
+		font-weight: bold;
+		font-size: 11px;
+		cursor: pointer;
+		color: darkred;
 	}
 `;
 
@@ -896,22 +720,6 @@ const MobileFormWrapper = styled.div`
 			font-size: 1.6rem;
 		}
 	}
-`;
-
-const DesktopWrapper = styled.div`
-	display: flex;
-	gap: 20px;
-	@media (max-width: 768px) {
-		display: none;
-	}
-`;
-
-const LeftSection = styled.div`
-	flex: 2;
-	background: var(--background-light);
-	padding: 20px;
-	border-radius: 10px;
-	box-shadow: var(--box-shadow-light);
 `;
 
 const RightSection = styled.div`
@@ -1085,5 +893,16 @@ const DateRangePickerWrapper = styled.div`
 			top: 50px;
 			transform: none;
 		}
+	}
+`;
+
+const TermsWrapper = styled.div`
+	margin: 5px auto;
+	font-size: 1rem;
+	display: flex;
+	align-items: center;
+
+	.ant-checkbox-wrapper {
+		margin-left: 10px;
 	}
 `;

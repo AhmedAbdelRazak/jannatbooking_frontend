@@ -140,29 +140,35 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 					))}
 				</Select>
 
-				<InputNumberWrapper>
-					<InputNumber
-						className='w-100'
-						prefix={<UserOutlined />}
-						min={1}
-						max={10}
-						placeholder='Adults'
-						onChange={(value) => handleSelectChange(value, "adults")}
-						value={searchParams.adults}
-					/>
-				</InputNumberWrapper>
+				<div className='row mt-3'>
+					<div className='col-6 w-100'>
+						<InputNumberWrapper>
+							<InputNumber
+								className='w-100'
+								prefix={<UserOutlined />}
+								min={1}
+								max={10}
+								placeholder='Adults'
+								onChange={(value) => handleSelectChange(value, "adults")}
+								value={searchParams.adults}
+							/>
+						</InputNumberWrapper>
+					</div>
 
-				<InputNumberWrapper>
-					<InputNumber
-						className='w-100'
-						prefix={<TeamOutlined />}
-						min={0}
-						max={10}
-						placeholder='Children'
-						onChange={(value) => handleSelectChange(value, "children")}
-						value={searchParams.children}
-					/>
-				</InputNumberWrapper>
+					<div className='col-6'>
+						<InputNumberWrapper>
+							<InputNumber
+								className='w-100'
+								prefix={<TeamOutlined />}
+								min={0}
+								max={10}
+								placeholder='Children'
+								onChange={(value) => handleSelectChange(value, "children")}
+								value={searchParams.children}
+							/>
+						</InputNumberWrapper>
+					</div>
+				</div>
 			</InputsWrapper>
 
 			<SearchButtonWrapper>
@@ -210,13 +216,12 @@ const SearchWrapper = styled.div`
 	// Responsive styling for smaller screens
 	@media (max-width: 768px) {
 		width: 95%;
-		top: 105%; /* Adjust to overlap 5% more with Hero */
 		padding: 20px; /* Reduce padding for better fit */
 		border-radius: 15px;
 	}
 
 	@media (max-width: 480px) {
-		top: 65%; /* Adjust top value for very small screens */
+		top: 68%; /* Adjust top value for very small screens */
 		width: 100%; /* Full width for better fit */
 		padding: 15px; /* Further reduce padding for compact layout */
 		border-radius: 10px;

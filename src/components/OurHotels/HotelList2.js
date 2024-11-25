@@ -169,22 +169,31 @@ const HotelCard = ({ hotel }) => {
 			<HotelDetails>
 				<div>
 					<HotelName className='p-0 m-0'>{hotel.hotelName}</HotelName>
-
 					<Location className='p-0 m-0'>
 						{formatAddress(hotel.hotelAddress)
 							.split(",")
 							.slice(0, 2)
 							.join(", ")}
 					</Location>
-					<StarRatings
-						className='p-0 m-0'
-						rating={hotel.hotelRating || 0}
-						starRatedColor='orange'
-						numberOfStars={5}
-						name='rating'
-						starDimension='15px'
-						starSpacing='1px'
-					/>
+					<div
+						className='m-0 p-0'
+						style={{ display: "flex", alignItems: "center", gap: "2px" }}
+					>
+						<span
+							style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}
+						>
+							Hotel Rating
+						</span>
+						<StarRatings
+							className='p-0 m-0'
+							rating={hotel.hotelRating || 0}
+							starRatedColor='orange'
+							numberOfStars={5}
+							name='rating'
+							starDimension='15px'
+							starSpacing='1px'
+						/>
+					</div>
 					<PriceWrapper className='mb-2'>
 						{/* Starting From:{" "} */}
 						<span
@@ -199,7 +208,6 @@ const HotelCard = ({ hotel }) => {
 						</span>{" "}
 						<span style={{ fontSize: "0.85rem" }}>/ NIGHT</span>
 					</PriceWrapper>
-
 					{/* Display unique amenities, views, and extra amenities */}
 					<AmenitiesWrapper className='p-0 mt-1'>
 						{visibleFeatures.map((feature, index) => (
@@ -208,7 +216,6 @@ const HotelCard = ({ hotel }) => {
 							</AmenityItem>
 						))}
 					</AmenitiesWrapper>
-
 					{/* Show more/less link */}
 					{uniqueFeatures.length > 6 && (
 						<ShowMoreText
@@ -217,9 +224,9 @@ const HotelCard = ({ hotel }) => {
 							{showAllAmenities ? "Show less..." : "Show more..."}
 						</ShowMoreText>
 					)}
-
 					<Distances className='mt-1'>
-						<FaCar /> {hotel.distances?.drivingToElHaram} Driving to El Haram
+						<FaCar /> {hotel.distances?.drivingToElHaram} <span>Driving</span>{" "}
+						to El Haram
 					</Distances>
 					{/* <Distances>
 						<FaWalking /> {hotel.distances?.walkingToElHaram} Walking to El
@@ -427,7 +434,12 @@ const Distances = styled.div`
 	font-weight: bold;
 
 	@media (max-width: 700px) {
-		font-size: 0.75rem;
+		font-size: 0.85rem;
+		font-weight: bold;
+
+		span {
+			display: none;
+		}
 	}
 `;
 
@@ -516,11 +528,13 @@ const FreeCancellation = styled.p`
 	font-weight: bold;
 	text-align: right;
 	margin-top: 12px;
+	color: #34679b;
 
 	@media (max-width: 768px) {
 		text-align: center;
-		margin-top: 0px !important;
+		/* margin-top: 10px !important; */
 		padding-top: 0px !important;
+		font-size: 0.72rem;
 	}
 `;
 
@@ -550,13 +564,18 @@ const AmenityItem = styled.div`
 
 const ReceptionChat = styled.div`
 	background-color: darkorange;
-	padding: 5px 10px;
-	border-radius: 20px;
+	padding: 3px 7px;
+	border-radius: 5px;
 	font-size: 11px;
 	font-weight: bold;
 	color: white;
 	align-items: center;
 	cursor: pointer;
+
+	@media (max-width: 800px) {
+		width: 50% !important;
+		margin-bottom: 10px;
+	}
 
 	.status-dot {
 		width: 8px; /* Size of the green dot */

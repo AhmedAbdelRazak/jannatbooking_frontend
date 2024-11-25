@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import { DatePicker, Collapse, message } from "antd";
+import { DatePicker, Collapse, message, Checkbox } from "antd";
 import { useLocation, useHistory } from "react-router-dom";
 import {
 	gettingHotelDetailsById,
@@ -70,6 +70,10 @@ const GeneratedLinkCheckout = () => {
 	const [cvv, setCvv] = useState("");
 	const [cardHolderName, setCardHolderName] = useState("");
 	const [postalCode, setPostalCode] = useState("");
+	const [guestAgreedOnTermsAndConditions, setGuestAgreedOnTermsAndConditions] =
+		useState(false);
+	const [pay10Percent, setPay10Percent] = useState(false);
+	const [payWholeAmount, setPayWholeAmount] = useState(false);
 
 	useEffect(() => {
 		const params = new URLSearchParams(location.search);
@@ -162,6 +166,14 @@ const GeneratedLinkCheckout = () => {
 			checkOutDate,
 		} = formData;
 
+		// Check if terms and conditions are agreed
+		if (!guestAgreedOnTermsAndConditions) {
+			message.error(
+				"You must accept the Terms & Conditions before proceeding."
+			);
+			return;
+		}
+
 		// Full name validation
 		if (!name || name.trim().split(" ").length < 2) {
 			message.error("Please provide your full name (first and last name).");
@@ -252,6 +264,7 @@ const GeneratedLinkCheckout = () => {
 
 		// Construct reservation data
 		const reservationData = {
+			guestAgreedOnTermsAndConditions: guestAgreedOnTermsAndConditions,
 			userId: user ? user._id : null,
 			hotelId: formData.hotelId,
 			hotel_name: hotelDetails ? hotelDetails.hotelName : "",
@@ -264,7 +277,6 @@ const GeneratedLinkCheckout = () => {
 				nationality: formData.nationality,
 			},
 			paymentDetails,
-			payment: "Paid",
 			total_rooms: formData.pickedRooms.reduce(
 				(total, room) => total + room.count,
 				0
@@ -272,7 +284,6 @@ const GeneratedLinkCheckout = () => {
 			total_guests: formData.adults + formData.children,
 			adults: formData.adults,
 			children: formData.children,
-			total_amount: formData.totalAmount,
 			checkin_date: checkInDate ? checkInDate.format("YYYY-MM-DD") : "",
 			checkout_date: checkOutDate ? checkOutDate.format("YYYY-MM-DD") : "",
 			days_of_residence: dayjs(checkOutDate).diff(dayjs(checkInDate), "days"),
@@ -284,6 +295,11 @@ const GeneratedLinkCheckout = () => {
 				count: room.count,
 				pricingByDay: room.pricingByDay,
 			})),
+			total_amount: formData.totalAmount,
+			payment: pay10Percent ? "Deposit Paid" : "Paid",
+			paid_amount: pay10Percent
+				? Number(formData.totalAmount * 0.1).toFixed(2)
+				: formData.totalAmount,
 		};
 
 		try {
@@ -509,21 +525,83 @@ const GeneratedLinkCheckout = () => {
 						</InputGroup>
 					</form>
 
-					<PaymentDetails
-						cardNumber={cardNumber}
-						setCardNumber={setCardNumber}
-						expiryDate={expiryDate}
-						setExpiryDate={setExpiryDate}
-						cvv={cvv}
-						setCvv={setCvv}
-						cardHolderName={cardHolderName}
-						setCardHolderName={setCardHolderName}
-						postalCode={postalCode}
-						setPostalCode={setPostalCode}
-						handleReservation={handleReservation}
-						pricePerNight={formData.pricePerNight}
-						total={formData.totalAmount}
-					/>
+					<TermsWrapper>
+						<Checkbox
+							checked={guestAgreedOnTermsAndConditions}
+							onChange={(e) =>
+								setGuestAgreedOnTermsAndConditions(e.target.checked)
+							}
+						>
+							Accept Terms & Conditions
+						</Checkbox>
+					</TermsWrapper>
+
+					<TermsWrapper>
+						<Checkbox
+							checked={guestAgreedOnTermsAndConditions}
+							onChange={(e) =>
+								setGuestAgreedOnTermsAndConditions(e.target.checked)
+							}
+						>
+							Accept Terms & Conditions
+						</Checkbox>
+					</TermsWrapper>
+					<small onClick={() => window.open("/terms-conditions", "_blank")}>
+						It's highly recommended to check our terms & conditions specially
+						for refund and cancellation sections 4 & 5{" "}
+					</small>
+
+					<TermsWrapper>
+						<Checkbox
+							checked={pay10Percent}
+							onChange={(e) => {
+								setPayWholeAmount(false);
+								setPay10Percent(e.target.checked);
+							}}
+						>
+							Pay 10% Deposit{" "}
+							<span style={{ fontWeight: "bold" }}>
+								(SAR {Number(formData.totalAmount * 0.1).toFixed(2)})
+							</span>
+						</Checkbox>
+					</TermsWrapper>
+					<TermsWrapper>
+						<Checkbox
+							checked={payWholeAmount}
+							onChange={(e) => {
+								setPay10Percent(false);
+								setPayWholeAmount(e.target.checked);
+							}}
+						>
+							Pay the whole Total Amount{" "}
+							<span style={{ fontWeight: "bold" }}>
+								(SAR {Number(formData.totalAmount).toFixed(2)})
+							</span>
+						</Checkbox>
+					</TermsWrapper>
+
+					<small onClick={() => window.open("/terms-conditions", "_blank")}>
+						It's highly recommended to check our terms & conditions specially
+						for refund and cancellation sections 4 & 5{" "}
+					</small>
+
+					{guestAgreedOnTermsAndConditions ? (
+						<PaymentDetails
+							cardNumber={cardNumber}
+							setCardNumber={setCardNumber}
+							expiryDate={expiryDate}
+							setExpiryDate={setExpiryDate}
+							cvv={cvv}
+							setCvv={setCvv}
+							cardHolderName={cardHolderName}
+							setCardHolderName={setCardHolderName}
+							postalCode={postalCode}
+							setPostalCode={setPostalCode}
+							handleReservation={handleReservation}
+							pricePerNight={formData.pricePerNight}
+							total={formData.totalAmount}
+						/>
+					) : null}
 				</LeftSection>
 
 				<RightSection>
@@ -699,4 +777,15 @@ const PricingList = styled.ul`
 	list-style-type: none;
 	padding: 0;
 	margin-top: 10px;
+`;
+
+const TermsWrapper = styled.div`
+	margin: 5px auto;
+	font-size: 1rem;
+	display: flex;
+	align-items: center;
+
+	.ant-checkbox-wrapper {
+		margin-left: 10px;
+	}
 `;

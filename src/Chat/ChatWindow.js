@@ -587,8 +587,9 @@ const ChatWindowWrapper = styled.div`
 	@media (max-width: 768px) {
 		width: ${({ isMinimized }) => (isMinimized ? "200px" : "90%")};
 		right: 5%;
-		bottom: 10px;
+		bottom: 120px;
 		max-height: ${({ isMinimized }) => (isMinimized ? "40px" : "80vh")};
+		height: ${({ isMinimized }) => (isMinimized ? "40px" : "80vh")};
 	}
 `;
 

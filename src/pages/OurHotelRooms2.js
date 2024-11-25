@@ -452,7 +452,6 @@ const RoomCard = ({
 						: room.displayName}
 				</RoomDisplayName>
 				<HotelName>{hotelName}</HotelName>
-
 				{/* <Location>
 					{formatAddress(hotelAddress).split(",").slice(0, 2).join(", ")}
 				</Location> */}
@@ -497,7 +496,6 @@ const RoomCard = ({
 						</AmenityItem>
 					))}
 				</AmenitiesWrapper>
-
 				{/* Show more/less link */}
 				{uniqueFeatures.length > 4 && (
 					<ShowMoreText onClick={toggleShowAmenities}>
@@ -505,7 +503,7 @@ const RoomCard = ({
 					</ShowMoreText>
 				)}
 				<Distances className='mt-1'>
-					<FaCar /> {distanceToElHaramDriving} Driving to El Haram
+					<FaCar /> {distanceToElHaramDriving} <span>Driving</span> to El Haram
 				</Distances>
 				{/* <Distances>
 					<FaWalking /> {distanceToElHaramWalking} Walking to El Haram
@@ -520,7 +518,7 @@ const RoomCard = ({
 				Add to Reservation
 			</StyledButton>
 			<div>
-				<ReceptionChat className='float-right mr-3' onClick={handleChatClick}>
+				<ReceptionChat className='float-right mr-2' onClick={handleChatClick}>
 					Reception
 					<div className='row'>
 						<div className='col-3'>Chat</div>
@@ -682,7 +680,7 @@ const RoomDisplayName = styled.h3`
 
 	@media (max-width: 750px) {
 		font-size: 0.8rem;
-		font-weight: bold;
+		/* font-weight: bold; */
 		margin-bottom: 0px;
 	}
 `;
@@ -695,7 +693,7 @@ const HotelName = styled.p`
 	font-weight: bold;
 
 	@media (max-width: 700px) {
-		font-size: 0.9rem;
+		font-size: 1.1rem;
 		margin-bottom: 0px;
 	}
 `;
@@ -708,8 +706,13 @@ const Distances = styled.div`
 	font-weight: bold;
 
 	@media (max-width: 700px) {
-		font-size: 0.7rem;
+		font-size: 0.85rem;
 		margin-bottom: 0px;
+		font-weight: bold;
+
+		span {
+			display: none;
+		}
 	}
 `;
 
@@ -820,19 +823,24 @@ const StyledButton = styled(Button)`
 	}
 
 	@media (max-width: 800px) {
-		font-size: 0.7rem;
+		font-size: 0.65rem;
 		font-weight: bolder;
+		width: 90% !important;
 	}
 `;
 
 const ReceptionChat = styled.div`
 	background-color: darkorange;
-	padding: 5px 10px;
-	border-radius: 20px;
+	padding: 3px 7px;
+	border-radius: 5px;
 	font-size: 11px;
 	font-weight: bold;
 	color: white;
 	align-items: center;
 	margin-top: -5px !important;
 	cursor: pointer;
+
+	@media (max-width: 800px) {
+		width: 50% !important;
+	}
 `;

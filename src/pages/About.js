@@ -8,17 +8,22 @@ const About = () => {
 	const [jannatBookingData, setJannatBookingData] = useState(null);
 	const [loading, setLoading] = useState(false);
 
-	//Reception Chat Available border radius and width should be less
-	//Add To Reservation font-size less
-	//Distances should be a different color with a nice blue color
-	//Room displayName is not bold
-	//Hotel Name should be bold and font-size a bit bigger.
-	//Rating word should be added
-	//FREE Cancellation should be darkgreen and should be on one line
-	//Chat icon when going to the hotel single page
-	//Data validation in the search
-	//Privacy Policy 3araby w english
-	//Adult beside the Children count in the search
+	//Reception Chat Available border radius and width should be less (Done)
+	//Add To Reservation font-size less (Done)
+	//Distances should be a different color with a nice blue color (Done)
+	//Room displayName is not bold (Done)
+	//Hotel Name should be bold and font-size a bit bigger (Done).
+	//Rating word should be added (Done)
+	//FREE Cancellation should be darkgreen and should be on one line (Done)
+	//Chat icon when going to the hotel single page (Done)
+	//Privacy Policy 3araby w english (Done)
+	//Data validation in the search (Done)
+	//Adult beside the Children count in the search (Done)
+	//Terms & Conditions Tabs (Guest, Partner)
+	//List Your Property Check on "Accept Terms & Conditions"
+	//Checkout check on "Accept Terms & Conditions" for the guest
+	//Question to the bank (To transfer to an external bank, what are the requirements and conditions)
+	//Which is better, transfer indvidually or the lot is better every couple weeks
 
 	const gettingJannatBookingData = () => {
 		setLoading(true);

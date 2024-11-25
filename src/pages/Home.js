@@ -117,7 +117,7 @@ const Home = () => {
 export default Home;
 
 const HomeWrapper = styled.div`
-	min-height: 1900px;
+	min-height: 1600px;
 `;
 
 const SpinWrapper = styled.div`

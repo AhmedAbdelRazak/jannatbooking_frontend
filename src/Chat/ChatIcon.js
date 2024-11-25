@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Badge, Button } from "antd";
+// eslint-disable-next-line
 import { MessageOutlined } from "@ant-design/icons";
 import ChatWindow from "./ChatWindow";
 import styled from "styled-components";
@@ -24,24 +24,66 @@ const ChatIconWrapper = styled.div`
 	}
 `;
 
-const StyledButton = styled(Button)`
-	background-color: var(--primary-color);
-	border: none;
-	margin-right: 10px; /* Add some spacing between the icon and the message */
-`;
-
 const ChatMessage = styled.div`
 	cursor: pointer;
-	/* color: var(--primary-color); */
 	color: #1890ff;
 	font-weight: bold;
 	text-transform: capitalize;
-	background-color: white;
+	background-color: var(--primaryBlue);
 	font-size: 15px;
-	padding: 3px;
+	padding: 5px;
 	border-radius: 10px;
+	text-align: left; /* Align text to the left */
+	display: flex;
+	flex-direction: column;
+	box-shadow: 5px 5px 5px 5px rgba(0, 0, 0, 0.25);
+
+	.chat-name {
+		font-size: 15px;
+		font-weight: bold;
+		color: white;
+	}
+
+	.chat-status {
+		font-size: 12px;
+		font-weight: normal;
+		color: white;
+
+		.status-dot {
+			width: 8px;
+			height: 8px;
+			background-color: #00ff00;
+			border-radius: 50%;
+			display: inline-block;
+			margin-right: 5px;
+		}
+	}
+
+	.unseen-count {
+		background-color: red;
+		color: white;
+		border-radius: 50%;
+		font-size: 10px;
+		width: 20px;
+		height: 20px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-left: 10px;
+	}
+
 	&:hover {
 		text-decoration: underline;
+	}
+
+	@media (max-width: 750px) {
+		.chat-name {
+			font-size: 12.5px;
+		}
+
+		.chat-status {
+			font-size: 10px;
+		}
 	}
 `;
 
@@ -170,20 +212,17 @@ const ChatIcon = () => {
 
 	return (
 		<ChatIconWrapper>
-			<Badge count={unseenCount} offset={[-5, 5]}>
-				<StyledButton
-					type='primary'
-					shape='circle'
-					icon={<MessageOutlined />}
-					size='large'
-					onClick={toggleChatWindow}
-				/>
-			</Badge>
-			{selectedHotel && (
-				<ChatMessage onClick={toggleChatWindow}>
-					Speak with {selectedHotel.hotelName} reception
-				</ChatMessage>
-			)}
+			<ChatMessage onClick={toggleChatWindow}>
+				<div className='chat-name'>
+					{selectedHotel ? selectedHotel.hotelName : "Jannat Booking"}
+				</div>
+				<div className='chat-status'>
+					<span className='status-dot'></span> Chat Available
+					{unseenCount > 0 && (
+						<span className='unseen-count'>{unseenCount}</span>
+					)}
+				</div>
+			</ChatMessage>
 			{isOpen && (
 				<ChatWindow
 					closeChatWindow={toggleChatWindow}
