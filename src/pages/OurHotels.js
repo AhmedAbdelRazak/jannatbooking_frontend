@@ -29,6 +29,7 @@ const OurHotels = () => {
 	const [sortOption, setSortOption] = useState(null);
 
 	useEffect(() => {
+		window.scrollTo({ top: 30, behavior: "smooth" });
 		const fetchDistinctRoomTypes = async () => {
 			const data3 = await gettingDistinctRoomTypes();
 			const distinctRoomTypesArray = [
@@ -154,7 +155,8 @@ const SortDropdownSection = styled.div`
 	@media (max-width: 768px) {
 		text-align: left;
 		margin-top: 80px;
-		margin-left: 10px;
+		margin-bottom: -10px;
+		margin-left: 15px;
 	}
 `;
 
