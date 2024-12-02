@@ -34,6 +34,7 @@ const SortWrapper = styled.div`
 
 	@media (max-width: 768px) {
 		text-align: left; /* Align dropdown to the left on smaller screens */
+		margin-left: 15px;
 	}
 `;
 

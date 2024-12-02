@@ -156,7 +156,6 @@ const SortDropdownSection = styled.div`
 		text-align: left;
 		margin-top: 80px;
 		margin-bottom: -10px;
-		margin-left: 15px;
 	}
 `;
 
