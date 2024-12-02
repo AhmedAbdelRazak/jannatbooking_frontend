@@ -20,7 +20,7 @@ const ChatIconWrapper = styled.div`
 	align-items: center;
 
 	@media (max-width: 750px) {
-		bottom: 20px;
+		bottom: 30px;
 	}
 `;
 
