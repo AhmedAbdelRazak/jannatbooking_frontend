@@ -1,89 +1,102 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { gettingActiveHotelList, gettingDistinctRoomTypes } from "../apiCore";
-import { Spin, Drawer } from "antd"; // Import Spin, Drawer, and Button from Ant Design
-// eslint-disable-next-line
-import { FilterOutlined } from "@ant-design/icons"; // Import filter icon
-// eslint-disable-next-line
-import HotelList from "../components/OurHotels/HotelList";
-import Search from "../components/OurHotels/Search"; // Your search component
+import { Spin } from "antd";
+import Search from "../components/OurHotels/Search";
 import HotelList2 from "../components/OurHotels/HotelList2";
+import SortDropdown from "../components/OurHotels/SortDropdown";
+
+const roomTypesMapping = [
+	{ value: "standardRooms", label: "Standard Rooms" },
+	{ value: "singleRooms", label: "Single Rooms" },
+	{ value: "doubleRooms", label: "Double Rooms" },
+	{ value: "twinRooms", label: "Twin Rooms" },
+	{ value: "queenRooms", label: "Queen Rooms" },
+	{ value: "kingRooms", label: "King Rooms" },
+	{ value: "tripleRooms", label: "Triple Rooms" },
+	{ value: "quadRooms", label: "Quad Rooms" },
+	{ value: "studioRooms", label: "Studio Rooms" },
+	{ value: "suite", label: "Suite" },
+	{ value: "masterSuite", label: "Master Suite" },
+	{ value: "familyRooms", label: "Family Rooms" },
+	{ value: "individualBed", label: "Rooms With Individual Beds" },
+];
 
 const OurHotels = () => {
-	const [activeHotels, setActiveHotels] = useState(null); // State for selected hotel
-	const [loading, setLoading] = useState(true); // State for loading
-	const [drawerVisible, setDrawerVisible] = useState(false); // Drawer state for smaller screens
-	const [distinctRoomTypes, setDistinctRoomTypes] = useState([]); // Initialize as an array
-
-	const roomTypesMapping = [
-		{ value: "standardRooms", label: "Standard Rooms" },
-		{ value: "singleRooms", label: "Single Rooms" },
-		{ value: "doubleRooms", label: "Double Rooms" },
-		{ value: "twinRooms", label: "Twin Rooms" },
-		{ value: "queenRooms", label: "Queen Rooms" },
-		{ value: "kingRooms", label: "King Rooms" },
-		{ value: "tripleRooms", label: "Triple Rooms" },
-		{ value: "quadRooms", label: "Quad Rooms" },
-		{ value: "studioRooms", label: "Studio Rooms" },
-		{ value: "suite", label: "Suite" },
-		{ value: "masterSuite", label: "Master Suite" },
-		{ value: "familyRooms", label: "Family Rooms" },
-		{ value: "individualBed", label: "Rooms With Individual Beds" },
-	];
+	const [activeHotels, setActiveHotels] = useState(null);
+	const [loading, setLoading] = useState(true);
+	const [distinctRoomTypes, setDistinctRoomTypes] = useState([]);
+	const [sortOption, setSortOption] = useState(null);
 
 	useEffect(() => {
-		const gettingDistinctRooms = () => {
-			gettingDistinctRoomTypes().then((data3) => {
-				if (data3.error) {
-					console.log(data3.error);
-				} else {
-					// Extract and map distinct room types
-					const distinctRoomTypesArray = [
-						...new Set(
-							data3.map((room) => {
-								const mapping = roomTypesMapping.find(
-									(map) => map.value === room.roomType
-								);
-								return mapping ? mapping.label : room.roomType;
-							})
-						),
-					];
-					setDistinctRoomTypes(distinctRoomTypesArray);
-				}
-			});
+		const fetchDistinctRoomTypes = async () => {
+			const data3 = await gettingDistinctRoomTypes();
+			const distinctRoomTypesArray = [
+				...new Set(
+					data3.map((room) => {
+						const mapping = roomTypesMapping.find(
+							(map) => map.value === room.roomType
+						);
+						return mapping ? mapping.label : room.roomType;
+					})
+				),
+			];
+			setDistinctRoomTypes(distinctRoomTypesArray);
 		};
 
-		gettingDistinctRooms();
-
-		window.scrollTo({ top: 50, behavior: "smooth" });
-		const fetchHotel = async () => {
-			try {
-				const hotelData = await gettingActiveHotelList(); // Fetch hotels
-				setActiveHotels(hotelData); // Set response to activeHotels state
-				setLoading(false); // Stop loading after fetching data
-			} catch (error) {
-				console.error("Error fetching hotels:", error);
-				setLoading(false); // Stop loading even if there's an error
-			}
+		const fetchHotels = async () => {
+			const hotelData = await gettingActiveHotelList();
+			setActiveHotels(hotelData);
+			setLoading(false);
 		};
 
-		fetchHotel();
-		// eslint-disable-next-line
+		fetchDistinctRoomTypes();
+		fetchHotels();
 	}, []);
 
-	// Drawer functions
-	// eslint-disable-next-line
-	const showDrawer = () => {
-		setDrawerVisible(true);
-	};
+	const sortedHotels = React.useMemo(() => {
+		if (!activeHotels) return [];
 
-	const closeDrawer = () => {
-		setDrawerVisible(false);
-	};
+		return [...activeHotels].sort((a, b) => {
+			if (sortOption === "closest") {
+				const parseDistance = (distanceString) => {
+					if (!distanceString) return Infinity;
+					const regex = /(\d+)\s*(days|hours|mins)/g;
+					let totalMinutes = 0;
+					let match;
+
+					while ((match = regex.exec(distanceString)) !== null) {
+						const value = parseInt(match[1], 10);
+						const unit = match[2];
+						if (unit === "days") totalMinutes += value * 24 * 60;
+						if (unit === "hours") totalMinutes += value * 60;
+						if (unit === "mins") totalMinutes += value;
+					}
+
+					return totalMinutes;
+				};
+
+				const distanceA = parseDistance(a.distances?.walkingToElHaram);
+				const distanceB = parseDistance(b.distances?.walkingToElHaram);
+
+				return distanceA - distanceB;
+			} else if (sortOption === "price") {
+				const basePriceA =
+					a.roomCountDetails?.find((room) => room.roomType === "singleRooms")
+						?.price?.basePrice || Infinity;
+				const basePriceB =
+					b.roomCountDetails?.find((room) => room.roomType === "singleRooms")
+						?.price?.basePrice || Infinity;
+
+				return basePriceA - basePriceB;
+			}
+
+			return 0;
+		});
+	}, [activeHotels, sortOption]);
 
 	return (
 		<OurHotelsWrapper>
-			{/* Search bar for filtering hotels */}
 			<SearchSection>
 				<Search
 					distinctRoomTypes={distinctRoomTypes}
@@ -91,44 +104,18 @@ const OurHotels = () => {
 				/>
 			</SearchSection>
 
-			{/* Filter button for mobile view */}
-			{/* <MobileFilterButton onClick={showDrawer}>
-                <FilterOutlined /> Filters
-            </MobileFilterButton> */}
+			<SortDropdownSection>
+				<SortDropdown sortOption={sortOption} setSortOption={setSortOption} />
+			</SortDropdownSection>
 
-			{/* Drawer for filters */}
-			<Drawer
-				title='Filters'
-				placement='left'
-				onClose={closeDrawer}
-				visible={drawerVisible}
-			>
-				<h3>Filters (Coming Soon)</h3>
-			</Drawer>
-
-			{/* Display hotel list or loading spinner */}
 			<ContentWrapper>
-				{/* Left section for filters (on larger screens) */}
-				{/* <FilterSection>
-                    <h3>Filters (Coming Soon)</h3>
-                </FilterSection> */}
-
-				{/* Hotel list or loading spinner */}
 				<HotelListSection>
-					{/* {loading ? (
-						<SpinWrapper>
-							<Spin size='large' />
-						</SpinWrapper>
-					) : (
-						<HotelList activeHotels={activeHotels} />
-					)} */}
-
 					{loading ? (
 						<SpinWrapper>
 							<Spin size='large' />
 						</SpinWrapper>
 					) : (
-						<HotelList2 activeHotels={activeHotels} />
+						<HotelList2 activeHotels={sortedHotels} />
 					)}
 				</HotelListSection>
 			</ContentWrapper>
@@ -138,7 +125,7 @@ const OurHotels = () => {
 
 export default OurHotels;
 
-// Styled-components
+// Styled Components
 const OurHotelsWrapper = styled.div`
 	width: 100%;
 	padding: 70px 250px;
@@ -153,10 +140,17 @@ const OurHotelsWrapper = styled.div`
 
 const SearchSection = styled.div`
 	width: 100%;
-	margin-bottom: 50px;
+	margin-bottom: 30px;
+`;
 
-	@media (max-width: 800px) {
-		margin-top: 30px;
+const SortDropdownSection = styled.div`
+	width: 100%;
+	text-align: right;
+
+	@media (max-width: 768px) {
+		text-align: left;
+		margin-top: 80px;
+		margin-left: 10px;
 	}
 `;
 
@@ -173,10 +167,6 @@ const ContentWrapper = styled.div`
 
 const HotelListSection = styled.div`
 	width: 95%;
-
-	@media (max-width: 768px) {
-		width: 100%;
-	}
 `;
 
 const SpinWrapper = styled.div`

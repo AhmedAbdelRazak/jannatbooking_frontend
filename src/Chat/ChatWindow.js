@@ -21,14 +21,14 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 	const [activeHotels, setActiveHotels] = useState([]);
 	const [customerName, setCustomerName] = useState("");
 	const [customerEmail, setCustomerEmail] = useState("");
-	const [inquiryAbout, setInquiryAbout] = useState("");
 	const [orderNumber, setOrderNumber] = useState("");
 	const [productName, setProductName] = useState("");
 	const [otherInquiry, setOtherInquiry] = useState("");
 	const [reservationNumber, setReservationNumber] = useState("");
 	// eslint-disable-next-line
 	const [hotelName, setHotelName] = useState("");
-	const [hotelId, setHotelId] = useState(""); // Store selected hotelId
+	const [hotelId, setHotelId] = useState("674cf8997e3780f1f838d458"); // Default to Jannat Booking
+	const [inquiryAbout, setInquiryAbout] = useState("");
 	const [submitted, setSubmitted] = useState(false);
 	const [messages, setMessages] = useState([]);
 	const [newMessage, setNewMessage] = useState("");
@@ -45,7 +45,13 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 	useEffect(() => {
 		if (selectedHotel && selectedHotel.hotelName) {
 			setHotelName(selectedHotel.hotelName);
+			setInquiryAbout("reserve_room");
 			setHotelId(selectedHotel._id);
+		} else {
+			// Set default values if no selectedHotel is provided
+			setHotelName("Speak With Jannat Booking");
+			setInquiryAbout("Speak With Jannat Booking");
+			setHotelId("674cf8997e3780f1f838d458");
 		}
 	}, [selectedHotel]);
 
@@ -249,8 +255,11 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 		}
 
 		const ownerId =
-			activeHotels &&
-			activeHotels.filter((i) => i._id === hotelId)[0].belongsTo;
+			(activeHotels &&
+				activeHotels.filter((i) => i._id === hotelId) &&
+				activeHotels.filter((i) => i._id === hotelId)[0] &&
+				activeHotels.filter((i) => i._id === hotelId)[0].belongsTo) ||
+			"6553f1c6d06c5cea2f98a838";
 
 		const data = {
 			customerName: customerName,
@@ -258,7 +267,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 			displayName2: "Fareda Elsheemy",
 			role: 0,
 			customerEmail,
-			hotelId, // Send hotelId along with other data
+			hotelId: hotelId || "674cf8997e3780f1f838d458", // Send hotelId along with other data
 			inquiryAbout,
 			inquiryDetails: inquiryDetails
 				? inquiryDetails
@@ -486,8 +495,8 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 							style={{ textTransform: "capitalize" }}
 						>
 							<Option
-								key='jklasdjklasd'
-								value='Speak With Jannat Booking'
+								key='674cf8997e3780f1f838d458'
+								value='674cf8997e3780f1f838d458'
 								style={{
 									textTransform: "capitalize",
 									fontWeight: "bold",
@@ -510,16 +519,21 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 					</Form.Item>
 					<Form.Item label='Inquiry About' required>
 						<Select value={inquiryAbout} onChange={handleInquiryChange}>
-							<Option
-								value='Speak With Jannat Booking'
-								style={{
-									textTransform: "capitalize",
-									fontWeight: "bold",
-									color: "darkred",
-								}}
-							>
-								Speak With Jannat Booking
-							</Option>
+							{(selectedHotel && selectedHotel.hotelName) ||
+							hotelName ||
+							hotelId ? null : (
+								<Option
+									value='Speak With Jannat Booking'
+									style={{
+										textTransform: "capitalize",
+										fontWeight: "bold",
+										color: "darkred",
+									}}
+								>
+									Speak With Jannat Booking
+								</Option>
+							)}
+
 							<Option value='reserve_room'>Reserve A Room</Option>
 							<Option value='reserve_bed'>Reserve A Bed</Option>
 							<Option value='payment_inquiry'>Payment Inquiry</Option>

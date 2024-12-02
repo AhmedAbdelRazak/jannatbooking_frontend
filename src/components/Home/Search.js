@@ -128,6 +128,7 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 					style={{ width: "100%" }}
 					suffixIcon={<CalendarOutlined />}
 					placeholder='Select room type'
+					className='mb-3'
 					onChange={(value) => handleSelectChange(value, "roomType")}
 					value={searchParams.roomType}
 				>
@@ -139,36 +140,30 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 						</Option>
 					))}
 				</Select>
-
-				<div className='row mt-3'>
-					<div className='col-6 w-100'>
-						<InputNumberWrapper>
-							<InputNumber
-								className='w-100'
-								prefix={<UserOutlined />}
-								min={1}
-								max={10}
-								placeholder='Adults'
-								onChange={(value) => handleSelectChange(value, "adults")}
-								value={searchParams.adults}
-							/>
-						</InputNumberWrapper>
-					</div>
-
-					<div className='col-6'>
-						<InputNumberWrapper>
-							<InputNumber
-								className='w-100'
-								prefix={<TeamOutlined />}
-								min={0}
-								max={10}
-								placeholder='Children'
-								onChange={(value) => handleSelectChange(value, "children")}
-								value={searchParams.children}
-							/>
-						</InputNumberWrapper>
-					</div>
-				</div>
+				<AdultsChildrenWrapper>
+					<InputNumberWrapper>
+						<InputNumber
+							className='w-100'
+							prefix={<UserOutlined />}
+							min={1}
+							max={10}
+							placeholder='Adults'
+							onChange={(value) => handleSelectChange(value, "adults")}
+							value={searchParams.adults}
+						/>
+					</InputNumberWrapper>
+					<InputNumberWrapper>
+						<InputNumber
+							className='w-100'
+							prefix={<TeamOutlined />}
+							min={0}
+							max={10}
+							placeholder='Children'
+							onChange={(value) => handleSelectChange(value, "children")}
+							value={searchParams.children}
+						/>
+					</InputNumberWrapper>
+				</AdultsChildrenWrapper>
 			</InputsWrapper>
 
 			<SearchButtonWrapper>
@@ -250,11 +245,11 @@ const InputsWrapper = styled.div`
 	grid-template-columns: repeat(
 		4,
 		1fr
-	); // Reduced to 4 columns to leave room for the search button row
+	); /* Four equal columns on larger screens */
 	gap: 10px;
 
 	@media (max-width: 768px) {
-		grid-template-columns: 1fr;
+		grid-template-columns: 1fr; /* Single column layout for smaller screens */
 	}
 `;
 
@@ -324,10 +319,23 @@ const InputNumberWrapper = styled.div`
 	.ant-input-number {
 		width: 100%;
 
-		// Add padding for height consistency across inputs
 		.ant-input-number-input-wrap {
 			padding-top: 7px;
 			padding-bottom: 7px;
 		}
+	}
+`;
+
+const AdultsChildrenWrapper = styled.div`
+	display: grid;
+	grid-template-columns: repeat(
+		2,
+		1fr
+	); /* Two equal columns for Adults and Children */
+	gap: 10px;
+	width: 100%;
+
+	@media (min-width: 768px) {
+		grid-column: span 2; /* Ensure Adults and Children span two columns together */
 	}
 `;

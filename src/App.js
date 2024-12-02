@@ -41,15 +41,6 @@ const App = () => {
 		// eslint-disable-next-line
 	}, [chosenLanguage]);
 
-	// user must see under review
-	// separate rooms count from the photos
-	// Drop down to choose new room type and then some data about this
-	// Gallery button for all uploaded photos
-	// Instead of Main Hotel Thumbnail, Make the user upload all of his/her photos
-	// Every picture description (room view, towels, bathrooms, building)
-	// Global components for all tables.
-	// Default pricing of every room type
-
 	return (
 		<BrowserRouter>
 			<Navbar />
