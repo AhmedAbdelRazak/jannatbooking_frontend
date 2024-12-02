@@ -134,13 +134,17 @@ const OurHotelsWrapper = styled.div`
 
 	@media (max-width: 1000px) {
 		padding: 70px 0px;
-		margin-top: 410px;
+		margin-top: 310px;
 	}
 `;
 
 const SearchSection = styled.div`
 	width: 100%;
-	margin-bottom: 30px;
+	margin-bottom: 50px;
+
+	@media (max-width: 800px) {
+		margin-top: 30px;
+	}
 `;
 
 const SortDropdownSection = styled.div`
@@ -167,6 +171,10 @@ const ContentWrapper = styled.div`
 
 const HotelListSection = styled.div`
 	width: 95%;
+
+	@media (max-width: 768px) {
+		width: 100%;
+	}
 `;
 
 const SpinWrapper = styled.div`
