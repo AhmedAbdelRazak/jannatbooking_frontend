@@ -69,7 +69,7 @@ const Section2Wrapper = styled.div`
 
 	@media (max-width: 800px) {
 		width: 100%;
-		margin-top: 725px;
+		margin-top: 705px;
 	}
 `;
 
