@@ -1,6 +1,16 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Form, Input, Button, Typography, Row, Col, Card, Select } from "antd";
+import {
+	Form,
+	Input,
+	Button,
+	Typography,
+	Row,
+	Col,
+	Card,
+	Select,
+	Checkbox,
+} from "antd";
 import {
 	UserOutlined,
 	MailOutlined,
@@ -134,12 +144,23 @@ const ListYourProperty = ({ handleChange, clickSubmit, values }) => {
 											},
 										]}
 									>
-										<Input
-											prefix={<HomeOutlined />}
-											value={values.hotelState}
-											onChange={handleChange("hotelState")}
-											placeholder='Hotel State'
-										/>
+										{values.hotelCountry === "KSA" ? (
+											<Select
+												value={values.hotelState}
+												onChange={(value) => handleChange("hotelState")(value)}
+												placeholder='Select State'
+											>
+												<Option value='makkah'>Makkah</Option>
+												<Option value='madinah'>Madinah</Option>
+											</Select>
+										) : (
+											<Input
+												prefix={<HomeOutlined />}
+												value={values.hotelState}
+												onChange={handleChange("hotelState")}
+												placeholder='Hotel State'
+											/>
+										)}
 									</Form.Item>
 								</Col>
 								<Col xs={24} md={12}>
@@ -259,9 +280,47 @@ const ListYourProperty = ({ handleChange, clickSubmit, values }) => {
 										/>
 									</Form.Item>
 								</Col>
+
+								<Col xs={24}>
+									<Form.Item
+										name='acceptedTermsAndConditions'
+										valuePropName='checked'
+										rules={[
+											{
+												validator: (_, value) =>
+													value
+														? Promise.resolve()
+														: Promise.reject(
+																new Error(
+																	"You must accept the terms and conditions!"
+																)
+															),
+											},
+										]}
+									>
+										<Checkbox
+											checked={values.acceptedTermsAndConditions}
+											onChange={(e) =>
+												handleChange("acceptedTermsAndConditions")(
+													e.target.checked
+												)
+											}
+										>
+											I accept <strong>JANNAT BOOKING's</strong>{" "}
+											<Link to='/terms-conditions?tab=hotel' target='_blank'>
+												<strong>Terms & Conditions</strong>
+											</Link>
+										</Checkbox>
+									</Form.Item>
+								</Col>
 							</Row>
 							<Form.Item>
-								<StyledButton type='primary' htmlType='submit' block>
+								<StyledButton
+									type='primary'
+									htmlType='submit'
+									block
+									disabled={!values.acceptedTermsAndConditions} // Disable button if terms are not accepted
+								>
 									Register Your Property
 								</StyledButton>
 							</Form.Item>

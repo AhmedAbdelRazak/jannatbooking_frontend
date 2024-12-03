@@ -1,6 +1,8 @@
 import React from "react";
 import styled from "styled-components";
+// eslint-disable-next-line
 import hero1 from "../../GeneralImages/slider/slide-1.jpg";
+import hero2 from "../../GeneralImages/Meccah.png";
 
 const ListPropertyHero = () => {
 	return (
@@ -19,7 +21,7 @@ const ListPropertyHeroWrapper = styled.section`
 	width: 100%;
 	height: 600px;
 	position: relative;
-	background-image: url(${hero1});
+	background-image: url(${hero2});
 	background-position: center;
 	background-size: cover;
 	background-attachment: fixed;

@@ -6,6 +6,7 @@ import { PropertySignup } from "../apiCore";
 import { toast } from "react-toastify";
 import ListPropertyHero from "../components/Signup/ListPropertyHero";
 import LoadingSpinner from "../components/Signup/LoadingSpinner";
+import { useEffect } from "react";
 
 const ListProperty = () => {
 	const [values, setValues] = useState(defaultUserValues);
@@ -35,6 +36,7 @@ const ListProperty = () => {
 			"hotelCity",
 			"propertyType",
 			"hotelFloors",
+			"acceptedTermsAndConditions",
 		];
 		for (let field of requiredFields) {
 			if (!values[field]) {
@@ -68,6 +70,7 @@ const ListProperty = () => {
 			hotelCity,
 			propertyType,
 			hotelFloors,
+			acceptedTermsAndConditions,
 		} = values;
 
 		// Check for two words in name
@@ -119,6 +122,7 @@ const ListProperty = () => {
 				hotelCity,
 				propertyType,
 				hotelFloors,
+				acceptedTermsAndConditions,
 			});
 
 			setLoading(false); // Hide loading spinner
@@ -138,6 +142,9 @@ const ListProperty = () => {
 		}
 	};
 
+	useEffect(() => {
+		window.scrollTo({ top: 70, behavior: "smooth" });
+	}, []);
 	return (
 		<ListPropertyWrapper>
 			{loading ? (
