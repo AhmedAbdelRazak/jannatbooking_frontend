@@ -126,7 +126,11 @@ const PaymentDetails = ({
 				{pay10Percent ? (
 					<h4>Total Amount: {Number(total * 0.1).toFixed(2)} SAR</h4>
 				) : (
-					<h4>Total Amount: {total} SAR</h4>
+					<h4>
+						Total Amount:{" "}
+						{Number(total * process.env.REACT_APP_COMMISSIONRATE).toFixed(2)}{" "}
+						SAR
+					</h4>
 				)}
 			</PriceWrapper>
 
