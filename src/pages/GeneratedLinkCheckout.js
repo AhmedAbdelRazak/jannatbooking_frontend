@@ -62,6 +62,8 @@ const GeneratedLinkCheckout = () => {
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [hotelDetails, setHotelDetails] = useState(null);
+
+	// eslint-disable-next-line
 	const [priceByDay, setPriceByDay] = useState([]);
 	const [mobileExpanded, setMobileExpanded] = useState(false);
 
@@ -96,6 +98,60 @@ const GeneratedLinkCheckout = () => {
 			roomIndex++;
 		}
 
+		console.log(hotelId, "hotelIdhotelIdhotelId");
+		// Fetch hotel details and adjust pricingByDay with commission
+		if (hotelId) {
+			gettingHotelDetailsById(hotelId).then((data) => {
+				if (data) {
+					setHotelDetails(data);
+
+					// Parse commission rate from environment variable or set default
+					const commissionRate =
+						parseFloat(process.env.REACT_APP_COMMISSIONRATE) || 1;
+
+					// Update pickedRooms with adjusted pricingByDay
+					const updatedPickedRooms = pickedRooms.map((room) => {
+						const matchingRoom = data.roomCountDetails.find(
+							(detail) =>
+								detail.roomType === room.roomType &&
+								detail.displayName === room.displayName
+						);
+
+						if (matchingRoom) {
+							const calculatedPricing = calculatePricingByDay(
+								matchingRoom.pricingByDay || [],
+								params.get("checkInDate"),
+								params.get("checkOutDate"),
+								room.pricePerNight
+							).map((day) => ({
+								...day,
+								price: (day.price * commissionRate).toFixed(2), // Adjust price with commission
+							}));
+
+							return {
+								...room,
+								photos: matchingRoom.photos,
+								pricingByDay: calculatedPricing,
+							};
+						} else {
+							message.error(
+								"One of the selected room details not found in hotel data."
+							);
+							return room;
+						}
+					});
+
+					// Update formData with new pickedRooms
+					setFormData((prevFormData) => ({
+						...prevFormData,
+						pickedRooms: updatedPickedRooms,
+					}));
+				} else {
+					message.error("Failed to fetch hotel details.");
+				}
+			});
+		}
+
 		setFormData((prevFormData) => ({
 			...prevFormData,
 			hotelId: hotelId || "",
@@ -110,50 +166,39 @@ const GeneratedLinkCheckout = () => {
 			adults: parseInt(params.get("adults"), 10) || 1,
 			children: parseInt(params.get("children"), 10) || 0,
 			nationality: params.get("nationality") || "",
+			name: params.get("name") ? params.get("name") : user ? user.name : "",
+			email:
+				user && user.email
+					? user.email
+					: params.get("email")
+						? params.get("email")
+						: "",
+			phone:
+				user && user.phone
+					? user.phone
+					: params.get("phone")
+						? params.get("phone")
+						: "",
 			pickedRooms,
 		}));
-
-		if (hotelId) {
-			gettingHotelDetailsById(hotelId).then((data) => {
-				if (data) {
-					setHotelDetails(data);
-
-					const updatedPickedRooms = pickedRooms.map((room) => {
-						const matchingRoom = data.roomCountDetails.find(
-							(detail) =>
-								detail.roomType === room.roomType &&
-								detail.displayName === room.displayName
-						);
-						if (matchingRoom) {
-							const calculatedPricing = calculatePricingByDay(
-								matchingRoom.pricingByDay || [],
-								params.get("checkInDate"),
-								params.get("checkOutDate"),
-								room.pricePerNight
-							);
-							setPriceByDay(calculatedPricing);
-							return {
-								...room,
-								photos: matchingRoom.photos,
-								pricingByDay: calculatedPricing,
-							};
-						} else {
-							message.error(
-								"One of the selected room details not found in hotel data."
-							);
-							return room;
-						}
-					});
-					setFormData((prevFormData) => ({
-						...prevFormData,
-						pickedRooms: updatedPickedRooms,
-					}));
-				} else {
-					message.error("Failed to fetch hotel details.");
-				}
-			});
-		}
+		// eslint-disable-next-line
 	}, [location.search]);
+
+	// Add this function to match the transformation logic from `CheckoutContent`
+	const transformPickedRoomsToPickedRoomsType = (
+		pickedRooms,
+		commissionRate
+	) => {
+		return pickedRooms.flatMap((room) => {
+			return Array.from({ length: room.count }, () => ({
+				room_type: room.roomType, // Room type
+				displayName: room.displayName, // Display name for the room
+				chosenPrice: (room.pricePerNight * commissionRate).toFixed(2), // Price with commission
+				count: 1, // Each room counted individually
+				pricingByDay: room.pricingByDay || [], // Pricing breakdown by day
+			}));
+		});
+	};
 
 	const handleReservation = async () => {
 		const {
@@ -164,6 +209,9 @@ const GeneratedLinkCheckout = () => {
 			passportExpiry,
 			checkInDate,
 			checkOutDate,
+			pickedRooms,
+			totalAmount,
+			numberOfNights,
 		} = formData;
 
 		// Check if terms and conditions are agreed
@@ -213,24 +261,6 @@ const GeneratedLinkCheckout = () => {
 				);
 				return;
 			}
-
-			try {
-				const signInResponse = await signin({ emailOrPhone: email, password });
-				if (signInResponse.error) {
-					message.error(
-						"Failed to sign in automatically after account creation."
-					);
-					return;
-				} else {
-					authenticate(signInResponse, () => {
-						message.success("User authenticated successfully.");
-					});
-				}
-			} catch (error) {
-				console.error("Error during sign-in:", error);
-				message.error("An error occurred while signing in.");
-				return;
-			}
 		}
 
 		// Passport validation
@@ -262,12 +292,23 @@ const GeneratedLinkCheckout = () => {
 			cardHolderName,
 		};
 
+		// Parse commission rate from environment variable or set default
+		const commissionRate =
+			parseFloat(process.env.REACT_APP_COMMISSIONRATE) || 1;
+
+		// Transform pickedRooms to pickedRoomsType
+		const pickedRoomsType = transformPickedRoomsToPickedRoomsType(
+			pickedRooms,
+			commissionRate
+		);
+
 		// Construct reservation data
 		const reservationData = {
-			guestAgreedOnTermsAndConditions: guestAgreedOnTermsAndConditions,
+			guestAgreedOnTermsAndConditions,
 			userId: user ? user._id : null,
 			hotelId: formData.hotelId,
-			hotel_name: hotelDetails ? hotelDetails.hotelName : "",
+			belongsTo: hotelDetails.belongsTo,
+			hotel_name: hotelDetails?.hotelName || "",
 			customerDetails: {
 				name,
 				email,
@@ -275,56 +316,80 @@ const GeneratedLinkCheckout = () => {
 				passport,
 				passportExpiry,
 				nationality: formData.nationality,
+				password: !user ? password : undefined, // Include password if user is not logged in
 			},
 			paymentDetails,
-			total_rooms: formData.pickedRooms.reduce(
-				(total, room) => total + room.count,
-				0
-			),
+			total_rooms: pickedRooms.reduce((total, room) => total + room.count, 0),
 			total_guests: formData.adults + formData.children,
 			adults: formData.adults,
 			children: formData.children,
 			checkin_date: checkInDate ? checkInDate.format("YYYY-MM-DD") : "",
 			checkout_date: checkOutDate ? checkOutDate.format("YYYY-MM-DD") : "",
-			days_of_residence: dayjs(checkOutDate).diff(dayjs(checkInDate), "days"),
+			days_of_residence: numberOfNights,
 			booking_source: "Generated Link",
-			pickedRoomsType: formData.pickedRooms.map((room) => ({
-				room_type: room.roomType,
-				displayName: room.displayName,
-				chosenPrice: room.pricePerNight,
-				count: room.count,
-				pricingByDay: room.pricingByDay,
-			})),
-			total_amount: formData.totalAmount,
-			payment: pay10Percent ? "Deposit Paid" : "Paid",
+			pickedRoomsType,
+			total_amount: (totalAmount * commissionRate).toFixed(2),
+			payment: pay10Percent ? "Deposit Paid" : "Paid Online",
 			paid_amount: pay10Percent
-				? Number(formData.totalAmount * 0.1).toFixed(2)
-				: formData.totalAmount,
+				? (totalAmount * 0.1).toFixed(2)
+				: (totalAmount * commissionRate).toFixed(2),
+			commission: (totalAmount * (commissionRate - 1)).toFixed(2),
+			commissionPaid: true,
 		};
 
 		try {
 			const response = await createNewReservationClient(reservationData);
-			if (response && response.message === "Reservation created successfully") {
+			if (response?.message === "Reservation created successfully") {
 				message.success("Reservation created successfully");
+
+				// Automatically sign in the user if the account was just created
+				if (!user) {
+					try {
+						const signInResponse = await signin({
+							emailOrPhone: email,
+							password,
+						});
+						if (signInResponse.error) {
+							message.error(
+								"Failed to sign in automatically after account creation."
+							);
+						} else {
+							authenticate(signInResponse, () => {
+								message.success("User authenticated successfully.");
+							});
+						}
+					} catch (error) {
+						console.error("Error during sign-in:", error);
+						message.error("An error occurred while signing in.");
+					}
+				}
 
 				// Construct query params for redirection
 				const queryParams = new URLSearchParams();
 				queryParams.append("name", name);
-				queryParams.append("total_price", formData.totalAmount);
-				queryParams.append("total_rooms", reservationData.total_rooms);
-				queryParams.append("checkin_date", checkInDate.format("YYYY-MM-DD"));
-				queryParams.append("checkout_date", checkOutDate.format("YYYY-MM-DD"));
-				queryParams.append("total_nights", formData.numberOfNights);
 				queryParams.append(
-					"hotel_name",
-					hotelDetails ? hotelDetails.hotelName : ""
+					"total_price",
+					Number(totalAmount * commissionRate).toFixed(2)
 				);
-
+				queryParams.append("total_rooms", reservationData.total_rooms);
+				queryParams.append(
+					"checkin_date",
+					checkInDate ? checkInDate.format("YYYY-MM-DD") : ""
+				);
+				queryParams.append(
+					"checkout_date",
+					checkOutDate ? checkOutDate.format("YYYY-MM-DD") : ""
+				);
+				queryParams.append("nights", numberOfNights); // Pass number of nights
+				queryParams.append("hotel_name", hotelDetails.hotelName);
 				// Add each room's details to the query
-				formData.pickedRooms.forEach((room, index) => {
+				pickedRooms.forEach((room, index) => {
 					queryParams.append(`room_type${index + 1}`, room.roomType);
 					queryParams.append(`room_display_name${index + 1}`, room.displayName);
-					queryParams.append(`price_per_night${index + 1}`, room.pricePerNight);
+					queryParams.append(
+						`price_per_night${index + 1}`,
+						Number(room.pricePerNight * commissionRate).toFixed(2)
+					);
 					queryParams.append(`room_count${index + 1}`, room.count);
 				});
 
@@ -344,7 +409,6 @@ const GeneratedLinkCheckout = () => {
 		history.push(`/signin?returnUrl=${encodeURIComponent(currentUrl)}`);
 	};
 
-	console.log(priceByDay, "priceByDay");
 	return (
 		<GeneratedLinkCheckoutWrapper>
 			<MobileAccordion
@@ -376,7 +440,13 @@ const GeneratedLinkCheckout = () => {
 											Dates: {formData.checkInDate?.format("YYYY-MM-DD")} to{" "}
 											{formData.checkOutDate?.format("YYYY-MM-DD")}
 										</p>
-										<h4>{room.pricePerNight} SAR per night</h4>
+										<h4>
+											{Number(
+												room.pricePerNight *
+													process.env.REACT_APP_COMMISSIONRATE
+											).toFixed(2)}{" "}
+											SAR per night
+										</h4>
 									</RoomDetails>
 									{room.pricingByDay && room.pricingByDay.length > 0 && (
 										<Collapse
@@ -405,7 +475,13 @@ const GeneratedLinkCheckout = () => {
 									)}
 								</RoomItem>
 							))}
-							<h4>Total: {formData.totalAmount} SAR</h4>
+							<h4>
+								Total:{" "}
+								{Number(
+									formData.totalAmount * process.env.REACT_APP_COMMISSIONRATE
+								).toFixed(2)}{" "}
+								SAR
+							</h4>
 						</RightSection>
 					)}
 				</Panel>
@@ -538,21 +614,6 @@ const GeneratedLinkCheckout = () => {
 
 					<TermsWrapper>
 						<Checkbox
-							checked={guestAgreedOnTermsAndConditions}
-							onChange={(e) =>
-								setGuestAgreedOnTermsAndConditions(e.target.checked)
-							}
-						>
-							Accept Terms & Conditions
-						</Checkbox>
-					</TermsWrapper>
-					<small onClick={() => window.open("/terms-conditions", "_blank")}>
-						It's highly recommended to check our terms & conditions specially
-						for refund and cancellation sections 4 & 5{" "}
-					</small>
-
-					<TermsWrapper>
-						<Checkbox
 							checked={pay10Percent}
 							onChange={(e) => {
 								setPayWholeAmount(false);
@@ -575,7 +636,11 @@ const GeneratedLinkCheckout = () => {
 						>
 							Pay the whole Total Amount{" "}
 							<span style={{ fontWeight: "bold" }}>
-								(SAR {Number(formData.totalAmount).toFixed(2)})
+								(SAR{" "}
+								{Number(
+									formData.totalAmount * process.env.REACT_APP_COMMISSIONRATE
+								).toFixed(2)}
+								)
 							</span>
 						</Checkbox>
 					</TermsWrapper>
@@ -585,7 +650,8 @@ const GeneratedLinkCheckout = () => {
 						for refund and cancellation sections 4 & 5{" "}
 					</small>
 
-					{guestAgreedOnTermsAndConditions ? (
+					{guestAgreedOnTermsAndConditions &&
+					(pay10Percent || payWholeAmount) ? (
 						<PaymentDetails
 							cardNumber={cardNumber}
 							setCardNumber={setCardNumber}
@@ -600,6 +666,10 @@ const GeneratedLinkCheckout = () => {
 							handleReservation={handleReservation}
 							pricePerNight={formData.pricePerNight}
 							total={formData.totalAmount}
+							pay10Percent={pay10Percent}
+							total_price_with_commission={Number(
+								formData.totalAmount * process.env.REACT_APP_COMMISSIONRATE
+							)}
 						/>
 					) : null}
 				</LeftSection>
@@ -630,7 +700,13 @@ const GeneratedLinkCheckout = () => {
 											{formData.checkOutDate?.format("YYYY-MM-DD")}
 										</p>
 										<p>{formData.numberOfNights} Nights</p>
-										<h4>{room.pricePerNight} SAR per night</h4>
+										<h4>
+											{Number(
+												room.pricePerNight *
+													process.env.REACT_APP_COMMISSIONRATE
+											).toFixed(2)}{" "}
+											SAR per night
+										</h4>
 									</RoomDetails>
 									{room.pricingByDay && room.pricingByDay.length > 0 && (
 										<Collapse
@@ -650,7 +726,8 @@ const GeneratedLinkCheckout = () => {
 												<PricingList>
 													{room.pricingByDay.map(({ date, price }, i) => (
 														<li key={i}>
-															{dayjs(date).format("YYYY-MM-DD")}: {price} SAR
+															{dayjs(date).format("YYYY-MM-DD")}:{" "}
+															{Number(price).toFixed(2)} SAR
 														</li>
 													))}
 												</PricingList>
@@ -659,7 +736,13 @@ const GeneratedLinkCheckout = () => {
 									)}
 								</RoomItem>
 							))}
-							<h4>Total: {formData.totalAmount} SAR</h4>
+							<h4>
+								Total:{" "}
+								{Number(
+									formData.totalAmount * process.env.REACT_APP_COMMISSIONRATE
+								).toFixed(2)}{" "}
+								SAR
+							</h4>
 						</>
 					)}
 				</RightSection>
@@ -677,6 +760,13 @@ const GeneratedLinkCheckoutWrapper = styled.div`
 	padding: 20px;
 	text-transform: capitalize;
 	padding: 20px 150px;
+
+	small {
+		font-weight: bold;
+		font-size: 11px;
+		cursor: pointer;
+		color: darkred;
+	}
 
 	@media (max-width: 800px) {
 		padding: 25px 0px;

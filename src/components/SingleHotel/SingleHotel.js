@@ -196,7 +196,9 @@ const SingleHotel = ({ selectedHotel }) => {
 			selectedHotel.belongsTo,
 			pricingByDay,
 			room.roomColor,
-			adults
+			adults,
+			0,
+			Number(process.env.REACT_APP_COMMISSIONRATE) - 1
 		);
 
 		openSidebar2(); // Open the sidebar/cart drawer
@@ -544,13 +546,18 @@ const SingleHotel = ({ selectedHotel }) => {
 								<FinalPrice>
 									<span className='current-price'>
 										{(
-											Number(displayTotalPrice) / Number(numberOfNights)
+											(Number(displayTotalPrice) / Number(numberOfNights)) *
+											process.env.REACT_APP_COMMISSIONRATE
 										).toFixed(2)}{" "}
 										SAR / Night
 									</span>
 									<div className='nights'>{numberOfNights} nights</div>
 									<div className='finalTotal'>
-										Total: {displayTotalPrice} SAR
+										Total:{" "}
+										{Number(
+											displayTotalPrice * process.env.REACT_APP_COMMISSIONRATE
+										).toFixed(2)}{" "}
+										SAR
 									</div>
 								</FinalPrice>
 							</PriceSection>

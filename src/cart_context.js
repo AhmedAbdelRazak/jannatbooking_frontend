@@ -56,8 +56,9 @@ export const CartProvider = ({ children }) => {
 		belongsTo,
 		priceRating,
 		roomColor,
-		adults, // Add adults parameter
-		children // Add children parameter
+		adults,
+		children,
+		commissionRate // Add dynamic commission rate
 	) => {
 		dispatch({
 			type: ADD_ROOM_TO_CART,
@@ -70,8 +71,9 @@ export const CartProvider = ({ children }) => {
 				belongsTo,
 				priceRating,
 				roomColor,
-				adults, // Pass adults count
-				children, // Pass children count
+				adults,
+				children,
+				commissionRate, // Pass dynamic commission rate to reducer
 			},
 		});
 	};

@@ -327,12 +327,22 @@ const RoomCard = ({
 }) => {
 	// eslint-disable-next-line
 	const [thumbsSwiper, setThumbsSwiper] = useState(null);
+
+	// Define the commission rate dynamically (can be passed from props or a constant)
+	const commissionRate = process.env.REACT_APP_COMMISSIONRATE; // Example: 10% commission
+
 	const averagePrice = calculateAveragePrice(
 		room.pricingRate,
 		startDate,
 		endDate
 	);
+
 	const displayedPrice = averagePrice || room.price.basePrice || "N/A";
+
+	const displayedPriceAfterCommission =
+		Number(averagePrice * commissionRate) ||
+		Number(room.price.basePrice * commissionRate) ||
+		"N/A";
 
 	const pricingByDay = calculatePricingByDay(
 		room.pricingRate,
@@ -343,6 +353,12 @@ const RoomCard = ({
 
 	// Calculate total price
 	const totalPrice = calculateTotalPrice(displayedPrice, startDate, endDate);
+
+	// Calculate total price with commission
+	const totalPriceWithCommission = Number(
+		calculateTotalPrice(displayedPrice, startDate, endDate) *
+			(commissionRate + 1)
+	).toFixed(2);
 
 	const firstImage = room.photos[0]?.url || "";
 
@@ -377,7 +393,8 @@ const RoomCard = ({
 			pricingByDay,
 			roomColor,
 			adults,
-			children
+			children,
+			Number(commissionRate) - 1 // Pass the dynamic commission rate
 		);
 		openSidebar2(); // Open the cart drawer after adding a room
 	};
@@ -398,7 +415,6 @@ const RoomCard = ({
 		window.dispatchEvent(searchChangeEvent);
 	};
 
-	console.log(totalPrice, "totalPrice");
 	return (
 		<RoomCardWrapper>
 			<RoomImageWrapper>
@@ -472,7 +488,7 @@ const RoomCard = ({
 							color: "black",
 						}}
 					>
-						SAR {displayedPrice}
+						SAR {displayedPriceAfterCommission.toFixed(2)}
 					</span>{" "}
 					<span style={{ fontSize: "0.82rem", color: "black" }}>/ NIGHT</span>
 					{totalPrice && (
@@ -485,7 +501,7 @@ const RoomCard = ({
 							}}
 						>
 							Total {dayjs(endDate).diff(dayjs(startDate), "day")} nights:{" "}
-							<strong>SAR {totalPrice}</strong>
+							<strong>SAR {Number(totalPriceWithCommission).toFixed(2)}</strong>
 						</div>
 					)}
 				</PriceWrapper>

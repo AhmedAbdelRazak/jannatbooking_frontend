@@ -12,6 +12,7 @@ import AmericanExpress from "../../GeneralImages/AmericanExpress.png";
 import MasterCard from "../../GeneralImages/MasterCard.png";
 import VisaCard from "../../GeneralImages/VisaImage.png";
 import CreditCard from "../../GeneralImages/CreditCard.png";
+import axios from "axios";
 
 const PaymentDetails = ({
 	cardNumber,
@@ -28,6 +29,7 @@ const PaymentDetails = ({
 	pricePerNight,
 	total,
 	pay10Percent,
+	total_price_with_commission,
 }) => {
 	// Handle card number input with formatting
 	const handleCardNumberChange = (e) => {
@@ -56,6 +58,49 @@ const PaymentDetails = ({
 	// Prevent auto-fill warning
 	const handleFocus = (e) => {
 		e.target.setAttribute("autocomplete", "off");
+	};
+
+	const handlePayment = async () => {
+		try {
+			// Gather payment details
+			const paymentData = {
+				amount: pay10Percent
+					? Number(total * 0.1).toFixed(2)
+					: Number(total_price_with_commission).toFixed(2),
+				cardNumber: cardNumber.replace(/\s/g, ""), // Remove spaces from the card number
+				expirationDate: expiryDate.replace("/", ""), // Format as MMYY
+				cardCode: cvv,
+				cardHolderName,
+			};
+
+			// Validate fields
+			if (
+				!paymentData.cardNumber ||
+				!paymentData.expirationDate ||
+				!paymentData.cardCode
+			) {
+				alert("Please fill in all required payment fields.");
+				return;
+			}
+
+			// Call backend API
+			const response = await axios.post(
+				`${process.env.REACT_APP_API_URL}/create-payment`,
+				paymentData
+			);
+
+			if (response.data.success) {
+				alert(
+					`Payment successful! Transaction ID: ${response.data.transactionId}`
+				);
+				// Proceed to finalize reservation
+			} else {
+				alert(`Payment failed: ${response.data.message}`);
+			}
+		} catch (error) {
+			console.error("Payment processing error:", error);
+			alert("An error occurred during payment processing.");
+		}
 	};
 
 	return (
@@ -124,16 +169,21 @@ const PaymentDetails = ({
 				{pricePerNight ? <h4>{pricePerNight} SAR per night</h4> : null}
 
 				{pay10Percent ? (
-					<h4>Total Amount: {Number(total * 0.1).toFixed(2)} SAR</h4>
+					<h4>Total Amount: SAR {Number(total * 0.1).toFixed(2)}</h4>
 				) : (
-					<h4>Total Amount: {total} SAR</h4>
+					<h4>
+						Total Amount: SAR {Number(total_price_with_commission).toFixed(2)}
+					</h4>
 				)}
 			</PriceWrapper>
 
 			<SubmitButton
 				type='primary'
+				// onClick={() => {
+				// 	handleReservation();
+				// }}
 				onClick={() => {
-					handleReservation();
+					handlePayment();
 				}}
 			>
 				Reserve Now

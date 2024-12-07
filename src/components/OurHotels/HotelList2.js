@@ -204,7 +204,11 @@ const HotelCard = ({ hotel }) => {
 								color: "black",
 							}}
 						>
-							SAR {hotel.roomCountDetails[0]?.price.basePrice}
+							SAR{" "}
+							{Number(
+								hotel.roomCountDetails[0]?.price.basePrice *
+									process.env.REACT_APP_COMMISSIONRATE
+							).toFixed(2)}
 						</span>{" "}
 						<span style={{ fontSize: "0.85rem" }}>/ NIGHT</span>
 					</PriceWrapper>

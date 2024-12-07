@@ -25,6 +25,7 @@ const CheckoutContent = () => {
 		total_price,
 		clearRoomCart,
 		toggleRoomAmount,
+		total_price_with_commission,
 	} = useCartContext();
 	const { user } = isAuthenticated();
 	const history = useHistory();
@@ -57,9 +58,11 @@ const CheckoutContent = () => {
 			return Array.from({ length: room.amount }, () => ({
 				room_type: room.roomType, // Using "name" as room_type
 				displayName: room.name, // To store the display name
-				chosenPrice: room.price, // Assuming price is already the total per room
+				chosenPrice: Number(
+					room.price * process.env.REACT_APP_COMMISSIONRATE
+				).toFixed(2), // Assuming price is already the total per room
 				count: 1, // Each room is counted individually in pickedRoomsType
-				pricingByDay: room.pricingByDay || [], // Pricing breakdown by day
+				pricingByDay: room.pricingByDayWithCommission || [], // Pricing breakdown by day
 				roomColor: room.roomColor, // Room color
 			}));
 		});
@@ -231,12 +234,18 @@ const CheckoutContent = () => {
 			total_rooms,
 			total_guests: Number(roomCart[0].adults) + Number(roomCart[0].children),
 			adults: Number(roomCart[0].adults),
-			children: 0,
-			total_amount: total_price,
-			payment: pay10Percent ? "Deposit Paid" : "Paid",
+			children: Number(roomCart[0].children) ? Number(roomCart[0].children) : 0,
+			total_amount: total_price_with_commission,
+			payment: pay10Percent ? "Deposit Paid" : "Paid Online",
 			paid_amount: pay10Percent
-				? Number(total_price * 0.1).toFixed(2)
-				: total_price,
+				? Number(total_price * (process.env.REACT_APP_COMMISSIONRATE - 1))
+				: total_price_with_commission,
+			commission: Number(
+				total_price * (process.env.REACT_APP_COMMISSIONRATE - 1)
+			),
+
+			commissionPaid: true,
+
 			checkin_date: roomCart[0].startDate,
 			checkout_date: roomCart[0].endDate,
 			days_of_residence: dayjs(roomCart[0].endDate).diff(
@@ -347,7 +356,21 @@ const CheckoutContent = () => {
 											Price for {room.nights} night(s):{" "}
 											{room.amount * room.price} SAR
 										</p>
-										<h4>{room.price} SAR per night</h4>
+										<h4>
+											{Number(
+												room.price * process.env.REACT_APP_COMMISSIONRATE
+											).toFixed(2)}{" "}
+											SAR per night{" "}
+											<strong
+												style={{
+													fontSize: "12px",
+													fontWeight: "bold",
+													color: "darkred",
+												}}
+											>
+												(After Taxes)
+											</strong>
+										</h4>
 
 										{/* Room Quantity Controls */}
 										<QuantityControls>
@@ -391,7 +414,11 @@ const CheckoutContent = () => {
 														room.pricingByDay.map(({ date, price }, index) => {
 															return (
 																<li key={index}>
-																	{date}: {price} SAR
+																	{date}:{" "}
+																	{Number(
+																		price * process.env.REACT_APP_COMMISSIONRATE
+																	).toFixed(2)}{" "}
+																	SAR
 																</li>
 															);
 														})
@@ -415,7 +442,10 @@ const CheckoutContent = () => {
 						{/* Totals Section */}
 						<TotalsWrapper>
 							<p>Total Rooms: {total_rooms}</p>
-							<p className='total-price'>Total Price: {total_price} SAR</p>
+							<p className='total-price'>
+								Total Price: {Number(total_price_with_commission).toFixed(2)}{" "}
+								SAR
+							</p>
 						</TotalsWrapper>
 					</RightSection>
 				</Panel>
@@ -596,7 +626,11 @@ const CheckoutContent = () => {
 									setPay10Percent(e.target.checked);
 								}}
 							>
-								Pay 10% Deposit{" "}
+								Pay{" "}
+								{Number(
+									(process.env.REACT_APP_COMMISSIONRATE - 1) * 100
+								).toFixed(0)}
+								% Deposit{" "}
 								<span style={{ fontWeight: "bold" }}>
 									(SAR {Number(total_price * 0.1).toFixed(2)})
 								</span>
@@ -612,7 +646,7 @@ const CheckoutContent = () => {
 							>
 								Pay the whole Total Amount{" "}
 								<span style={{ fontWeight: "bold" }}>
-									(SAR {Number(total_price).toFixed(2)})
+									(SAR {Number(total_price_with_commission).toFixed(2)})
 								</span>
 							</Checkbox>
 						</TermsWrapper>
@@ -631,6 +665,7 @@ const CheckoutContent = () => {
 								setPostalCode={setPostalCode}
 								handleReservation={createNewReservation}
 								total={total_price}
+								total_price_with_commission={total_price_with_commission}
 								pay10Percent={pay10Percent}
 							/>
 						) : null}
@@ -652,7 +687,7 @@ const CheckoutContent = () => {
 				setCardHolderName={setCardHolderName}
 				postalCode={postalCode}
 				setPostalCode={setPostalCode}
-				handleReservation={createNewReservation}
+				createNewReservation={createNewReservation}
 				guestAgreedOnTermsAndConditions={guestAgreedOnTermsAndConditions}
 				setGuestAgreedOnTermsAndConditions={setGuestAgreedOnTermsAndConditions}
 				user={user}
@@ -672,6 +707,7 @@ const CheckoutContent = () => {
 				setPay10Percent={setPay10Percent}
 				payWholeAmount={payWholeAmount}
 				setPayWholeAmount={setPayWholeAmount}
+				total_price_with_commission={total_price_with_commission}
 			/>
 		</CheckoutContentWrapper>
 	);

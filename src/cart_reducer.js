@@ -70,6 +70,26 @@ const calculatePricingByDay2 = (pricingRate, startDate, endDate, basePrice) => {
 	return dateArray;
 };
 
+// Helper function to calculate pricing by day with commission
+const calculatePricingByDayWithCommission = (
+	pricingRate,
+	startDate,
+	endDate,
+	basePrice,
+	commissionRate
+) => {
+	const pricingByDay = calculatePricingByDay(
+		pricingRate,
+		startDate,
+		endDate,
+		basePrice
+	);
+	return pricingByDay.map((day) => ({
+		...day,
+		price: (day.price * (1 + commissionRate)).toFixed(2),
+	}));
+};
+
 const cart_reducer = (state, action) => {
 	if (action.type === LANGUAGE_TOGGLE) {
 		return { ...state, chosenLanguage: action.payload };
@@ -85,8 +105,9 @@ const cart_reducer = (state, action) => {
 			belongsTo,
 			priceRating,
 			roomColor,
-			adults, // New adult field
-			children, // New children field
+			adults,
+			children,
+			commissionRate, // Dynamic commission rate
 		} = action.payload;
 
 		const start = dayjs(startDate);
@@ -99,6 +120,13 @@ const cart_reducer = (state, action) => {
 			endDate,
 			roomDetails.price
 		);
+		const pricingByDayWithCommission = calculatePricingByDayWithCommission(
+			priceRating,
+			startDate,
+			endDate,
+			roomDetails.price,
+			commissionRate
+		);
 
 		const existingRoom = state.roomCart.find((item) => item.id === id);
 
@@ -106,11 +134,17 @@ const cart_reducer = (state, action) => {
 			const updatedCart = state.roomCart.map((item) => {
 				if (item.id === id) {
 					let newAmount = item.amount + 1;
-					return { ...item, amount: newAmount, adults, children };
+					return {
+						...item,
+						amount: newAmount,
+						adults,
+						children,
+						pricingByDay,
+						pricingByDayWithCommission,
+					};
 				}
 				return item;
 			});
-
 			return { ...state, roomCart: updatedCart };
 		} else {
 			const newRoom = {
@@ -121,12 +155,13 @@ const cart_reducer = (state, action) => {
 				endDate,
 				nights,
 				pricingByDay,
+				pricingByDayWithCommission,
 				hotelId,
 				belongsTo,
 				priceRating,
 				roomColor,
-				adults, // Set adults count
-				children, // Set children count
+				adults,
+				children,
 			};
 			return { ...state, roomCart: [...state.roomCart, newRoom] };
 		}
@@ -135,26 +170,29 @@ const cart_reducer = (state, action) => {
 	if (action.type === UPDATE_ROOM_DATES) {
 		const { id, startDate, endDate } = action.payload;
 
-		const start = dayjs(startDate);
-		const end = dayjs(endDate);
-		const nights = end.diff(start, "day");
-
-		// Update the cart with the new dates and recalculated pricing breakdown
 		const updatedCart = state.roomCart.map((room) => {
 			if (room.id === id) {
-				// console.log("Recalculating pricing for room:", room.id); // Debugging line
 				const newPricingByDay = calculatePricingByDay2(
 					room.priceRating,
 					startDate,
 					endDate,
 					room.price
 				);
+				const newPricingByDayWithCommission =
+					calculatePricingByDayWithCommission(
+						room.priceRating,
+						startDate,
+						endDate,
+						room.price,
+						room.commissionRate || 0
+					);
+
 				return {
 					...room,
 					startDate,
 					endDate,
-					nights,
-					pricingByDay: newPricingByDay, // Update the pricing breakdown here
+					pricingByDay: newPricingByDay,
+					pricingByDayWithCommission: newPricingByDayWithCommission,
 				};
 			}
 			return room;
@@ -193,6 +231,7 @@ const cart_reducer = (state, action) => {
 		const {
 			total_rooms,
 			total_price,
+			total_price_with_commission, // New field for totals with commission
 			total_guests,
 			total_adults,
 			total_children,
@@ -201,8 +240,18 @@ const cart_reducer = (state, action) => {
 				const roomRate = item.price; // Assuming this is the base price
 				const totalRoomPrice = item.nights * roomRate * item.amount;
 
+				const roomRateWithCommission =
+					item.pricingByDayWithCommission?.reduce(
+						(sum, day) => sum + parseFloat(day.price),
+						0
+					) / item.pricingByDayWithCommission?.length || roomRate; // Average commission-inclusive rate
+				const totalRoomPriceWithCommission =
+					item.nights * roomRateWithCommission * item.amount;
+
+				// Increment totals
 				totals.total_rooms += item.amount;
 				totals.total_price += totalRoomPrice;
+				totals.total_price_with_commission += totalRoomPriceWithCommission; // Include commission
 				totals.total_guests += item.amount * (item.adults + item.children); // Calculate total guests
 				totals.total_adults += item.adults * item.amount; // Calculate total adults
 				totals.total_children += item.children * item.amount; // Calculate total children
@@ -212,6 +261,7 @@ const cart_reducer = (state, action) => {
 			{
 				total_rooms: 0,
 				total_price: 0,
+				total_price_with_commission: 0, // Initialize total price with commission
 				total_guests: 0, // Initialize total guests
 				total_adults: 0, // Initialize total adults
 				total_children: 0, // Initialize total children
@@ -222,6 +272,7 @@ const cart_reducer = (state, action) => {
 			...state,
 			total_rooms,
 			total_price,
+			total_price_with_commission, // Update total price with commission
 			total_guests, // Update total guests
 			total_adults, // Update total adults
 			total_children, // Update total children

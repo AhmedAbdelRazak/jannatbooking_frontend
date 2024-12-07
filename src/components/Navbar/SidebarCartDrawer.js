@@ -16,9 +16,11 @@ const SidebarCartDrawer = () => {
 		toggleRoomAmount,
 		updateRoomDates, // Add updateRoomDates function
 		total_rooms,
+		// eslint-disable-next-line
 		total_price,
 		closeSidebar2,
 		isSidebarOpen2,
+		total_price_with_commission,
 	} = useCartContext();
 
 	// Handle when the user changes the date range
@@ -83,7 +85,11 @@ const SidebarCartDrawer = () => {
 										{roomCart[0]?.endDate}
 									</ItemInfo>
 									<ItemPricePerNight>
-										Price per night: {room.price} SAR
+										Price per night:{" "}
+										{Number(
+											room.price * process.env.REACT_APP_COMMISSIONRATE
+										).toFixed(2)}{" "}
+										SAR
 									</ItemPricePerNight>
 									{/* Room Quantity Controls */}
 									<QuantityControls>
@@ -96,7 +102,14 @@ const SidebarCartDrawer = () => {
 										/>
 									</QuantityControls>
 									<ItemPrice>
-										Total Amount: {room.amount * room.nights * room.price} SAR
+										Total Amount:{" "}
+										{Number(
+											room.amount *
+												room.nights *
+												room.price *
+												process.env.REACT_APP_COMMISSIONRATE
+										).toFixed(2)}{" "}
+										SAR
 									</ItemPrice>
 								</ItemDetails>
 								<RemoveButton onClick={() => removeRoomItem(room.id)}>
@@ -110,7 +123,12 @@ const SidebarCartDrawer = () => {
 				</DrawerContent>
 				<TotalsWrapper>
 					<TotalRooms>Total Rooms: {total_rooms}</TotalRooms>
-					<TotalPrice>Total Price: {total_price} SAR</TotalPrice>
+					{/* <TotalPrice>Total Price: {total_price} SAR</TotalPrice>
+					 */}
+
+					<TotalPrice>
+						Total Price: {Number(total_price_with_commission).toFixed(2)} SAR
+					</TotalPrice>
 					<CheckoutButton
 						to='/checkout'
 						onClick={() => {

@@ -34,10 +34,16 @@ const ConfirmationPage = () => {
 
 	// Extract room details for multiple rooms
 	const rooms = [];
-	for (let i = 1; i <= totalRooms; i++) {
+	for (let i = 0; i < totalRooms; i++) {
 		const room = {
-			roomType: searchParams.get(`room_type${i}`),
-			roomDisplayName: searchParams.get(`room_display_name${i}`),
+			roomType:
+				searchParams.get(`room_type${i}`) ||
+				searchParams.get(`room_type_${i}`) ||
+				"No Type Specified",
+			roomDisplayName:
+				searchParams.get(`room_display_name${i}`) ||
+				searchParams.get(`room_display_name_${i}`) ||
+				"No Name Specified",
 			pricePerNight: searchParams.get(`price_per_night${i}`),
 			roomCount: searchParams.get(`room_count${i}`),
 		};
@@ -131,6 +137,10 @@ const ConfirmationPageWrapper = styled.div`
 	align-items: center;
 	background-color: var(--neutral-light);
 	padding: 20px;
+
+	p {
+		font-size: 0.95rem !important;
+	}
 
 	@media (max-width: 768px) {
 		padding: 10px;

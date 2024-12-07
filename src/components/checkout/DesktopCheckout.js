@@ -45,6 +45,7 @@ const DesktopCheckout = ({
 	setPay10Percent,
 	payWholeAmount,
 	setPayWholeAmount,
+	total_price_with_commission,
 }) => {
 	return (
 		<DesktopWrapper>
@@ -226,7 +227,11 @@ const DesktopCheckout = ({
 									setPay10Percent(e.target.checked);
 								}}
 							>
-								Pay 10% Deposit{" "}
+								Pay{" "}
+								{Number(
+									(process.env.REACT_APP_COMMISSIONRATE - 1) * 100
+								).toFixed(0)}
+								% Deposit{" "}
 								<span style={{ fontWeight: "bold" }}>
 									(SAR {Number(total_price * 0.1).toFixed(2)})
 								</span>
@@ -242,7 +247,11 @@ const DesktopCheckout = ({
 							>
 								Pay the whole Total Amount{" "}
 								<span style={{ fontWeight: "bold" }}>
-									(SAR {Number(total_price).toFixed(2)})
+									(SAR{" "}
+									{Number(
+										total_price * process.env.REACT_APP_COMMISSIONRATE
+									).toFixed(2)}
+									)
 								</span>
 							</Checkbox>
 						</TermsWrapper>
@@ -262,6 +271,7 @@ const DesktopCheckout = ({
 								handleReservation={createNewReservation}
 								total={total_price}
 								pay10Percent={pay10Percent}
+								total_price_with_commission={total_price_with_commission}
 							/>
 						) : null}
 					</div>
@@ -304,7 +314,21 @@ const DesktopCheckout = ({
 									Price for {room.nights} night(s): {room.amount * room.price}{" "}
 									SAR
 								</p>
-								<h4>{room.price} SAR per night</h4>
+								<h4>
+									{Number(
+										room.price * process.env.REACT_APP_COMMISSIONRATE
+									).toFixed(2)}{" "}
+									SAR per night{" "}
+									<strong
+										style={{
+											fontSize: "12px",
+											fontWeight: "bold",
+											color: "darkred",
+										}}
+									>
+										(After Taxes)
+									</strong>
+								</h4>
 
 								{/* Room Quantity Controls */}
 								<QuantityControls>
@@ -344,7 +368,11 @@ const DesktopCheckout = ({
 												room.pricingByDay.map(({ date, price }, index) => {
 													return (
 														<li key={index}>
-															{date}: {price} SAR
+															{date}:{" "}
+															{Number(
+																price * process.env.REACT_APP_COMMISSIONRATE
+															).toFixed(2)}{" "}
+															SAR
 														</li>
 													);
 												})
@@ -368,7 +396,9 @@ const DesktopCheckout = ({
 				{/* Totals Section */}
 				<TotalsWrapper>
 					<p>Total Rooms: {total_rooms}</p>
-					<p className='total-price'>Total Price: {total_price} SAR</p>
+					<p className='total-price'>
+						Total Price: {Number(total_price_with_commission).toFixed(2)} SAR
+					</p>
 				</TotalsWrapper>
 			</RightSection>
 		</DesktopWrapper>
