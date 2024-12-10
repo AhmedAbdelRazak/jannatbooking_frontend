@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
 import dayjs from "dayjs";
@@ -6,7 +6,7 @@ import { DatePicker, Button, Collapse, Select, message, Checkbox } from "antd";
 import PaymentDetails from "./PaymentDetails";
 import { countryList } from "../../Assets"; // Ensure this file contains an array of countries
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
-import { createNewReservationClient } from "../../apiCore";
+import { createNewReservationClient, currencyConversion } from "../../apiCore";
 import { FaMinus, FaPlus } from "react-icons/fa";
 import { authenticate, isAuthenticated, signin } from "../../auth";
 import { useHistory } from "react-router-dom";
@@ -50,6 +50,32 @@ const CheckoutContent = () => {
 		passportExpiry: "",
 		nationality: "",
 	});
+
+	const [convertedAmounts, setConvertedAmounts] = useState({
+		depositUSD: null,
+		totalUSD: null,
+	});
+
+	useEffect(() => {
+		// Fetch conversion for both deposit and total amounts
+		const fetchConversion = async () => {
+			const deposit = total_price * (process.env.REACT_APP_COMMISSIONRATE - 1);
+			const total = total_price_with_commission;
+			const amounts = [deposit, total];
+
+			try {
+				const conversions = await currencyConversion(amounts);
+				setConvertedAmounts({
+					depositUSD: conversions[0]?.amountInUSD.toFixed(2),
+					totalUSD: conversions[1]?.amountInUSD.toFixed(2),
+				});
+			} catch (error) {
+				console.error("Currency conversion failed", error);
+			}
+		};
+
+		fetchConversion();
+	}, [total_price, total_price_with_commission]);
 
 	// Function to transform roomCart into pickedRoomsType format
 	const transformRoomCartToPickedRoomsType = (roomCart) => {
@@ -254,6 +280,7 @@ const CheckoutContent = () => {
 			),
 			booking_source: "Online Jannat Booking",
 			pickedRoomsType,
+			convertedAmounts,
 		};
 
 		try {
@@ -264,7 +291,7 @@ const CheckoutContent = () => {
 				// Construct query params
 				const queryParams = new URLSearchParams();
 				queryParams.append("name", customerDetails.name);
-				queryParams.append("total_price", total_price);
+				queryParams.append("total_price", total_price_with_commission);
 				queryParams.append("total_rooms", total_rooms);
 
 				// Add each room's details to the query
@@ -631,8 +658,11 @@ const CheckoutContent = () => {
 									(process.env.REACT_APP_COMMISSIONRATE - 1) * 100
 								).toFixed(0)}
 								% Deposit{" "}
-								<span style={{ fontWeight: "bold" }}>
+								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
 									(SAR {Number(total_price * 0.1).toFixed(2)})
+								</span>{" "}
+								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
+									(${convertedAmounts && convertedAmounts.depositUSD})
 								</span>
 							</Checkbox>
 						</TermsWrapper>
@@ -645,8 +675,11 @@ const CheckoutContent = () => {
 								}}
 							>
 								Pay the whole Total Amount{" "}
-								<span style={{ fontWeight: "bold" }}>
+								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
 									(SAR {Number(total_price_with_commission).toFixed(2)})
+								</span>{" "}
+								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
+									(${convertedAmounts && convertedAmounts.totalUSD})
 								</span>
 							</Checkbox>
 						</TermsWrapper>
@@ -667,6 +700,7 @@ const CheckoutContent = () => {
 								total={total_price}
 								total_price_with_commission={total_price_with_commission}
 								pay10Percent={pay10Percent}
+								convertedAmounts={convertedAmounts}
 							/>
 						) : null}
 					</div>
@@ -708,6 +742,7 @@ const CheckoutContent = () => {
 				payWholeAmount={payWholeAmount}
 				setPayWholeAmount={setPayWholeAmount}
 				total_price_with_commission={total_price_with_commission}
+				convertedAmounts={convertedAmounts}
 			/>
 		</CheckoutContentWrapper>
 	);

@@ -47,6 +47,8 @@ const DashboardContent = () => {
 };
 
 const ReservationSummary = ({ reservations }) => {
+	console.log(reservations, "reservations");
+
 	return (
 		<ReservationSummaryWrapper>
 			<h2>Your Reservations</h2>
@@ -54,6 +56,9 @@ const ReservationSummary = ({ reservations }) => {
 				reservations.map((reservation, index) => (
 					<ReservationCard key={reservation._id || index}>
 						<h3>Confirmation Number: {reservation.confirmation_number}</h3>
+						<p>
+							<strong>Hotel Name:</strong> {reservation.hotelId.hotelName}
+						</p>
 						<p>
 							<strong>Customer Name:</strong>{" "}
 							{reservation.customer_details.name}
@@ -71,6 +76,18 @@ const ReservationSummary = ({ reservations }) => {
 						</p>
 						<p>
 							<strong>Total Amount:</strong> {reservation.total_amount}{" "}
+							{reservation.currency.toUpperCase()}
+						</p>
+						<p>
+							<strong>Paid Amount:</strong> {reservation.paid_amount}{" "}
+							{reservation.currency.toUpperCase()}
+						</p>
+						<p>
+							<strong>Amount Due:</strong>{" "}
+							{Number(
+								Number(reservation.total_amount) -
+									Number(reservation.paid_amount)
+							).toFixed(2)}{" "}
 							{reservation.currency.toUpperCase()}
 						</p>
 

@@ -28,6 +28,7 @@ const PaymentDetails = ({
 	pricePerNight,
 	total,
 	pay10Percent,
+	convertedAmounts,
 }) => {
 	// Handle card number input with formatting
 	const handleCardNumberChange = (e) => {
@@ -124,12 +125,28 @@ const PaymentDetails = ({
 				{pricePerNight ? <h4>{pricePerNight} SAR per night</h4> : null}
 
 				{pay10Percent ? (
-					<h4>Total Amount: {Number(total * 0.1).toFixed(2)} SAR</h4>
+					<>
+						<h4>
+							Total Amount:{" "}
+							{Number(
+								total * (process.env.REACT_APP_COMMISSIONRATE - 1)
+							).toFixed(2)}{" "}
+							SAR
+						</h4>
+						<h4>
+							Total Amount in USD: $
+							{Number(convertedAmounts.depositUSD).toFixed(2)}
+						</h4>
+					</>
 				) : (
 					<h4>
 						Total Amount:{" "}
 						{Number(total * process.env.REACT_APP_COMMISSIONRATE).toFixed(2)}{" "}
 						SAR
+						<h4>
+							Total Amount in USD: $
+							{Number(convertedAmounts.totalUSD).toFixed(2)}
+						</h4>
 					</h4>
 				)}
 			</PriceWrapper>

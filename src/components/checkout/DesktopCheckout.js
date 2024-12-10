@@ -46,6 +46,7 @@ const DesktopCheckout = ({
 	payWholeAmount,
 	setPayWholeAmount,
 	total_price_with_commission,
+	convertedAmounts,
 }) => {
 	return (
 		<DesktopWrapper>
@@ -235,6 +236,9 @@ const DesktopCheckout = ({
 								<span style={{ fontWeight: "bold" }}>
 									(SAR {Number(total_price * 0.1).toFixed(2)})
 								</span>
+								<span style={{ fontWeight: "bold" }}>
+									(${convertedAmounts && convertedAmounts.depositUSD})
+								</span>
 							</Checkbox>
 						</TermsWrapper>
 						<TermsWrapper>
@@ -252,6 +256,9 @@ const DesktopCheckout = ({
 										total_price * process.env.REACT_APP_COMMISSIONRATE
 									).toFixed(2)}
 									)
+								</span>
+								<span style={{ fontWeight: "bold" }}>
+									(${convertedAmounts && convertedAmounts.totalUSD})
 								</span>
 							</Checkbox>
 						</TermsWrapper>
@@ -272,6 +279,8 @@ const DesktopCheckout = ({
 								total={total_price}
 								pay10Percent={pay10Percent}
 								total_price_with_commission={total_price_with_commission}
+								customerDetails={customerDetails}
+								convertedAmounts={convertedAmounts}
 							/>
 						) : null}
 					</div>

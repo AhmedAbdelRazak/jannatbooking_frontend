@@ -382,3 +382,21 @@ export const gettingHotelDetailsById = async (hotelId) => {
 			console.error("API error: ", err);
 		});
 };
+
+export const currencyConversion = (amounts) => {
+	const saudimoney = amounts
+		.map((amount) => Number(amount).toFixed(2))
+		.join(",");
+	return fetch(
+		`${process.env.REACT_APP_API_URL}/currencyapi-amounts/${saudimoney}`,
+		{
+			method: "GET",
+			headers: {
+				Accept: "application/json",
+				"Content-Type": "application/json",
+			},
+		}
+	)
+		.then((response) => response.json())
+		.catch((err) => console.log(err));
+};
