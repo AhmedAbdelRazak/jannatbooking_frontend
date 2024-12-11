@@ -706,7 +706,7 @@ const SortDropdownSection = styled.div`
 
 	@media (max-width: 768px) {
 		text-align: left;
-		margin-top: -40px;
+		margin-top: -60px;
 		margin-bottom: -10px;
 	}
 `;

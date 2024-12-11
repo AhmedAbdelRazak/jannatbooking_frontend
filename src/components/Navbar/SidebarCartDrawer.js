@@ -40,9 +40,9 @@ const SidebarCartDrawer = () => {
 	const convertCurrency = (amount) => {
 		if (!amount || isNaN(amount)) return "0.00"; // Default to "0.00" if amount is invalid
 
-		if (selectedCurrency === "USD")
+		if (selectedCurrency === "usd")
 			return (amount * (currencyRates.SAR_USD || 1)).toFixed(2);
-		if (selectedCurrency === "EUR")
+		if (selectedCurrency === "eur")
 			return (amount * (currencyRates.SAR_EUR || 1)).toFixed(2);
 		return amount.toFixed(2); // Default to SAR
 	};
