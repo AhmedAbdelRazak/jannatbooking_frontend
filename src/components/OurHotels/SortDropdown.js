@@ -59,6 +59,7 @@ const DropdownRow = styled.div`
 		flex-direction: column;
 		align-items: flex-start;
 		gap: 10px; /* Smaller gap for mobile */
+		margin-left: 10px;
 	}
 `;
 

@@ -700,7 +700,16 @@ const SearchSection = styled.div`
 	}
 `;
 
-const SortDropdownSection = styled.div``;
+const SortDropdownSection = styled.div`
+	width: 100%;
+	text-align: right;
+
+	@media (max-width: 768px) {
+		text-align: left;
+		margin-top: -40px;
+		margin-bottom: -10px;
+	}
+`;
 
 const RoomListWrapper = styled.div`
 	display: flex;
