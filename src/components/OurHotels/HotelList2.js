@@ -61,8 +61,11 @@ const HotelCard = ({ hotel, currency }) => {
 	}, []);
 
 	useEffect(() => {
-		const rates = JSON.parse(localStorage.getItem("rates"));
 		const basePrice = hotel.roomCountDetails[0]?.price.basePrice || 0;
+		const rates = JSON.parse(localStorage.getItem("rates")) || {
+			SAR_USD: 0.27,
+			SAR_EUR: 0.25,
+		};
 
 		if (currency === "usd") {
 			setConvertedPrice((basePrice * rates.SAR_USD).toFixed(2));

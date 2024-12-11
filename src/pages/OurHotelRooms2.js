@@ -256,7 +256,10 @@ const OurHotelRooms2 = () => {
 		if (!roomData) return [];
 
 		const convertCurrency = (price) => {
-			const rates = JSON.parse(localStorage.getItem("rates")) || {};
+			const rates = JSON.parse(localStorage.getItem("rates")) || {
+				SAR_USD: 0.27,
+				SAR_EUR: 0.25,
+			};
 			if (currency === "usd") return (price * rates.SAR_USD).toFixed(2);
 			if (currency === "eur") return (price * rates.SAR_EUR).toFixed(2);
 			return price.toFixed(2); // Default to SAR
@@ -378,7 +381,12 @@ const OurHotelRooms2 = () => {
 									showAllAmenities={!!showAmenitiesState[room._id]} // Pass room-specific state
 									toggleShowAmenities={() => toggleShowAmenities(room._id)} // Pass toggle handler
 									currency={currency}
-									rates={JSON.parse(localStorage.getItem("rates")) || {}}
+									rates={
+										JSON.parse(localStorage.getItem("rates")) || {
+											SAR_USD: 0.27,
+											SAR_EUR: 0.25,
+										}
+									}
 								/>
 							))
 						)}
