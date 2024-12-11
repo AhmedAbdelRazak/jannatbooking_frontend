@@ -79,6 +79,20 @@ const SingleHotel = ({ selectedHotel }) => {
 	const [showAllAmenities2, setShowAllAmenities2] = useState(false);
 	const [showFullDescription, setShowFullDescription] = useState(false);
 
+	const [selectedCurrency, setSelectedCurrency] = useState("SAR");
+	const [currencyRates, setCurrencyRates] = useState({});
+
+	useEffect(() => {
+		const currency = localStorage.getItem("selectedCurrency") || "SAR";
+		const rates = JSON.parse(localStorage.getItem("rates")) || {
+			SAR_USD: 0.27,
+			SAR_EUR: 0.25,
+		};
+
+		setSelectedCurrency(currency);
+		setCurrencyRates(rates);
+	}, []);
+
 	const handleAmenitiesToggle = () => {
 		setShowAllAmenities((prev) => !prev);
 	};
@@ -217,6 +231,14 @@ const SingleHotel = ({ selectedHotel }) => {
 				behavior: "smooth",
 			});
 		}
+	};
+
+	const convertCurrency = (amount) => {
+		if (selectedCurrency === "usd")
+			return (amount * currencyRates.SAR_USD).toFixed(2);
+		if (selectedCurrency === "eur")
+			return (amount * currencyRates.SAR_EUR).toFixed(2);
+		return amount.toFixed(2); // Default to SAR
 	};
 
 	return (
@@ -381,7 +403,6 @@ const SingleHotel = ({ selectedHotel }) => {
 						]),
 					];
 
-					// Display only the first four amenities by default
 					const visibleAmenities = showAllAmenities2
 						? roomAmenities
 						: roomAmenities.slice(0, 3);
@@ -389,7 +410,6 @@ const SingleHotel = ({ selectedHotel }) => {
 					const startDate = dateRange[0].format("YYYY-MM-DD");
 					const endDate = dateRange[1].format("YYYY-MM-DD");
 
-					// Get pricing by day
 					const pricingByDay = calculatePricingByDay(
 						room.pricingRate || [],
 						startDate,
@@ -397,15 +417,24 @@ const SingleHotel = ({ selectedHotel }) => {
 						room.price.basePrice
 					);
 
-					// Calculate the total price
 					const totalPrice = pricingByDay.reduce(
 						(total, day) => total + day.price,
 						0
 					);
-
-					// Handle NaN case and ensure the totalPrice is a number before calling toFixed
+					// eslint-disable-next-line
 					const displayTotalPrice = totalPrice ? totalPrice.toFixed(2) : "0.00";
-					const numberOfNights = pricingByDay.length; // Number of nights
+					const numberOfNights = pricingByDay.length;
+
+					const commissionRate =
+						Number(process.env.REACT_APP_COMMISSIONRATE) || 1.1;
+					const totalPriceWithCommission = totalPrice * commissionRate;
+					const pricePerNight = totalPrice / (numberOfNights || 1);
+					const pricePerNightWithCommission = pricePerNight * commissionRate;
+
+					const convertedPricePerNight = convertCurrency(
+						pricePerNightWithCommission
+					);
+					const convertedTotalPrice = convertCurrency(totalPriceWithCommission);
 
 					return (
 						<RoomCardWrapper key={room._id || index}>
@@ -545,19 +574,13 @@ const SingleHotel = ({ selectedHotel }) => {
 							<PriceSection>
 								<FinalPrice>
 									<span className='current-price'>
-										{(
-											(Number(displayTotalPrice) / Number(numberOfNights)) *
-											process.env.REACT_APP_COMMISSIONRATE
-										).toFixed(2)}{" "}
-										SAR / Night
+										{convertedPricePerNight} {selectedCurrency.toUpperCase()} /
+										Night
 									</span>
 									<div className='nights'>{numberOfNights} nights</div>
 									<div className='finalTotal'>
-										Total:{" "}
-										{Number(
-											displayTotalPrice * process.env.REACT_APP_COMMISSIONRATE
-										).toFixed(2)}{" "}
-										SAR
+										Total: {convertedTotalPrice}{" "}
+										{selectedCurrency.toUpperCase()}
 									</div>
 								</FinalPrice>
 							</PriceSection>

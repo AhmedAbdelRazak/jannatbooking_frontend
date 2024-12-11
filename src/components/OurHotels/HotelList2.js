@@ -33,10 +33,11 @@ const getIcon = (item) => {
 };
 
 // HotelCard component for individual hotels
-const HotelCard = ({ hotel }) => {
+const HotelCard = ({ hotel, currency }) => {
 	const [thumbsSwiper, setThumbsSwiper] = useState(null); // Each hotel has its own thumbsSwiper
 	const [mainSwiper, setMainSwiper] = useState(null); // Main swiper reference to control autoplay
 	const [showAllAmenities, setShowAllAmenities] = useState(false); // State to show/hide all amenities
+	const [convertedPrice, setConvertedPrice] = useState(null);
 
 	useEffect(() => {
 		const handleResize = () => {
@@ -58,6 +59,19 @@ const HotelCard = ({ hotel }) => {
 			window.removeEventListener("resize", handleResize);
 		};
 	}, []);
+
+	useEffect(() => {
+		const rates = JSON.parse(localStorage.getItem("rates"));
+		const basePrice = hotel.roomCountDetails[0]?.price.basePrice || 0;
+
+		if (currency === "usd") {
+			setConvertedPrice((basePrice * rates.SAR_USD).toFixed(2));
+		} else if (currency === "eur") {
+			setConvertedPrice((basePrice * rates.SAR_EUR).toFixed(2));
+		} else {
+			setConvertedPrice(basePrice.toFixed(2)); // Default to SAR
+		}
+	}, [hotel, currency]);
 
 	const handleChatClick = () => {
 		const hotelNameSlug = hotel.hotelName.replace(/\s+/g, "-").toLowerCase();
@@ -204,10 +218,9 @@ const HotelCard = ({ hotel }) => {
 								color: "black",
 							}}
 						>
-							SAR{" "}
+							{localStorage.getItem("selectedCurrency").toUpperCase() || "SAR"}{" "}
 							{Number(
-								hotel.roomCountDetails[0]?.price.basePrice *
-									process.env.REACT_APP_COMMISSIONRATE
+								convertedPrice * process.env.REACT_APP_COMMISSIONRATE
 							).toFixed(2)}
 						</span>{" "}
 						<span style={{ fontSize: "0.85rem" }}>/ NIGHT</span>
@@ -258,7 +271,7 @@ const HotelCard = ({ hotel }) => {
 					<div className='row'>
 						<div className='col-3'>Chat</div>
 						<div className='col-9'>
-							<span style={{ fontSize: "8px", marginLeft: "10px" }}>
+							<span style={{ fontSize: "7.5px", marginLeft: "10px" }}>
 								<span
 									className='mx-1'
 									style={{
@@ -277,12 +290,16 @@ const HotelCard = ({ hotel }) => {
 	);
 };
 
-const HotelList2 = ({ activeHotels }) => {
+const HotelList2 = ({ activeHotels, currency }) => {
 	return (
 		<HotelListWrapper>
 			{activeHotels && activeHotels.length > 0 ? (
 				activeHotels.map((hotel, index) => (
-					<HotelCard key={hotel._id || index} hotel={hotel} />
+					<HotelCard
+						key={hotel._id || index}
+						hotel={hotel}
+						currency={currency}
+					/>
 				))
 			) : (
 				<p>No hotels available</p>
@@ -579,12 +596,6 @@ const ReceptionChat = styled.div`
 	@media (max-width: 800px) {
 		width: 50% !important;
 		margin-bottom: 10px;
-	}
-
-	.status-dot {
-		width: 8px; /* Size of the green dot */
-		height: 8px;
-		background-color: green;
-		border-radius: 50%;
+		font-size: 10px;
 	}
 `;

@@ -27,6 +27,15 @@ const OurHotels = () => {
 	const [loading, setLoading] = useState(true);
 	const [distinctRoomTypes, setDistinctRoomTypes] = useState([]);
 	const [sortOption, setSortOption] = useState(null);
+	const [currency, setCurrency] = useState(null);
+
+	// Fetch currency from localStorage
+	const storedCurrency = localStorage.getItem("selectedCurrency");
+
+	// Set the currency state
+	useEffect(() => {
+		setCurrency(storedCurrency || "sar"); // Default to "sar" if no currency is selected
+	}, [storedCurrency]);
 
 	useEffect(() => {
 		window.scrollTo({ top: 30, behavior: "smooth" });
@@ -58,28 +67,31 @@ const OurHotels = () => {
 	const sortedHotels = React.useMemo(() => {
 		if (!activeHotels) return [];
 
+		const parseDistance = (distanceString) => {
+			if (!distanceString) return Infinity; // Treat missing distances as infinitely far
+			const regex = /(\d+)\s*(days?|hours?|mins?)/g;
+			let totalMinutes = 0;
+			let match;
+
+			// Extract all time units and convert them to minutes
+			while ((match = regex.exec(distanceString)) !== null) {
+				const value = parseInt(match[1], 10);
+				const unit = match[2];
+				if (unit.startsWith("day"))
+					totalMinutes += value * 24 * 60; // Convert days to minutes
+				else if (unit.startsWith("hour"))
+					totalMinutes += value * 60; // Convert hours to minutes
+				else if (unit.startsWith("min")) totalMinutes += value; // Keep minutes as is
+			}
+
+			return totalMinutes;
+		};
+
 		return [...activeHotels].sort((a, b) => {
 			if (sortOption === "closest") {
-				const parseDistance = (distanceString) => {
-					if (!distanceString) return Infinity;
-					const regex = /(\d+)\s*(days|hours|mins)/g;
-					let totalMinutes = 0;
-					let match;
-
-					while ((match = regex.exec(distanceString)) !== null) {
-						const value = parseInt(match[1], 10);
-						const unit = match[2];
-						if (unit === "days") totalMinutes += value * 24 * 60;
-						if (unit === "hours") totalMinutes += value * 60;
-						if (unit === "mins") totalMinutes += value;
-					}
-
-					return totalMinutes;
-				};
-
-				const distanceA = parseDistance(a.distances?.walkingToElHaram);
-				const distanceB = parseDistance(b.distances?.walkingToElHaram);
-
+				// Parse driving distances for sorting
+				const distanceA = parseDistance(a.distances?.drivingToElHaram);
+				const distanceB = parseDistance(b.distances?.drivingToElHaram);
 				return distanceA - distanceB;
 			} else if (sortOption === "price") {
 				const basePriceA =
@@ -92,7 +104,7 @@ const OurHotels = () => {
 				return basePriceA - basePriceB;
 			}
 
-			return 0;
+			return 0; // No sorting
 		});
 	}, [activeHotels, sortOption]);
 
@@ -106,7 +118,12 @@ const OurHotels = () => {
 			</SearchSection>
 
 			<SortDropdownSection>
-				<SortDropdown sortOption={sortOption} setSortOption={setSortOption} />
+				<SortDropdown
+					sortOption={sortOption}
+					setSortOption={setSortOption}
+					currency={currency}
+					setCurrency={setCurrency}
+				/>
 			</SortDropdownSection>
 
 			<ContentWrapper>
@@ -116,7 +133,7 @@ const OurHotels = () => {
 							<Spin size='large' />
 						</SpinWrapper>
 					) : (
-						<HotelList2 activeHotels={sortedHotels} />
+						<HotelList2 activeHotels={sortedHotels} currency={currency} />
 					)}
 				</HotelListSection>
 			</ContentWrapper>
@@ -141,7 +158,7 @@ const OurHotelsWrapper = styled.div`
 
 const SearchSection = styled.div`
 	width: 100%;
-	margin-bottom: 50px;
+	margin-bottom: 0px;
 
 	@media (max-width: 800px) {
 		margin-top: 30px;

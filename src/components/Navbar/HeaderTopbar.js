@@ -45,7 +45,7 @@ const HeaderTopbar = () => {
 											fontWeight: "bold",
 											textDecoration: "underline",
 											fontStyle: "italic",
-											fontSize: "0.9rem",
+											fontSize: "0.8rem",
 										}}
 									>
 										Terms & Conditions
@@ -217,7 +217,7 @@ const HeaderTopbarWrapper = styled.div`
 		align-content: center;
 		align-items: center;
 		border-right: 1px grey solid;
-		padding-right: 20px !important;
+		padding-right: 23px !important;
 	}
 
 	i {

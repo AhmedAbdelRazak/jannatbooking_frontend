@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
 import { Link } from "react-router-dom";
@@ -16,12 +16,36 @@ const SidebarCartDrawer = () => {
 		toggleRoomAmount,
 		updateRoomDates, // Add updateRoomDates function
 		total_rooms,
-		// eslint-disable-next-line
-		total_price,
 		closeSidebar2,
 		isSidebarOpen2,
 		total_price_with_commission,
 	} = useCartContext();
+
+	const [selectedCurrency, setSelectedCurrency] = useState("SAR");
+	const [currencyRates, setCurrencyRates] = useState({});
+
+	useEffect(() => {
+		// Fetch currency and rates from localStorage
+		const currency = localStorage.getItem("selectedCurrency") || "SAR";
+		const rates = JSON.parse(localStorage.getItem("rates")) || {
+			SAR_USD: 0.27,
+			SAR_EUR: 0.25,
+		};
+
+		setSelectedCurrency(currency);
+		setCurrencyRates(rates);
+	}, []);
+
+	// Helper to convert currency
+	const convertCurrency = (amount) => {
+		if (!amount || isNaN(amount)) return "0.00"; // Default to "0.00" if amount is invalid
+
+		if (selectedCurrency === "USD")
+			return (amount * (currencyRates.SAR_USD || 1)).toFixed(2);
+		if (selectedCurrency === "EUR")
+			return (amount * (currencyRates.SAR_EUR || 1)).toFixed(2);
+		return amount.toFixed(2); // Default to SAR
+	};
 
 	// Handle when the user changes the date range
 	const handleDateChange = (dates) => {
@@ -67,67 +91,60 @@ const SidebarCartDrawer = () => {
 
 				<DrawerContent>
 					{roomCart.length > 0 ? (
-						roomCart.map((room) => (
-							<CartItem key={room.id}>
-								<ItemImage
-									src={room.photos[0] && room.photos[0].url}
-									alt={room.name}
-								/>
-								<ItemDetails>
-									<ItemName>{room.name}</ItemName>
-									<ItemInfo>
-										{room.amount} room(s) for{" "}
-										{dayjs(roomCart[0]?.endDate).diff(
-											dayjs(roomCart[0]?.startDate),
-											"day"
-										)}{" "}
-										night(s) from {roomCart[0]?.startDate} to{" "}
-										{roomCart[0]?.endDate}
-									</ItemInfo>
-									<ItemPricePerNight>
-										Price per night:{" "}
-										{Number(
-											room.price * process.env.REACT_APP_COMMISSIONRATE
-										).toFixed(2)}{" "}
-										SAR
-									</ItemPricePerNight>
-									{/* Room Quantity Controls */}
-									<QuantityControls>
-										<MinusIcon
-											onClick={() => toggleRoomAmount(room.id, "dec")}
-										/>
-										<Quantity>{room.amount}</Quantity>
-										<PlusIcon
-											onClick={() => toggleRoomAmount(room.id, "inc")}
-										/>
-									</QuantityControls>
-									<ItemPrice>
-										Total Amount:{" "}
-										{Number(
-											room.amount *
-												room.nights *
-												room.price *
-												process.env.REACT_APP_COMMISSIONRATE
-										).toFixed(2)}{" "}
-										SAR
-									</ItemPrice>
-								</ItemDetails>
-								<RemoveButton onClick={() => removeRoomItem(room.id)}>
-									Remove
-								</RemoveButton>
-							</CartItem>
-						))
+						roomCart.map((room) => {
+							// Calculate converted prices
+							const pricePerNight =
+								room.price * process.env.REACT_APP_COMMISSIONRATE;
+							const totalAmount = room.amount * room.nights * pricePerNight;
+
+							const convertedPricePerNight = convertCurrency(pricePerNight);
+							const convertedTotalAmount = convertCurrency(totalAmount);
+
+							return (
+								<CartItem key={room.id}>
+									<ItemImage
+										src={room.photos[0] && room.photos[0].url}
+										alt={room.name}
+									/>
+									<ItemDetails>
+										<ItemName>{room.name}</ItemName>
+										<ItemInfo>
+											{room.amount} room(s) for {room.nights} night(s) from{" "}
+											{room.startDate} to {room.endDate}
+										</ItemInfo>
+										<ItemPricePerNight>
+											Price per night: {convertedPricePerNight}{" "}
+											{selectedCurrency}
+										</ItemPricePerNight>
+										{/* Room Quantity Controls */}
+										<QuantityControls>
+											<MinusIcon
+												onClick={() => toggleRoomAmount(room.id, "dec")}
+											/>
+											<Quantity>{room.amount}</Quantity>
+											<PlusIcon
+												onClick={() => toggleRoomAmount(room.id, "inc")}
+											/>
+										</QuantityControls>
+										<ItemPrice>
+											Total Amount: {convertedTotalAmount} {selectedCurrency}
+										</ItemPrice>
+									</ItemDetails>
+									<RemoveButton onClick={() => removeRoomItem(room.id)}>
+										Remove
+									</RemoveButton>
+								</CartItem>
+							);
+						})
 					) : (
 						<EmptyMessage>No reservations yet.</EmptyMessage>
 					)}
 				</DrawerContent>
 				<TotalsWrapper>
 					<TotalRooms>Total Rooms: {total_rooms}</TotalRooms>
-					{/* <TotalPrice>Total Price: {total_price} SAR</TotalPrice>
-					 */}
-
 					<TotalPrice>
-						Total Price: {Number(total_price_with_commission).toFixed(2)} SAR
+						Total Price: {convertCurrency(total_price_with_commission)}{" "}
+						{selectedCurrency}
 					</TotalPrice>
 					<CheckoutButton
 						to='/checkout'

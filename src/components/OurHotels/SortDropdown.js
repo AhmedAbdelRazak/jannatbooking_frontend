@@ -5,41 +5,81 @@ import { SortAscendingOutlined } from "@ant-design/icons";
 
 const { Option } = Select;
 
-const SortDropdown = ({ sortOption, setSortOption }) => {
+const SortDropdown = ({ sortOption, setSortOption, currency, setCurrency }) => {
 	const handleSortChange = (value) => {
 		setSortOption(value); // Update the selected sort option in parent component
 	};
 
+	const handleCurrencyChange = (value) => {
+		setCurrency(value); // Update the selected currency option in parent component
+		localStorage.setItem("selectedCurrency", value); // Save the selected currency to localStorage
+	};
+
 	return (
-		<SortWrapper>
-			<StyledSelect
-				value={sortOption}
-				onChange={handleSortChange}
-				suffixIcon={<SortAscendingOutlined />}
-				placeholder='Sort by'
-			>
-				<Option value='closest'>Closest To El Haram</Option>
-				<Option value='price'>Price (Cheapest To Expensive)</Option>
-			</StyledSelect>
-		</SortWrapper>
+		<DropdownRow>
+			{/* Sort Dropdown */}
+			<SortWrapper>
+				<StyledSelect
+					value={sortOption}
+					onChange={handleSortChange}
+					suffixIcon={<SortAscendingOutlined />}
+					placeholder='Sort by'
+				>
+					<Option value='closest'>Closest To El Haram</Option>
+					<Option value='price'>Price (Cheapest To Expensive)</Option>
+				</StyledSelect>
+			</SortWrapper>
+
+			{/* Currency Dropdown */}
+			<CurrencyWrapper>
+				<StyledSelect
+					value={currency}
+					onChange={handleCurrencyChange}
+					placeholder='Currency'
+				>
+					<Option value='sar'>SAR</Option>
+					<Option value='usd'>US Dollars</Option>
+					<Option value='eur'>Euro</Option>
+				</StyledSelect>
+			</CurrencyWrapper>
+		</DropdownRow>
 	);
 };
 
 export default SortDropdown;
 
 // Styled Components
-const SortWrapper = styled.div`
+const DropdownRow = styled.div`
+	display: flex;
+	justify-content: flex-end;
+	gap: 20px; /* Adjust gap between dropdowns */
 	margin-bottom: 20px;
-	text-align: right; /* Align dropdown to the right */
 
 	@media (max-width: 768px) {
-		text-align: left; /* Align dropdown to the left on smaller screens */
-		margin-left: 15px;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 10px; /* Smaller gap for mobile */
+	}
+`;
+
+const SortWrapper = styled.div`
+	text-align: right;
+
+	@media (max-width: 768px) {
+		text-align: left;
+	}
+`;
+
+const CurrencyWrapper = styled.div`
+	text-align: right;
+
+	@media (max-width: 768px) {
+		text-align: left;
 	}
 `;
 
 const StyledSelect = styled(Select)`
-	width: 200px;
+	width: 250px; /* Increased width to fit longer text */
 
 	.ant-select-selector {
 		display: flex;
@@ -50,5 +90,9 @@ const StyledSelect = styled(Select)`
 
 	.ant-select-selection-item {
 		font-size: 14px;
+	}
+
+	.ant-select-dropdown {
+		min-width: 250px; /* Ensure the dropdown menu is wide enough */
 	}
 `;

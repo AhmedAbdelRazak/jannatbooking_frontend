@@ -16,6 +16,7 @@ import { useCartContext } from "../cart_context";
 import dayjs from "dayjs";
 // eslint-disable-next-line
 import { FaCar, FaWalking } from "react-icons/fa";
+import SortDropdown from "../components/OurHotels/SortDropdown";
 
 const generateDateRange = (startDate, endDate) => {
 	const start = dayjs(startDate);
@@ -130,8 +131,19 @@ const OurHotelRooms2 = () => {
 	// eslint-disable-next-line
 	const [showAllAmenities, setShowAllAmenities] = useState(false);
 	const [showAmenitiesState, setShowAmenitiesState] = useState({}); // State to track showAllAmenities per room
+	const [sortOption, setSortOption] = useState(null);
+	const [currency, setCurrency] = useState("sar");
+
 	const location = useLocation();
 	const queryParams = getQueryParams(location.search);
+
+	// Fetch currency from localStorage
+	const storedCurrency = localStorage.getItem("selectedCurrency");
+
+	// Set the currency state
+	useEffect(() => {
+		setCurrency(storedCurrency || "sar"); // Default to "sar" if no currency is selected
+	}, [storedCurrency]);
 
 	useEffect(() => {
 		const handleResize = () => {
@@ -240,6 +252,68 @@ const OurHotelRooms2 = () => {
 		}));
 	};
 
+	const sortedAndConvertedRooms = useMemo(() => {
+		if (!roomData) return [];
+
+		const convertCurrency = (price) => {
+			const rates = JSON.parse(localStorage.getItem("rates")) || {};
+			if (currency === "usd") return (price * rates.SAR_USD).toFixed(2);
+			if (currency === "eur") return (price * rates.SAR_EUR).toFixed(2);
+			return price.toFixed(2); // Default to SAR
+		};
+
+		const calculateRoomPrice = (room) => {
+			const { pricingRate, price } = room;
+			const averagePrice = calculateAveragePrice(
+				pricingRate,
+				queryParams.startDate,
+				queryParams.endDate
+			);
+			const displayedPrice = averagePrice || price.basePrice || 0;
+			return parseFloat(displayedPrice);
+		};
+
+		const parseDistance = (distance) => {
+			if (!distance) return Infinity;
+			const match = distance.match(/(\d+)/);
+			return match ? parseInt(match[0], 10) : Infinity;
+		};
+
+		// Map hotels and calculate the lowest price for sorting
+		const hotelsWithMinPrice = roomData.map((hotel) => {
+			const roomPrices = hotel.roomCountDetails.map((room) =>
+				calculateRoomPrice(room)
+			);
+			const minRoomPrice = Math.min(...roomPrices);
+
+			// Add the minimum room price to the hotel object for sorting
+			return {
+				...hotel,
+				minRoomPrice,
+				roomCountDetails: hotel.roomCountDetails.map((room) => ({
+					...room,
+					rawPrice: calculateRoomPrice(room),
+					convertedPrice: convertCurrency(calculateRoomPrice(room)), // For display
+				})),
+			};
+		});
+
+		// Sort hotels based on the lowest room price or distance
+		const sortedHotels = hotelsWithMinPrice.sort((a, b) => {
+			if (sortOption === "closest") {
+				const distanceA = parseDistance(a.distances?.drivingToElHaram);
+				const distanceB = parseDistance(b.distances?.drivingToElHaram);
+				return distanceA - distanceB;
+			}
+			if (sortOption === "price") {
+				return a.minRoomPrice - b.minRoomPrice;
+			}
+			return 0;
+		});
+
+		return sortedHotels;
+	}, [roomData, sortOption, currency, queryParams]);
+
 	return (
 		<OurHotelRooms2Wrapper>
 			{loading ? (
@@ -264,37 +338,50 @@ const OurHotelRooms2 = () => {
 							}}
 						/>
 					</SearchSection>
-					{roomData.flatMap((hotel) =>
-						hotel.roomCountDetails.map((room) => (
-							<RoomCard
-								key={room._id}
-								room={room}
-								hotelName={hotel.hotelName}
-								hotelRating={hotel.hotelRating}
-								hotelAddress={hotel.hotelAddress}
-								distanceToElHaramWalking={
-									hotel.distances?.walkingToElHaram || "N/A"
-								}
-								distanceToElHaramDriving={
-									hotel.distances?.drivingToElHaram || "N/A"
-								}
-								startDate={queryParams.startDate}
-								endDate={queryParams.endDate}
-								chosenLanguage={chosenLanguage}
-								addRoomToCart={addRoomToCart}
-								openSidebar2={openSidebar2}
-								hotelId={hotel._id}
-								belongsTo={hotel.belongsTo}
-								priceRating={[]}
-								roomColor={room.roomColor}
-								adults={queryParams.adults}
-								children={queryParams.children}
-								setShowAllAmenities={setShowAllAmenities}
-								showAllAmenities={!!showAmenitiesState[room._id]} // Pass room-specific state
-								toggleShowAmenities={() => toggleShowAmenities(room._id)} // Pass toggle handler
-							/>
-						))
-					)}
+
+					<SortDropdownSection>
+						<SortDropdown
+							sortOption={sortOption}
+							setSortOption={setSortOption}
+							currency={currency}
+							setCurrency={setCurrency}
+						/>
+					</SortDropdownSection>
+
+					{sortedAndConvertedRooms &&
+						sortedAndConvertedRooms.flatMap((hotel) =>
+							hotel.roomCountDetails.map((room) => (
+								<RoomCard
+									key={room._id}
+									room={room}
+									hotelName={hotel.hotelName}
+									hotelRating={hotel.hotelRating}
+									hotelAddress={hotel.hotelAddress}
+									distanceToElHaramWalking={
+										hotel.distances?.walkingToElHaram || "N/A"
+									}
+									distanceToElHaramDriving={
+										hotel.distances?.drivingToElHaram || "N/A"
+									}
+									startDate={queryParams.startDate}
+									endDate={queryParams.endDate}
+									chosenLanguage={chosenLanguage}
+									addRoomToCart={addRoomToCart}
+									openSidebar2={openSidebar2}
+									hotelId={hotel._id}
+									belongsTo={hotel.belongsTo}
+									priceRating={[]}
+									roomColor={room.roomColor}
+									adults={queryParams.adults}
+									children={queryParams.children}
+									setShowAllAmenities={setShowAllAmenities}
+									showAllAmenities={!!showAmenitiesState[room._id]} // Pass room-specific state
+									toggleShowAmenities={() => toggleShowAmenities(room._id)} // Pass toggle handler
+									currency={currency}
+									rates={JSON.parse(localStorage.getItem("rates")) || {}}
+								/>
+							))
+						)}
 				</RoomListWrapper>
 			) : (
 				<div>No data found.</div>
@@ -324,6 +411,8 @@ const RoomCard = ({
 	distanceToElHaramDriving,
 	showAllAmenities, // Room-specific state
 	toggleShowAmenities, // Handler to toggle state
+	currency, // New prop for currency
+	rates, // New prop for conversion rates
 }) => {
 	// eslint-disable-next-line
 	const [thumbsSwiper, setThumbsSwiper] = useState(null);
@@ -352,12 +441,12 @@ const RoomCard = ({
 	);
 
 	// Calculate total price
+	// eslint-disable-next-line
 	const totalPrice = calculateTotalPrice(displayedPrice, startDate, endDate);
 
 	// Calculate total price with commission
 	const totalPriceWithCommission = Number(
-		calculateTotalPrice(displayedPrice, startDate, endDate) *
-			(commissionRate + 1)
+		calculateTotalPrice(displayedPrice, startDate, endDate) * commissionRate
 	).toFixed(2);
 
 	const firstImage = room.photos[0]?.url || "";
@@ -414,6 +503,18 @@ const RoomCard = ({
 		const searchChangeEvent = new CustomEvent("searchChange");
 		window.dispatchEvent(searchChangeEvent);
 	};
+
+	const calculateConvertedPrice = (price) => {
+		if (currency === "usd") return (price * rates.SAR_USD).toFixed(2);
+		if (currency === "eur") return (price * rates.SAR_EUR).toFixed(2);
+		return Number(price).toFixed(2); // Default to SAR
+	};
+
+	const nights = dayjs(endDate).diff(dayjs(startDate), "day");
+
+	// Convert prices based on selected currency
+	const convertedPrice = calculateConvertedPrice(displayedPriceAfterCommission);
+	const convertedTotalPrice = calculateConvertedPrice(totalPriceWithCommission);
 
 	return (
 		<RoomCardWrapper>
@@ -483,25 +584,25 @@ const RoomCard = ({
 					<span
 						style={{
 							fontWeight: "bolder",
-							// textDecoration: "underline",
 							fontSize: "1.5rem",
 							color: "black",
 						}}
 					>
-						SAR {displayedPriceAfterCommission.toFixed(2)}
+						{currency.toUpperCase()} {convertedPrice}
 					</span>{" "}
 					<span style={{ fontSize: "0.82rem", color: "black" }}>/ NIGHT</span>
-					{totalPrice && (
+					{nights > 0 && (
 						<div
-							className='mb-1'
 							style={{
 								fontSize: "0.7rem",
 								color: "var(--darkGrey)",
 								fontWeight: "bold",
 							}}
 						>
-							Total {dayjs(endDate).diff(dayjs(startDate), "day")} nights:{" "}
-							<strong>SAR {Number(totalPriceWithCommission).toFixed(2)}</strong>
+							Total {nights} nights:{" "}
+							<strong>
+								{currency.toUpperCase()} {convertedTotalPrice}
+							</strong>
 						</div>
 					)}
 				</PriceWrapper>
@@ -598,6 +699,8 @@ const SearchSection = styled.div`
 		margin-bottom: 270px;
 	}
 `;
+
+const SortDropdownSection = styled.div``;
 
 const RoomListWrapper = styled.div`
 	display: flex;
