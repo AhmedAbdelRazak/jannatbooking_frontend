@@ -114,7 +114,7 @@ const SidebarCartDrawer = () => {
 										</ItemInfo>
 										<ItemPricePerNight>
 											Price per night: {convertedPricePerNight}{" "}
-											{selectedCurrency}
+											{selectedCurrency && selectedCurrency.toUpperCase()}
 										</ItemPricePerNight>
 										{/* Room Quantity Controls */}
 										<QuantityControls>
@@ -127,7 +127,8 @@ const SidebarCartDrawer = () => {
 											/>
 										</QuantityControls>
 										<ItemPrice>
-											Total Amount: {convertedTotalAmount} {selectedCurrency}
+											Total Amount: {convertedTotalAmount}{" "}
+											{selectedCurrency && selectedCurrency.toUpperCase()}
 										</ItemPrice>
 									</ItemDetails>
 									<RemoveButton onClick={() => removeRoomItem(room.id)}>
@@ -144,7 +145,7 @@ const SidebarCartDrawer = () => {
 					<TotalRooms>Total Rooms: {total_rooms}</TotalRooms>
 					<TotalPrice>
 						Total Price: {convertCurrency(total_price_with_commission)}{" "}
-						{selectedCurrency}
+						{selectedCurrency && selectedCurrency.toUpperCase()}
 					</TotalPrice>
 					<CheckoutButton
 						to='/checkout'

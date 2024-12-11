@@ -221,7 +221,9 @@ const HotelCard = ({ hotel, currency }) => {
 								color: "black",
 							}}
 						>
-							{localStorage.getItem("selectedCurrency").toUpperCase() || "SAR"}{" "}
+							{(localStorage.getItem("selectedCurrency") &&
+								localStorage.getItem("selectedCurrency").toUpperCase()) ||
+								"SAR"}{" "}
 							{Number(
 								convertedPrice * process.env.REACT_APP_COMMISSIONRATE
 							).toFixed(2)}

@@ -596,7 +596,7 @@ const RoomCard = ({
 							color: "black",
 						}}
 					>
-						{currency.toUpperCase()} {convertedPrice}
+						{currency && currency.toUpperCase()} {convertedPrice}
 					</span>{" "}
 					<span style={{ fontSize: "0.82rem", color: "black" }}>/ NIGHT</span>
 					{nights > 0 && (
@@ -609,7 +609,7 @@ const RoomCard = ({
 						>
 							Total {nights} nights:{" "}
 							<strong>
-								{currency.toUpperCase()} {convertedTotalPrice}
+								{currency && currency.toUpperCase()} {convertedTotalPrice}
 							</strong>
 						</div>
 					)}
