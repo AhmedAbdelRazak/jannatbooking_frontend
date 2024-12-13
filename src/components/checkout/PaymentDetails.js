@@ -184,7 +184,8 @@ const PaymentWrapper = styled.div`
 
 	@media (max-width: 700px) {
 		h3 {
-			font-size: 1.1rem;
+			font-size: 0.95rem;
+			margin-bottom: 0px;
 		}
 	}
 `;
@@ -207,7 +208,7 @@ const CardIcons = styled.div`
 
 	@media (max-width: 768px) {
 		img {
-			height: 24px; /* Adjust size for smaller screens */
+			height: 20px; /* Adjust size for smaller screens */
 		}
 	}
 `;

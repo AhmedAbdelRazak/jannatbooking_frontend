@@ -357,6 +357,7 @@ const OurHotelRooms2 = () => {
 								<RoomCard
 									key={room._id}
 									room={room}
+									hotel={hotel}
 									hotelName={hotel.hotelName}
 									hotelRating={hotel.hotelRating}
 									hotelAddress={hotel.hotelAddress}
@@ -414,6 +415,7 @@ const RoomCard = ({
 	roomColor,
 	adults,
 	children,
+	hotel,
 	setShowAllAmenities,
 	distanceToElHaramWalking,
 	distanceToElHaramDriving,
@@ -426,7 +428,14 @@ const RoomCard = ({
 	const [thumbsSwiper, setThumbsSwiper] = useState(null);
 
 	// Define the commission rate dynamically (can be passed from props or a constant)
-	const commissionRate = process.env.REACT_APP_COMMISSIONRATE; // Example: 10% commission
+
+	// Determine commission rate
+	const roomCommission =
+		room.roomCommission ||
+		hotel.commission ||
+		(Number(process.env.REACT_APP_COMMISSIONRATE) - 1) * 100;
+
+	const commissionRate = roomCommission / 100 + 1; // Convert to decimal
 
 	const averagePrice = calculateAveragePrice(
 		room.pricingRate,
@@ -471,6 +480,7 @@ const RoomCard = ({
 		: uniqueFeatures.slice(0, 2);
 
 	const handleAddToCart = () => {
+		const rateDecimal = Number(commissionRate - 1).toFixed(2);
 		addRoomToCart(
 			room._id,
 			{
@@ -478,10 +488,12 @@ const RoomCard = ({
 				name: room.displayName,
 				roomType: room.roomType,
 				price: displayedPrice,
+				defaultCost: room.defaultCost || displayedPrice,
 				photos: room.photos,
 				hotelName,
 				hotelAddress,
 				firstImage,
+				commissionRate: Number(rateDecimal),
 			},
 			startDate,
 			endDate,
@@ -491,7 +503,7 @@ const RoomCard = ({
 			roomColor,
 			adults,
 			children,
-			Number(commissionRate) - 1 // Pass the dynamic commission rate
+			Number(rateDecimal) // Pass the dynamic commission rate
 		);
 		openSidebar2(); // Open the cart drawer after adding a room
 	};

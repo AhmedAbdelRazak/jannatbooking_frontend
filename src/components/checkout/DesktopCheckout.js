@@ -229,10 +229,8 @@ const DesktopCheckout = ({
 								}}
 							>
 								Pay{" "}
-								{Number(
-									(process.env.REACT_APP_COMMISSIONRATE - 1) * 100
-								).toFixed(0)}
-								% Deposit{" "}
+								{Number(Number(roomCart[0].commissionRate) * 100).toFixed(0)}%
+								Deposit{" "}
 								<span style={{ fontWeight: "bold" }}>
 									(SAR {Number(total_price * 0.1).toFixed(2)})
 								</span>
@@ -253,7 +251,7 @@ const DesktopCheckout = ({
 								<span style={{ fontWeight: "bold" }}>
 									(SAR{" "}
 									{Number(
-										total_price * process.env.REACT_APP_COMMISSIONRATE
+										total_price * Number(roomCart[0].commissionRate)
 									).toFixed(2)}
 									)
 								</span>
@@ -325,7 +323,7 @@ const DesktopCheckout = ({
 								</p>
 								<h4>
 									{Number(
-										room.price * process.env.REACT_APP_COMMISSIONRATE
+										room.price * (Number(room.commissionRate) + 1)
 									).toFixed(2)}{" "}
 									SAR per night{" "}
 									<strong
@@ -379,7 +377,7 @@ const DesktopCheckout = ({
 														<li key={index}>
 															{date}:{" "}
 															{Number(
-																price * process.env.REACT_APP_COMMISSIONRATE
+																price * (Number(room.commissionRate) + 1)
 															).toFixed(2)}{" "}
 															SAR
 														</li>

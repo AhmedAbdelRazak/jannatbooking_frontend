@@ -59,7 +59,7 @@ const CheckoutContent = () => {
 	useEffect(() => {
 		// Fetch conversion for both deposit and total amounts
 		const fetchConversion = async () => {
-			const deposit = total_price * (process.env.REACT_APP_COMMISSIONRATE - 1);
+			const deposit = total_price * Number(roomCart[0].commissionRate);
 			const total = total_price_with_commission;
 			const amounts = [deposit, total];
 
@@ -75,6 +75,7 @@ const CheckoutContent = () => {
 		};
 
 		fetchConversion();
+		// eslint-disable-next-line
 	}, [total_price, total_price_with_commission]);
 
 	// Function to transform roomCart into pickedRoomsType format
@@ -85,7 +86,7 @@ const CheckoutContent = () => {
 				room_type: room.roomType, // Using "name" as room_type
 				displayName: room.name, // To store the display name
 				chosenPrice: Number(
-					room.price * process.env.REACT_APP_COMMISSIONRATE
+					room.price * Number(roomCart[0].commissionRate)
 				).toFixed(2), // Assuming price is already the total per room
 				count: 1, // Each room is counted individually in pickedRoomsType
 				pricingByDay: room.pricingByDayWithCommission || [], // Pricing breakdown by day
@@ -264,11 +265,9 @@ const CheckoutContent = () => {
 			total_amount: total_price_with_commission,
 			payment: pay10Percent ? "Deposit Paid" : "Paid Online",
 			paid_amount: pay10Percent
-				? Number(total_price * (process.env.REACT_APP_COMMISSIONRATE - 1))
+				? Number(total_price * Number(roomCart[0].commissionRate))
 				: total_price_with_commission,
-			commission: Number(
-				total_price * (process.env.REACT_APP_COMMISSIONRATE - 1)
-			),
+			commission: Number(total_price * Number(roomCart[0].commissionRate)),
 
 			commissionPaid: true,
 
@@ -366,102 +365,108 @@ const CheckoutContent = () => {
 						</DateRangePickerWrapper>
 
 						{roomCart.length > 0 ? (
-							roomCart.map((room) => (
-								<RoomItem key={room.id}>
-									<RoomImage src={room.photos[0]?.url} alt={room.name} />
+							roomCart.map((room) => {
+								return (
+									<RoomItem key={room.id}>
+										<RoomImage src={room.photos[0]?.url} alt={room.name} />
 
-									<RoomDetails>
-										<h3>{room.name}</h3>
-										<p>{room.amount} room(s)</p>
-										<DateRangeWrapper>
-											<label>Dates:</label>
-											<p>
-												{room.startDate} to {room.endDate}
+										<RoomDetails>
+											<h3>{room.name}</h3>
+											<p>{room.amount} room(s)</p>
+											<DateRangeWrapper>
+												<label>Dates:</label>
+												<p>
+													{room.startDate} to {room.endDate}
+												</p>
+											</DateRangeWrapper>
+											<p className='total'>
+												Price for {room.nights} night(s):{" "}
+												{room.amount * room.price} SAR
 											</p>
-										</DateRangeWrapper>
-										<p className='total'>
-											Price for {room.nights} night(s):{" "}
-											{room.amount * room.price} SAR
-										</p>
-										<h4>
-											{Number(
-												room.price * process.env.REACT_APP_COMMISSIONRATE
-											).toFixed(2)}{" "}
-											SAR per night{" "}
-											<strong
-												style={{
-													fontSize: "12px",
-													fontWeight: "bold",
-													color: "darkred",
-												}}
-											>
-												(After Taxes)
-											</strong>
-										</h4>
+											<h4>
+												{Number(
+													room.price * (Number(room.commissionRate) + 1)
+												).toFixed(2)}{" "}
+												SAR per night{" "}
+												<strong
+													style={{
+														fontSize: "12px",
+														fontWeight: "bold",
+														color: "darkred",
+													}}
+												>
+													(After Taxes)
+												</strong>
+											</h4>
 
-										{/* Room Quantity Controls */}
-										<QuantityControls>
-											<MinusIcon
-												onClick={() => toggleRoomAmount(room.id, "dec")}
-											/>
-											<Quantity>{room.amount}</Quantity>
-											<PlusIcon
-												onClick={() => toggleRoomAmount(room.id, "inc")}
-											/>
-										</QuantityControls>
-
-										{/* Updated Accordion for Price Breakdown */}
-										<Collapse
-											accordion
-											expandIcon={({ isActive }) => (
-												<CaretRightOutlined
-													rotate={isActive ? 90 : 0}
-													style={{ color: "var(--primary-color)" }}
+											{/* Room Quantity Controls */}
+											<QuantityControls>
+												<MinusIcon
+													onClick={() => toggleRoomAmount(room.id, "dec")}
 												/>
-											)}
-											onChange={() =>
-												setExpanded((prev) => ({
-													...prev,
-													[room.id]: !prev[room.id],
-												}))
-											}
-											activeKey={expanded[room.id] ? "1" : null}
-										>
-											<Panel
-												header={
-													<PriceDetailsHeader>
-														<InfoCircleOutlined /> Price Breakdown
-													</PriceDetailsHeader>
-												}
-												key='1'
-											>
-												<PricingList>
-													{/* Ensure pricingByDay is mapped correctly */}
-													{room.pricingByDay && room.pricingByDay.length > 0 ? (
-														room.pricingByDay.map(({ date, price }, index) => {
-															return (
-																<li key={index}>
-																	{date}:{" "}
-																	{Number(
-																		price * process.env.REACT_APP_COMMISSIONRATE
-																	).toFixed(2)}{" "}
-																	SAR
-																</li>
-															);
-														})
-													) : (
-														<li>No price breakdown available</li>
-													)}
-												</PricingList>
-											</Panel>
-										</Collapse>
+												<Quantity>{room.amount}</Quantity>
+												<PlusIcon
+													onClick={() => toggleRoomAmount(room.id, "inc")}
+												/>
+											</QuantityControls>
 
-										<RemoveButton onClick={() => removeRoomItem(room.id)}>
-											Remove
-										</RemoveButton>
-									</RoomDetails>
-								</RoomItem>
-							))
+											{/* Updated Accordion for Price Breakdown */}
+											<Collapse
+												accordion
+												expandIcon={({ isActive }) => (
+													<CaretRightOutlined
+														rotate={isActive ? 90 : 0}
+														style={{ color: "var(--primary-color)" }}
+													/>
+												)}
+												onChange={() =>
+													setExpanded((prev) => ({
+														...prev,
+														[room.id]: !prev[room.id],
+													}))
+												}
+												activeKey={expanded[room.id] ? "1" : null}
+											>
+												<Panel
+													header={
+														<PriceDetailsHeader>
+															<InfoCircleOutlined /> Price Breakdown
+														</PriceDetailsHeader>
+													}
+													key='1'
+												>
+													<PricingList>
+														{/* Ensure pricingByDay is mapped correctly */}
+														{room.pricingByDay &&
+														room.pricingByDay.length > 0 ? (
+															room.pricingByDay.map(
+																({ date, price }, index) => {
+																	return (
+																		<li key={index}>
+																			{date}:{" "}
+																			{Number(
+																				price *
+																					(Number(room.commissionRate) + 1)
+																			).toFixed(2)}{" "}
+																			SAR
+																		</li>
+																	);
+																}
+															)
+														) : (
+															<li>No price breakdown available</li>
+														)}
+													</PricingList>
+												</Panel>
+											</Collapse>
+
+											<RemoveButton onClick={() => removeRoomItem(room.id)}>
+												Remove
+											</RemoveButton>
+										</RoomDetails>
+									</RoomItem>
+								);
+							})
 						) : (
 							<p>No rooms selected.</p>
 						)}
@@ -653,11 +658,8 @@ const CheckoutContent = () => {
 									setPay10Percent(e.target.checked);
 								}}
 							>
-								Pay{" "}
-								{Number(
-									(process.env.REACT_APP_COMMISSIONRATE - 1) * 100
-								).toFixed(0)}
-								% Deposit{" "}
+								Pay {Number(roomCart[0].commissionRate * 100).toFixed(0)}%
+								Deposit{" "}
 								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
 									(SAR {Number(total_price * 0.1).toFixed(2)})
 								</span>{" "}

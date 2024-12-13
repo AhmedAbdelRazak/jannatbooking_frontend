@@ -181,6 +181,14 @@ const SingleHotel = ({ selectedHotel }) => {
 		);
 		const numberOfNights = pricingByDay.length;
 
+		// Determine commission rate
+		const roomCommission =
+			room.roomCommission ||
+			selectedHotel.commission ||
+			(Number(process.env.REACT_APP_COMMISSIONRATE) - 1) * 100;
+
+		const commissionRate = roomCommission / 100; // Convert to decimal
+
 		// Calculate the average price per night
 		const averagePrice = numberOfNights
 			? (totalPrice / numberOfNights).toFixed(2)
@@ -192,11 +200,13 @@ const SingleHotel = ({ selectedHotel }) => {
 			name: room.displayName,
 			roomType: room.roomType,
 			price: averagePrice,
+			defaultCost: room.defaultCost || averagePrice, // Pass default cost
 			photos: room.photos || [], // Default to an empty array if photos is undefined
 			hotelName: selectedHotel.hotelName,
 			hotelAddress: selectedHotel.hotelAddress,
 			firstImage:
 				room.photos && room.photos.length > 0 ? room.photos[0].url : "", // Safe check for first image
+			commissionRate, // Pass calculated commission
 		};
 
 		const adults = 1;
@@ -212,7 +222,7 @@ const SingleHotel = ({ selectedHotel }) => {
 			room.roomColor,
 			adults,
 			0,
-			Number(process.env.REACT_APP_COMMISSIONRATE) - 1
+			commissionRate
 		);
 
 		openSidebar2(); // Open the sidebar/cart drawer
@@ -410,6 +420,7 @@ const SingleHotel = ({ selectedHotel }) => {
 					const startDate = dateRange[0].format("YYYY-MM-DD");
 					const endDate = dateRange[1].format("YYYY-MM-DD");
 
+					// Calculate pricing by day
 					const pricingByDay = calculatePricingByDay(
 						room.pricingRate || [],
 						startDate,
@@ -421,16 +432,27 @@ const SingleHotel = ({ selectedHotel }) => {
 						(total, day) => total + day.price,
 						0
 					);
-					// eslint-disable-next-line
-					const displayTotalPrice = totalPrice ? totalPrice.toFixed(2) : "0.00";
+
 					const numberOfNights = pricingByDay.length;
 
-					const commissionRate =
-						Number(process.env.REACT_APP_COMMISSIONRATE) || 1.1;
-					const totalPriceWithCommission = totalPrice * commissionRate;
-					const pricePerNight = totalPrice / (numberOfNights || 1);
-					const pricePerNightWithCommission = pricePerNight * commissionRate;
+					// Determine commission rate and calculate commission
+					const roomCommission =
+						room.roomCommission ||
+						selectedHotel.commission ||
+						(Number(process.env.REACT_APP_COMMISSIONRATE) - 1) * 100;
+					const commissionRate = roomCommission / 100; // Convert to decimal
+					const commission =
+						(room.defaultCost || room.price.basePrice) *
+						numberOfNights *
+						commissionRate;
 
+					// Calculate final prices with commission
+					const pricePerNight = totalPrice / (numberOfNights || 1);
+					const pricePerNightWithCommission =
+						pricePerNight + commission / numberOfNights;
+					const totalPriceWithCommission = totalPrice + commission;
+
+					// Currency conversion
 					const convertedPricePerNight = convertCurrency(
 						pricePerNightWithCommission
 					);
@@ -461,32 +483,6 @@ const SingleHotel = ({ selectedHotel }) => {
 										</SwiperSlide>
 									))}
 								</Swiper>
-
-								{/* <Swiper
-									modules={[Thumbs]}
-									onSwiper={handleRoomThumbsSwiper(index)}
-									spaceBetween={2}
-									slidesPerView={4}
-									watchSlidesProgress
-									className='thumbnail-swiper'
-									breakpoints={{
-										768: {
-											slidesPerView: 3,
-										},
-										1024: {
-											slidesPerView: 4,
-										},
-									}}
-								>
-									{room.photos.map((photo, idx) => (
-										<SwiperSlide key={idx}>
-											<RoomThumbnailImage
-												src={photo.url}
-												alt={`${room.displayName} - ${idx + 1}`}
-											/>
-										</SwiperSlide>
-									))}
-								</Swiper> */}
 							</RoomImageWrapper>
 
 							{/* Room Details */}
@@ -496,48 +492,33 @@ const SingleHotel = ({ selectedHotel }) => {
 										? room.displayName_OtherLanguage || room.displayName
 										: room.displayName}
 								</h3>
-								{/* <p className='m-0'>
-									Price: {displayTotalPrice}{" "}
-									<span style={{ textTransform: "uppercase" }}>
-										{selectedHotel.currency}
-									</span>{" "}
-									/ Total for {numberOfNights} nights{" "}
-								</p> */}
 								<p className='m-0'>
-									{
-										chosenLanguage === "Arabic"
-											? showFullDescription
-												? room.description_OtherLanguage || room.description // Show full Arabic description if available, else fallback to default
-												: (room.description_OtherLanguage || room.description)
-														.split(" ")
-														.slice(0, 8)
-														.join(" ") // Show only the first 8 words
-											: showFullDescription
-												? room.description // Show full English description
-												: room.description.split(" ").slice(0, 9).join(" ") // Show only the first 8 words
-									}
+									{chosenLanguage === "Arabic"
+										? showFullDescription
+											? room.description_OtherLanguage || room.description
+											: (room.description_OtherLanguage || room.description)
+													.split(" ")
+													.slice(0, 8)
+													.join(" ")
+										: showFullDescription
+											? room.description
+											: room.description.split(" ").slice(0, 9).join(" ")}
 									...
-									{!showFullDescription &&
-										((chosenLanguage === "Arabic" &&
-											(
-												room.description_OtherLanguage || room.description
-											).split(" ").length > 8) ||
-											(chosenLanguage !== "Arabic" &&
-												room.description.split(" ").length > 8)) && (
-											<div
-												onClick={() => setShowFullDescription(true)}
-												style={{
-													color: "var(--primaryBlue)",
-													cursor: "pointer",
-													fontWeight: "bold",
-													textDecoration: "underline",
-												}}
-											>
-												{chosenLanguage === "Arabic"
-													? "إظهار المزيد..."
-													: "show more..."}
-											</div>
-										)}
+									{!showFullDescription && (
+										<div
+											onClick={() => setShowFullDescription(true)}
+											style={{
+												color: "var(--primaryBlue)",
+												cursor: "pointer",
+												fontWeight: "bold",
+												textDecoration: "underline",
+											}}
+										>
+											{chosenLanguage === "Arabic"
+												? "إظهار المزيد..."
+												: "show more..."}
+										</div>
+									)}
 								</p>
 								{showFullDescription && (
 									<span
@@ -570,7 +551,7 @@ const SingleHotel = ({ selectedHotel }) => {
 								</AmenitiesWrapper>
 							</RoomDetails>
 
-							{/* Price Section */}
+							{/* Updated Price Section */}
 							<PriceSection>
 								<FinalPrice>
 									<span className='current-price'>
@@ -583,6 +564,10 @@ const SingleHotel = ({ selectedHotel }) => {
 										{selectedCurrency.toUpperCase()}
 									</div>
 								</FinalPrice>
+								<div className='commission'>
+									Commission: {convertCurrency(commission)}{" "}
+									{selectedCurrency.toUpperCase()}
+								</div>
 							</PriceSection>
 							<StyledButton onClick={() => handleAddRoomToCart(room)}>
 								Add Room To Reservation

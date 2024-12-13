@@ -58,7 +58,7 @@ export const CartProvider = ({ children }) => {
 		roomColor,
 		adults,
 		children,
-		commissionRate // Add dynamic commission rate
+		commissionRate // Pass commission rate
 	) => {
 		dispatch({
 			type: ADD_ROOM_TO_CART,
@@ -73,7 +73,7 @@ export const CartProvider = ({ children }) => {
 				roomColor,
 				adults,
 				children,
-				commissionRate, // Pass dynamic commission rate to reducer
+				commissionRate, // Include in the payload
 			},
 		});
 	};

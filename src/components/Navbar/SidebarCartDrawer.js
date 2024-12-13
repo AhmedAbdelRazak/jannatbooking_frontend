@@ -94,7 +94,8 @@ const SidebarCartDrawer = () => {
 						roomCart.map((room) => {
 							// Calculate converted prices
 							const pricePerNight =
-								room.price * process.env.REACT_APP_COMMISSIONRATE;
+								Number(room.price) +
+								Number(room.commissionRate * room.defaultCost);
 							const totalAmount = room.amount * room.nights * pricePerNight;
 
 							const convertedPricePerNight = convertCurrency(pricePerNight);

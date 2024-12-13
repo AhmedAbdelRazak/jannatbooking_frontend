@@ -84,9 +84,12 @@ const calculatePricingByDayWithCommission = (
 		endDate,
 		basePrice
 	);
+
 	return pricingByDay.map((day) => ({
 		...day,
-		price: (day.price * (1 + commissionRate)).toFixed(2),
+		price: Number(
+			(Number(day.price) * (1 + Number(commissionRate))).toFixed(2)
+		),
 	}));
 };
 
@@ -107,38 +110,42 @@ const cart_reducer = (state, action) => {
 			roomColor,
 			adults,
 			children,
-			commissionRate, // Dynamic commission rate
+			commissionRate,
 		} = action.payload;
 
 		const start = dayjs(startDate);
 		const end = dayjs(endDate);
 		const nights = end.diff(start, "day");
 
+		// Calculate pricing by day and with commission
 		const pricingByDay = calculatePricingByDay(
 			priceRating,
 			startDate,
 			endDate,
-			roomDetails.price
+			Number(roomDetails.price)
 		);
+
 		const pricingByDayWithCommission = calculatePricingByDayWithCommission(
 			priceRating,
 			startDate,
 			endDate,
-			roomDetails.price,
-			commissionRate
+			Number(roomDetails.defaultCost),
+			Number(commissionRate)
 		);
 
+		// Check if the room already exists in the cart
 		const existingRoom = state.roomCart.find((item) => item.id === id);
 
 		if (existingRoom) {
+			// Update the existing room
 			const updatedCart = state.roomCart.map((item) => {
 				if (item.id === id) {
 					let newAmount = item.amount + 1;
 					return {
 						...item,
 						amount: newAmount,
-						adults,
-						children,
+						adults: Number(adults),
+						children: Number(children),
 						pricingByDay,
 						pricingByDayWithCommission,
 					};
@@ -147,6 +154,7 @@ const cart_reducer = (state, action) => {
 			});
 			return { ...state, roomCart: updatedCart };
 		} else {
+			// Add new room to the cart
 			const newRoom = {
 				...roomDetails,
 				id,
@@ -160,8 +168,8 @@ const cart_reducer = (state, action) => {
 				belongsTo,
 				priceRating,
 				roomColor,
-				adults,
-				children,
+				adults: Number(adults),
+				children: Number(children),
 			};
 			return { ...state, roomCart: [...state.roomCart, newRoom] };
 		}
@@ -176,15 +184,15 @@ const cart_reducer = (state, action) => {
 					room.priceRating,
 					startDate,
 					endDate,
-					room.price
+					Number(room.price)
 				);
 				const newPricingByDayWithCommission =
 					calculatePricingByDayWithCommission(
 						room.priceRating,
 						startDate,
 						endDate,
-						room.price,
-						room.commissionRate || 0
+						Number(room.defaultCost),
+						Number(room.commissionRate) || 0
 					);
 
 				return {
@@ -231,40 +239,46 @@ const cart_reducer = (state, action) => {
 		const {
 			total_rooms,
 			total_price,
-			total_price_with_commission, // New field for totals with commission
+			total_price_with_commission,
+			total_commission, // Include total commission
 			total_guests,
 			total_adults,
 			total_children,
 		} = state.roomCart.reduce(
 			(totals, item) => {
-				const roomRate = item.price; // Assuming this is the base price
-				const totalRoomPrice = item.nights * roomRate * item.amount;
+				const roomRate = Number(item.price); // Average price per night
+				const defaultCost = Number(item.defaultCost); // Use defaultCost for commission
+				const totalRoomPrice =
+					Number(item.nights) * roomRate * Number(item.amount);
 
-				const roomRateWithCommission =
-					item.pricingByDayWithCommission?.reduce(
-						(sum, day) => sum + parseFloat(day.price),
-						0
-					) / item.pricingByDayWithCommission?.length || roomRate; // Average commission-inclusive rate
-				const totalRoomPriceWithCommission =
-					item.nights * roomRateWithCommission * item.amount;
+				// Calculate commission
+				const totalRoomCommission =
+					defaultCost *
+					Number(item.nights) *
+					Number(item.amount) *
+					Number(item.commissionRate);
 
 				// Increment totals
-				totals.total_rooms += item.amount;
+				totals.total_rooms += Number(item.amount);
 				totals.total_price += totalRoomPrice;
-				totals.total_price_with_commission += totalRoomPriceWithCommission; // Include commission
-				totals.total_guests += item.amount * (item.adults + item.children); // Calculate total guests
-				totals.total_adults += item.adults * item.amount; // Calculate total adults
-				totals.total_children += item.children * item.amount; // Calculate total children
+				totals.total_price_with_commission +=
+					totalRoomPrice + totalRoomCommission;
+				totals.total_commission += totalRoomCommission;
+				totals.total_guests +=
+					Number(item.amount) * (Number(item.adults) + Number(item.children));
+				totals.total_adults += Number(item.adults) * Number(item.amount);
+				totals.total_children += Number(item.children) * Number(item.amount);
 
 				return totals;
 			},
 			{
 				total_rooms: 0,
 				total_price: 0,
-				total_price_with_commission: 0, // Initialize total price with commission
-				total_guests: 0, // Initialize total guests
-				total_adults: 0, // Initialize total adults
-				total_children: 0, // Initialize total children
+				total_price_with_commission: 0,
+				total_commission: 0,
+				total_guests: 0,
+				total_adults: 0,
+				total_children: 0,
 			}
 		);
 
@@ -272,10 +286,11 @@ const cart_reducer = (state, action) => {
 			...state,
 			total_rooms,
 			total_price,
-			total_price_with_commission, // Update total price with commission
-			total_guests, // Update total guests
-			total_adults, // Update total adults
-			total_children, // Update total children
+			total_price_with_commission,
+			total_commission,
+			total_guests,
+			total_adults,
+			total_children,
 		};
 	}
 
