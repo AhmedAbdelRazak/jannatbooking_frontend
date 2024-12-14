@@ -8,23 +8,6 @@ const About = () => {
 	const [jannatBookingData, setJannatBookingData] = useState(null);
 	const [loading, setLoading] = useState(false);
 
-	//Reception Chat Available border radius and width should be less (Done)
-	//Add To Reservation font-size less (Done)
-	//Distances should be a different color with a nice blue color (Done)
-	//Room displayName is not bold (Done)
-	//Hotel Name should be bold and font-size a bit bigger (Done).
-	//Rating word should be added (Done)
-	//FREE Cancellation should be darkgreen and should be on one line (Done)
-	//Chat icon when going to the hotel single page (Done)
-	//Privacy Policy 3araby w english (Done)
-	//Data validation in the search (Done)
-	//Adult beside the Children count in the search (Done)
-	//Terms & Conditions Tabs (Guest, Partner)
-	//List Your Property Check on "Accept Terms & Conditions"
-	//Checkout check on "Accept Terms & Conditions" for the guest
-	//Question to the bank (To transfer to an external bank, what are the requirements and conditions)
-	//Which is better, transfer indvidually or the lot is better every couple weeks
-
 	const gettingJannatBookingData = () => {
 		setLoading(true);
 		gettingJannatWebsiteData().then((data) => {
@@ -60,7 +43,7 @@ const About = () => {
 					)}
 
 					{/* Display the description */}
-					<DescriptionWrapper>
+					<DescriptionWrapper dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
 						<div
 							dangerouslySetInnerHTML={{
 								__html:
@@ -84,6 +67,9 @@ const AboutWrapper = styled.div`
 	min-height: 750px;
 	padding: 20px;
 	background-color: #f9f9f9;
+	direction: ${(props) => (props.dir === "rtl" ? "rtl" : "ltr")};
+	text-align: ${(props) => (props.dir === "rtl" ? "right" : "")};
+
 	p {
 		padding: 0px !important;
 		margin: 5px 0px !important;
@@ -96,7 +82,6 @@ const AboutWrapper = styled.div`
 
 	@media (max-width: 800px) {
 		margin-top: 90px;
-		padding: 5px;
 	}
 `;
 
@@ -115,6 +100,8 @@ const BannerWrapper = styled.div`
 const DescriptionWrapper = styled.div`
 	font-size: 1rem;
 	color: #333;
+	direction: ${(props) => (props.dir === "rtl" ? "rtl" : "ltr")};
+	text-align: ${(props) => (props.dir === "rtl" ? "right" : "")};
 
 	img {
 		width: 100%;
