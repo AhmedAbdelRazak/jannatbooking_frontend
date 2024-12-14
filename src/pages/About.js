@@ -26,7 +26,10 @@ const About = () => {
 	}, []);
 
 	return (
-		<AboutWrapper dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
+		<AboutWrapper
+			dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+			isArabic={chosenLanguage === "Arabic"}
+		>
 			{window.scrollTo({ top: 8, behavior: "smooth" })}
 			{loading ? (
 				<p>Loading...</p>
@@ -83,6 +86,42 @@ const AboutWrapper = styled.div`
 	@media (max-width: 800px) {
 		margin-top: 90px;
 	}
+
+	ul,
+	ol {
+		margin-left: ${(props) => (props.isArabic ? "" : "1.5em")};
+		padding-left: ${(props) => (props.isArabic ? "" : "1.5em")};
+
+		margin-right: ${(props) => (props.isArabic ? "1.5em" : "")};
+		padding-right: ${(props) => (props.isArabic ? "1.5em" : "")};
+		margin-top: 0px !important;
+		padding-top: 0px !important;
+		margin-bottom: 0px !important;
+		padding-bottom: 0px !important;
+	}
+
+	h2 {
+		font-weight: bold;
+	}
+
+	@media (max-width: 800px) {
+		h1 > strong {
+			font-size: 1.8rem !important;
+		}
+
+		h2 {
+			font-size: 1.3rem;
+			font-weight: bold;
+		}
+
+		ul,
+		ol {
+			margin-left: ${(props) => (props.isArabic ? "" : "1em")};
+			padding-left: ${(props) => (props.isArabic ? "" : "1em")};
+			margin-right: ${(props) => (props.isArabic ? "1em" : "")};
+			padding-right: ${(props) => (props.isArabic ? "1em" : "")};
+		}
+	}
 `;
 
 const BannerWrapper = styled.div`
@@ -102,6 +141,7 @@ const DescriptionWrapper = styled.div`
 	color: #333;
 	direction: ${(props) => (props.dir === "rtl" ? "rtl" : "ltr")};
 	text-align: ${(props) => (props.dir === "rtl" ? "right" : "")};
+	line-height: 1.3;
 
 	img {
 		width: 100%;
