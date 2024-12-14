@@ -228,13 +228,14 @@ const DesktopCheckout = ({
 									setPay10Percent(e.target.checked);
 								}}
 							>
-								Pay{" "}
-								{Number(Number(roomCart[0].commissionRate) * 100).toFixed(0)}%
+								Pay {Number(roomCart[0].commissionRate * 100).toFixed(0)}%
 								Deposit{" "}
-								<span style={{ fontWeight: "bold" }}>
-									(SAR {Number(total_price * 0.1).toFixed(2)})
-								</span>
-								<span style={{ fontWeight: "bold" }}>
+								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
+									(SAR{" "}
+									{Number(total_price_with_commission - total_price).toFixed(2)}
+									)
+								</span>{" "}
+								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
 									(${convertedAmounts && convertedAmounts.depositUSD})
 								</span>
 							</Checkbox>
@@ -248,14 +249,10 @@ const DesktopCheckout = ({
 								}}
 							>
 								Pay the whole Total Amount{" "}
-								<span style={{ fontWeight: "bold" }}>
-									(SAR{" "}
-									{Number(
-										total_price * Number(roomCart[0].commissionRate)
-									).toFixed(2)}
-									)
-								</span>
-								<span style={{ fontWeight: "bold" }}>
+								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
+									(SAR {Number(total_price_with_commission).toFixed(2)})
+								</span>{" "}
+								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
 									(${convertedAmounts && convertedAmounts.totalUSD})
 								</span>
 							</Checkbox>
@@ -317,16 +314,17 @@ const DesktopCheckout = ({
 										{room.startDate} to {room.endDate}
 									</p>
 								</DateRangeWrapper>
-								<p className='total'>
+								{/* <p className='total'>
 									Price for {room.nights} night(s): {room.amount * room.price}{" "}
 									SAR
-								</p>
+								</p> */}
 								<h4>
 									{Number(
-										room.price * (Number(room.commissionRate) + 1)
+										Number(room.price) +
+											Number(room.commissionRate * room.defaultCost)
 									).toFixed(2)}{" "}
 									SAR per night{" "}
-									<strong
+									{/* <strong
 										style={{
 											fontSize: "12px",
 											fontWeight: "bold",
@@ -334,7 +332,7 @@ const DesktopCheckout = ({
 										}}
 									>
 										(After Taxes)
-									</strong>
+									</strong> */}
 								</h4>
 
 								{/* Room Quantity Controls */}

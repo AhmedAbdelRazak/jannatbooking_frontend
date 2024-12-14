@@ -564,10 +564,10 @@ const SingleHotel = ({ selectedHotel }) => {
 										{selectedCurrency.toUpperCase()}
 									</div>
 								</FinalPrice>
-								<div className='commission'>
+								{/* <div className='commission'>
 									Commission: {convertCurrency(commission)}{" "}
 									{selectedCurrency.toUpperCase()}
-								</div>
+								</div> */}
 							</PriceSection>
 							<StyledButton onClick={() => handleAddRoomToCart(room)}>
 								Add Room To Reservation

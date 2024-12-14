@@ -29,6 +29,7 @@ const PaymentDetails = ({
 	total,
 	pay10Percent,
 	convertedAmounts,
+	total_price_with_commission,
 }) => {
 	// Handle card number input with formatting
 	const handleCardNumberChange = (e) => {
@@ -129,7 +130,7 @@ const PaymentDetails = ({
 						<h4>
 							Total Amount:{" "}
 							{Number(
-								total * (process.env.REACT_APP_COMMISSIONRATE - 1)
+								Number(total_price_with_commission) - Number(total)
 							).toFixed(2)}{" "}
 							SAR
 						</h4>
@@ -140,9 +141,7 @@ const PaymentDetails = ({
 					</>
 				) : (
 					<h4>
-						Total Amount:{" "}
-						{Number(total * process.env.REACT_APP_COMMISSIONRATE).toFixed(2)}{" "}
-						SAR
+						Total Amount: {Number(total_price_with_commission).toFixed(2)} SAR
 						<h4>
 							Total Amount in USD: $
 							{Number(convertedAmounts.totalUSD).toFixed(2)}

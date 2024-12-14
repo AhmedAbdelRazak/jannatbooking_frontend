@@ -5,6 +5,7 @@ import { useLocation, useHistory } from "react-router-dom";
 import {
 	gettingHotelDetailsById,
 	createNewReservationClient,
+	currencyConversion,
 } from "../apiCore";
 import dayjs from "dayjs";
 import PaymentDetails from "../components/checkout/PaymentDetails";
@@ -15,11 +16,20 @@ const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
 
 // Helper function to calculate pricing by day
-const calculatePricingByDay = (pricingRate, startDate, endDate, basePrice) => {
+const calculatePricingByDay = (
+	pricingRate,
+	startDate,
+	endDate,
+	basePrice,
+	commissionRate
+) => {
 	const start = dayjs(startDate).startOf("day");
 	const end = dayjs(endDate).subtract(1, "day").startOf("day");
 	const dateArray = [];
 	let currentDate = start;
+
+	// Compute the commission multiplier
+	const commissionMultiplier = 1 + commissionRate / 100;
 
 	while (currentDate.isBefore(end) || currentDate.isSame(end, "day")) {
 		const formattedDate = currentDate.format("YYYY-MM-DD");
@@ -27,9 +37,13 @@ const calculatePricingByDay = (pricingRate, startDate, endDate, basePrice) => {
 			(rate) => dayjs(rate.date).format("YYYY-MM-DD") === formattedDate
 		);
 
+		const priceWithCommission = (
+			(rateForDate?.price || basePrice) * commissionMultiplier
+		).toFixed(2);
+
 		dateArray.push({
 			date: formattedDate,
-			price: rateForDate ? rateForDate.price : basePrice,
+			price: priceWithCommission,
 		});
 
 		currentDate = currentDate.add(1, "day");
@@ -63,8 +77,11 @@ const GeneratedLinkCheckout = () => {
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [hotelDetails, setHotelDetails] = useState(null);
 
-	// eslint-disable-next-line
-	const [priceByDay, setPriceByDay] = useState([]);
+	const [convertedAmounts, setConvertedAmounts] = useState({
+		depositUSD: null,
+		totalUSD: null,
+	}); // Added for currency conversion
+
 	const [mobileExpanded, setMobileExpanded] = useState(false);
 
 	const [cardNumber, setCardNumber] = useState("");
@@ -85,6 +102,7 @@ const GeneratedLinkCheckout = () => {
 		const pickedRooms = [];
 		let roomIndex = 1;
 
+		// Parse room details from URL
 		while (
 			params.get(`roomType${roomIndex}`) &&
 			params.get(`displayName${roomIndex}`)
@@ -94,22 +112,19 @@ const GeneratedLinkCheckout = () => {
 				displayName: params.get(`displayName${roomIndex}`),
 				count: parseInt(params.get(`roomCount${roomIndex}`), 10),
 				pricePerNight: parseFloat(params.get(`pricePerNight${roomIndex}`)) || 0,
+				commissionRate:
+					parseFloat(params.get(`commissionRate${roomIndex}`)) || 1, // Extract commissionRate
 			});
 			roomIndex++;
 		}
 
-		console.log(hotelId, "hotelIdhotelIdhotelId");
-		// Fetch hotel details and adjust pricingByDay with commission
+		// Fetch hotel details and adjust pricing by day
 		if (hotelId) {
 			gettingHotelDetailsById(hotelId).then((data) => {
 				if (data) {
 					setHotelDetails(data);
 
-					// Parse commission rate from environment variable or set default
-					const commissionRate =
-						parseFloat(process.env.REACT_APP_COMMISSIONRATE) || 1;
-
-					// Update pickedRooms with adjusted pricingByDay
+					// Update pickedRooms with adjusted pricing by day
 					const updatedPickedRooms = pickedRooms.map((room) => {
 						const matchingRoom = data.roomCountDetails.find(
 							(detail) =>
@@ -122,15 +137,13 @@ const GeneratedLinkCheckout = () => {
 								matchingRoom.pricingByDay || [],
 								params.get("checkInDate"),
 								params.get("checkOutDate"),
-								room.pricePerNight
-							).map((day) => ({
-								...day,
-								price: (day.price * commissionRate).toFixed(2), // Adjust price with commission
-							}));
+								room.pricePerNight,
+								room.commissionRate // Pass commission rate to adjust pricing
+							);
 
 							return {
 								...room,
-								photos: matchingRoom.photos,
+								photos: matchingRoom.photos || [], // Add photos
 								pricingByDay: calculatedPricing,
 							};
 						} else {
@@ -163,6 +176,7 @@ const GeneratedLinkCheckout = () => {
 				: null,
 			numberOfNights: parseInt(params.get("numberOfNights"), 10) || 0,
 			totalAmount: parseFloat(params.get("totalAmount")) || 0,
+			totalCommission: parseFloat(params.get("totalCommission")) || 0, // Added totalCommission parsing
 			adults: parseInt(params.get("adults"), 10) || 1,
 			children: parseInt(params.get("children"), 10) || 0,
 			nationality: params.get("nationality") || "",
@@ -182,18 +196,39 @@ const GeneratedLinkCheckout = () => {
 			pickedRooms,
 		}));
 		// eslint-disable-next-line
-	}, [location.search]);
+	}, [location.search]); // Removed user dependency
 
-	// Add this function to match the transformation logic from `CheckoutContent`
-	const transformPickedRoomsToPickedRoomsType = (
-		pickedRooms,
-		commissionRate
-	) => {
+	useEffect(() => {
+		const fetchConversion = async () => {
+			const deposit = formData.totalCommission; // Deposit is the commission
+			const total = formData.totalAmount + formData.totalCommission;
+			const amounts = [deposit, total];
+
+			try {
+				const conversions = await currencyConversion(amounts);
+				setConvertedAmounts({
+					depositUSD: Number(conversions[0]?.amountInUSD.toFixed(2)),
+					totalUSD: Number(conversions[1]?.amountInUSD.toFixed(2)),
+				});
+			} catch (error) {
+				console.error("Currency conversion failed", error);
+			}
+		};
+
+		fetchConversion();
+	}, [formData.totalAmount, formData.totalCommission]);
+
+	// Updated transformPickedRoomsToPickedRoomsType Function
+	// eslint-disable-next-line
+	const transformPickedRoomsToPickedRoomsType = (pickedRooms) => {
 		return pickedRooms.flatMap((room) => {
 			return Array.from({ length: room.count }, () => ({
 				room_type: room.roomType, // Room type
 				displayName: room.displayName, // Display name for the room
-				chosenPrice: (room.pricePerNight * commissionRate).toFixed(2), // Price with commission
+				chosenPrice: (
+					room.pricePerNight *
+					(Number(room.commissionRate) / 100 + 1)
+				).toFixed(2), // Use specific room commissionRate
 				count: 1, // Each room counted individually
 				pricingByDay: room.pricingByDay || [], // Pricing breakdown by day
 			}));
@@ -214,7 +249,7 @@ const GeneratedLinkCheckout = () => {
 			numberOfNights,
 		} = formData;
 
-		// Check if terms and conditions are agreed
+		// Validate Terms & Conditions
 		if (!guestAgreedOnTermsAndConditions) {
 			message.error(
 				"You must accept the Terms & Conditions before proceeding."
@@ -273,6 +308,7 @@ const GeneratedLinkCheckout = () => {
 		if (passportExpiry) {
 			const expiryDate = dayjs(passportExpiry);
 			const sixMonthsFromNow = dayjs().add(6, "month");
+
 			if (expiryDate.isBefore(sixMonthsFromNow)) {
 				message.error(
 					"Passport expiry date should be at least 6 months from today's date."
@@ -292,15 +328,8 @@ const GeneratedLinkCheckout = () => {
 			cardHolderName,
 		};
 
-		// Parse commission rate from environment variable or set default
-		const commissionRate =
-			parseFloat(process.env.REACT_APP_COMMISSIONRATE) || 1;
-
-		// Transform pickedRooms to pickedRoomsType
-		const pickedRoomsType = transformPickedRoomsToPickedRoomsType(
-			pickedRooms,
-			commissionRate
-		);
+		// Use the `transformPickedRoomsToPickedRoomsType` helper function
+		const pickedRoomsType = transformPickedRoomsToPickedRoomsType(pickedRooms);
 
 		// Construct reservation data
 		const reservationData = {
@@ -316,7 +345,7 @@ const GeneratedLinkCheckout = () => {
 				passport,
 				passportExpiry,
 				nationality: formData.nationality,
-				password: !user ? password : undefined, // Include password if user is not logged in
+				password: !user ? password : undefined, // Include password only if user is not logged in
 			},
 			paymentDetails,
 			total_rooms: pickedRooms.reduce((total, room) => total + room.count, 0),
@@ -328,13 +357,14 @@ const GeneratedLinkCheckout = () => {
 			days_of_residence: numberOfNights,
 			booking_source: "Generated Link",
 			pickedRoomsType,
-			total_amount: (totalAmount * commissionRate).toFixed(2),
+			total_amount: totalAmount + formData.totalCommission,
 			payment: pay10Percent ? "Deposit Paid" : "Paid Online",
 			paid_amount: pay10Percent
-				? (totalAmount * 0.1).toFixed(2)
-				: (totalAmount * commissionRate).toFixed(2),
-			commission: (totalAmount * (commissionRate - 1)).toFixed(2),
+				? formData.totalCommission
+				: totalAmount + formData.totalCommission,
+			commission: formData.totalCommission,
 			commissionPaid: true,
+			convertedAmounts,
 		};
 
 		try {
@@ -344,23 +374,18 @@ const GeneratedLinkCheckout = () => {
 
 				// Automatically sign in the user if the account was just created
 				if (!user) {
-					try {
-						const signInResponse = await signin({
-							emailOrPhone: email,
-							password,
+					const signInResponse = await signin({
+						emailOrPhone: email,
+						password,
+					});
+					if (signInResponse.error) {
+						message.error(
+							"Failed to sign in automatically after account creation."
+						);
+					} else {
+						authenticate(signInResponse, () => {
+							message.success("User authenticated successfully.");
 						});
-						if (signInResponse.error) {
-							message.error(
-								"Failed to sign in automatically after account creation."
-							);
-						} else {
-							authenticate(signInResponse, () => {
-								message.success("User authenticated successfully.");
-							});
-						}
-					} catch (error) {
-						console.error("Error during sign-in:", error);
-						message.error("An error occurred while signing in.");
 					}
 				}
 
@@ -369,7 +394,7 @@ const GeneratedLinkCheckout = () => {
 				queryParams.append("name", name);
 				queryParams.append(
 					"total_price",
-					Number(totalAmount * commissionRate).toFixed(2)
+					(totalAmount + formData.totalCommission).toFixed(2)
 				);
 				queryParams.append("total_rooms", reservationData.total_rooms);
 				queryParams.append(
@@ -380,15 +405,16 @@ const GeneratedLinkCheckout = () => {
 					"checkout_date",
 					checkOutDate ? checkOutDate.format("YYYY-MM-DD") : ""
 				);
-				queryParams.append("nights", numberOfNights); // Pass number of nights
-				queryParams.append("hotel_name", hotelDetails.hotelName);
+				queryParams.append("nights", numberOfNights);
+				queryParams.append("hotel_name", hotelDetails?.hotelName);
+
 				// Add each room's details to the query
 				pickedRooms.forEach((room, index) => {
 					queryParams.append(`room_type${index + 1}`, room.roomType);
 					queryParams.append(`room_display_name${index + 1}`, room.displayName);
 					queryParams.append(
 						`price_per_night${index + 1}`,
-						Number(room.pricePerNight * commissionRate).toFixed(2)
+						Number(room.pricePerNight * room.commissionRate).toFixed(2)
 					);
 					queryParams.append(`room_count${index + 1}`, room.count);
 				});
@@ -423,62 +449,67 @@ const GeneratedLinkCheckout = () => {
 								disabled
 								style={{ width: "100%", marginBottom: "10px" }}
 							/>
-							{formData.pickedRooms.map((room, index) => (
-								<RoomItem key={index}>
-									<RoomImage
-										src={room.photos?.[0]?.url || "/default-room.jpg"}
-										alt='Room'
-									/>
-									<RoomDetails>
-										<h3>{room.displayName}</h3>
-										<p>{room.count} Room(s)</p>
-										<p>
-											{formData.adults} Adult(s), {formData.children} Children
-										</p>
-										<p>{formData.numberOfNights} Nights</p>
-										<p>
-											Dates: {formData.checkInDate?.format("YYYY-MM-DD")} to{" "}
-											{formData.checkOutDate?.format("YYYY-MM-DD")}
-										</p>
-										<h4>
-											{Number(
-												room.pricePerNight *
-													process.env.REACT_APP_COMMISSIONRATE
-											).toFixed(2)}{" "}
-											SAR per night
-										</h4>
-									</RoomDetails>
-									{room.pricingByDay && room.pricingByDay.length > 0 && (
-										<Collapse
-											accordion
-											expandIcon={({ isActive }) => (
-												<CaretRightOutlined rotate={isActive ? 90 : 0} />
-											)}
-										>
-											<Panel
-												header={
-													<PriceDetailsHeader>
-														<InfoCircleOutlined /> Price Breakdown
-													</PriceDetailsHeader>
-												}
-												key='1'
+							{formData.pickedRooms.map((room, index) => {
+								// Calculate average price per night with commission
+								const averagePricePerNight =
+									room.pricingByDay.reduce(
+										(acc, day) => acc + parseFloat(day.price),
+										0
+									) / room.pricingByDay.length;
+
+								return (
+									<RoomItem key={index}>
+										<RoomImage
+											src={room.photos?.[0]?.url || "/default-room.jpg"}
+											alt='Room'
+										/>
+										<RoomDetails>
+											<h3>{room.displayName}</h3>
+											<p>{room.count} Room(s)</p>
+											<p>
+												{formData.adults} Adult(s), {formData.children} Children
+											</p>
+											<p>{formData.numberOfNights} Nights</p>
+											<p>
+												Dates: {formData.checkInDate?.format("YYYY-MM-DD")} to{" "}
+												{formData.checkOutDate?.format("YYYY-MM-DD")}
+											</p>
+											<h4>{averagePricePerNight.toFixed(2)} SAR per night</h4>
+										</RoomDetails>
+										{room.pricingByDay && room.pricingByDay.length > 0 && (
+											<Collapse
+												accordion
+												expandIcon={({ isActive }) => (
+													<CaretRightOutlined rotate={isActive ? 90 : 0} />
+												)}
 											>
-												<PricingList>
-													{room.pricingByDay.map(({ date, price }, i) => (
-														<li key={i}>
-															{dayjs(date).format("YYYY-MM-DD")}: {price} SAR
-														</li>
-													))}
-												</PricingList>
-											</Panel>
-										</Collapse>
-									)}
-								</RoomItem>
-							))}
+												<Panel
+													header={
+														<PriceDetailsHeader>
+															<InfoCircleOutlined /> Price Breakdown
+														</PriceDetailsHeader>
+													}
+													key='1'
+												>
+													<PricingList>
+														{room.pricingByDay.map(({ date, price }, i) => (
+															<li key={i}>
+																{dayjs(date).format("YYYY-MM-DD")}: {price} SAR
+															</li>
+														))}
+													</PricingList>
+												</Panel>
+											</Collapse>
+										)}
+									</RoomItem>
+								);
+							})}
+							{/* Calculate total with commission */}
 							<h4>
 								Total:{" "}
 								{Number(
-									formData.totalAmount * process.env.REACT_APP_COMMISSIONRATE
+									Number(formData.totalAmount) +
+										Number(formData.totalCommission)
 								).toFixed(2)}{" "}
 								SAR
 							</h4>
@@ -620,9 +651,16 @@ const GeneratedLinkCheckout = () => {
 								setPay10Percent(e.target.checked);
 							}}
 						>
-							Pay 10% Deposit{" "}
+							Pay{" "}
+							{Number(
+								(formData.totalCommission /
+									(Number(formData.totalAmount) +
+										Number(formData.totalCommission))) *
+									100
+							).toFixed(0)}
+							% Deposit{" "}
 							<span style={{ fontWeight: "bold" }}>
-								(SAR {Number(formData.totalAmount * 0.1).toFixed(2)})
+								(SAR {Number(formData.totalCommission).toFixed(2)})
 							</span>
 						</Checkbox>
 					</TermsWrapper>
@@ -638,7 +676,8 @@ const GeneratedLinkCheckout = () => {
 							<span style={{ fontWeight: "bold" }}>
 								(SAR{" "}
 								{Number(
-									formData.totalAmount * process.env.REACT_APP_COMMISSIONRATE
+									Number(formData.totalAmount) +
+										Number(formData.totalCommission)
 								).toFixed(2)}
 								)
 							</span>
@@ -667,9 +706,10 @@ const GeneratedLinkCheckout = () => {
 							pricePerNight={formData.pricePerNight}
 							total={formData.totalAmount}
 							pay10Percent={pay10Percent}
-							total_price_with_commission={Number(
-								formData.totalAmount * process.env.REACT_APP_COMMISSIONRATE
-							)}
+							total_price_with_commission={
+								Number(formData.totalAmount) + Number(formData.totalCommission)
+							}
+							convertedAmounts={convertedAmounts}
 						/>
 					) : null}
 				</LeftSection>
@@ -683,63 +723,67 @@ const GeneratedLinkCheckout = () => {
 								disabled
 								style={{ width: "100%", marginBottom: "10px" }}
 							/>
-							{formData.pickedRooms.map((room, index) => (
-								<RoomItem key={index}>
-									<RoomImage
-										src={room.photos?.[0]?.url || "/default-room.jpg"}
-										alt='Room'
-									/>
-									<RoomDetails>
-										<h3>{room.displayName}</h3>
-										<p>{room.count} Room(s)</p>
-										<p>
-											{formData.adults} Adult(s), {formData.children} Children
-										</p>
-										<p>
-											Dates: {formData.checkInDate?.format("YYYY-MM-DD")} to{" "}
-											{formData.checkOutDate?.format("YYYY-MM-DD")}
-										</p>
-										<p>{formData.numberOfNights} Nights</p>
-										<h4>
-											{Number(
-												room.pricePerNight *
-													process.env.REACT_APP_COMMISSIONRATE
-											).toFixed(2)}{" "}
-											SAR per night
-										</h4>
-									</RoomDetails>
-									{room.pricingByDay && room.pricingByDay.length > 0 && (
-										<Collapse
-											accordion
-											expandIcon={({ isActive }) => (
-												<CaretRightOutlined rotate={isActive ? 90 : 0} />
-											)}
-										>
-											<Panel
-												header={
-													<PriceDetailsHeader>
-														<InfoCircleOutlined /> Price Breakdown
-													</PriceDetailsHeader>
-												}
-												key='1'
+							{formData.pickedRooms.map((room, index) => {
+								// Calculate average price per night with commission
+								const averagePricePerNight =
+									room.pricingByDay.reduce(
+										(acc, day) => acc + parseFloat(day.price),
+										0
+									) / room.pricingByDay.length;
+
+								return (
+									<RoomItem key={index}>
+										<RoomImage
+											src={room.photos?.[0]?.url || "/default-room.jpg"}
+											alt='Room'
+										/>
+										<RoomDetails>
+											<h3>{room.displayName}</h3>
+											<p>{room.count} Room(s)</p>
+											<p>
+												{formData.adults} Adult(s), {formData.children} Children
+											</p>
+											<p>
+												Dates: {formData.checkInDate?.format("YYYY-MM-DD")} to{" "}
+												{formData.checkOutDate?.format("YYYY-MM-DD")}
+											</p>
+											<p>{formData.numberOfNights} Nights</p>
+											<h4>{averagePricePerNight.toFixed(2)} SAR per night</h4>
+										</RoomDetails>
+										{room.pricingByDay && room.pricingByDay.length > 0 && (
+											<Collapse
+												accordion
+												expandIcon={({ isActive }) => (
+													<CaretRightOutlined rotate={isActive ? 90 : 0} />
+												)}
 											>
-												<PricingList>
-													{room.pricingByDay.map(({ date, price }, i) => (
-														<li key={i}>
-															{dayjs(date).format("YYYY-MM-DD")}:{" "}
-															{Number(price).toFixed(2)} SAR
-														</li>
-													))}
-												</PricingList>
-											</Panel>
-										</Collapse>
-									)}
-								</RoomItem>
-							))}
+												<Panel
+													header={
+														<PriceDetailsHeader>
+															<InfoCircleOutlined /> Price Breakdown
+														</PriceDetailsHeader>
+													}
+													key='1'
+												>
+													<PricingList>
+														{room.pricingByDay.map(({ date, price }, i) => (
+															<li key={i}>
+																{dayjs(date).format("YYYY-MM-DD")}:{" "}
+																{Number(price).toFixed(2)} SAR
+															</li>
+														))}
+													</PricingList>
+												</Panel>
+											</Collapse>
+										)}
+									</RoomItem>
+								);
+							})}
 							<h4>
 								Total:{" "}
 								{Number(
-									formData.totalAmount * process.env.REACT_APP_COMMISSIONRATE
+									Number(formData.totalAmount) +
+										Number(formData.totalCommission)
 								).toFixed(2)}{" "}
 								SAR
 							</h4>
