@@ -435,6 +435,11 @@ const SingleHotel = ({ selectedHotel }) => {
 
 					const numberOfNights = pricingByDay.length;
 
+					// Check if any date in the range has a price of 0
+					const isRoomAvailable = !pricingByDay.some((day) => day.price <= 0);
+					console.log(pricingByDay, "pricingByDaypricingByDay");
+					console.log(isRoomAvailable, "isRoomAvailableisRoomAvailable");
+
 					// Determine commission rate and calculate commission
 					const roomCommission =
 						room.roomCommission ||
@@ -460,6 +465,8 @@ const SingleHotel = ({ selectedHotel }) => {
 
 					return (
 						<RoomCardWrapper key={room._id || index}>
+							{/* Badge for Unavailability */}
+
 							<RoomImageWrapper dir='ltr'>
 								<Swiper
 									modules={[Pagination, Autoplay, Thumbs]}
@@ -569,9 +576,31 @@ const SingleHotel = ({ selectedHotel }) => {
 									{selectedCurrency.toUpperCase()}
 								</div> */}
 							</PriceSection>
-							<StyledButton onClick={() => handleAddRoomToCart(room)}>
-								Add Room To Reservation
-							</StyledButton>
+							<div
+								style={{
+									display: "flex",
+									flexDirection: "column",
+									alignItems: "center",
+								}}
+							>
+								<StyledButton
+									disabled={!isRoomAvailable} // Disable button if room is unavailable
+									style={{
+										backgroundColor: !isRoomAvailable
+											? "#ccc"
+											: "var(--primaryBlue)",
+										cursor: !isRoomAvailable ? "not-allowed" : "pointer",
+									}}
+									onClick={() => isRoomAvailable && handleAddRoomToCart(room)}
+								>
+									Add Room To Reservation
+								</StyledButton>
+
+								{/* Unavailable Badge */}
+								{!isRoomAvailable && (
+									<UnavailableBadge>Not Available</UnavailableBadge>
+								)}
+							</div>
 						</RoomCardWrapper>
 					);
 				})}
@@ -1032,4 +1061,18 @@ const DateRangeWrapper = styled.div`
 	display: flex;
 	justify-content: center;
 	width: 100%;
+`;
+
+const UnavailableBadge = styled.div`
+	display: inline-block;
+	margin-top: 0.5rem; /* Space below the button */
+	padding: 0.3rem 0.8rem;
+	border-radius: 0.25rem;
+	background-color: var(--accent-color-1); /* Light orange */
+	color: var(--secondary-color-dark); /* Darker secondary text */
+	font-size: 0.85rem;
+	font-weight: bold;
+	text-align: center;
+	box-shadow: var(--box-shadow-light); /* Light shadow for elevation */
+	transition: var(--main-transition); /* Smooth transitions */
 `;

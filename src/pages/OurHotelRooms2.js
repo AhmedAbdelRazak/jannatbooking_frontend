@@ -457,6 +457,9 @@ const RoomCard = ({
 		room.price.basePrice
 	);
 
+	// Check if the room is unavailable (any date has price <= 0)
+	const isRoomAvailable = !pricingByDay.some((day) => day.price <= 0);
+
 	// Calculate total price
 	// eslint-disable-next-line
 	const totalPrice = calculateTotalPrice(displayedPrice, startDate, endDate);
@@ -647,13 +650,27 @@ const RoomCard = ({
 				</Distances> */}
 			</RoomDetails>
 			<div className='habal'></div>
-			<StyledButton
-				className='mb-2 mt-1'
-				style={{ textAlign: "left" }}
-				onClick={handleAddToCart}
+
+			<div
+				style={{
+					display: "flex",
+					flexDirection: "column",
+					alignItems: "center",
+				}}
 			>
-				Add to Reservation
-			</StyledButton>
+				<StyledButton
+					className='mb-2 mt-1'
+					disabled={!isRoomAvailable} // Disable button if room is unavailable
+					style={{
+						backgroundColor: !isRoomAvailable ? "#ccc" : "var(--primaryBlue)",
+						cursor: !isRoomAvailable ? "not-allowed" : "pointer",
+					}}
+					onClick={isRoomAvailable ? handleAddToCart : null}
+				>
+					Add to Reservation
+				</StyledButton>
+				{!isRoomAvailable && <UnavailableBadge>Not Available</UnavailableBadge>}
+			</div>
 			<div>
 				<ReceptionChat className='float-right mr-2' onClick={handleChatClick}>
 					Reception
@@ -989,6 +1006,20 @@ const ReceptionChat = styled.div`
 	cursor: pointer;
 
 	@media (max-width: 800px) {
-		width: 50% !important;
+		width: 60% !important;
 	}
+`;
+
+// Unavailable Badge
+const UnavailableBadge = styled.div`
+	margin-top: 0.5rem; /* Space below the button */
+	padding: 0.3rem 0.8rem;
+	border-radius: 0.25rem;
+	background-color: var(--accent-color-1); /* Light orange */
+	color: var(--secondary-color-dark); /* Darker text */
+	font-size: 0.85rem;
+	font-weight: bold;
+	text-align: center;
+	box-shadow: var(--box-shadow-light); /* Light shadow */
+	transition: var(--main-transition); /* Smooth transitions */
 `;
