@@ -13,14 +13,6 @@ import dayjs from "dayjs";
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
-const handleRangePickerFocus = (e) => {
-	// Prevent keyboard appearance for mobile devices
-	if (window.innerWidth <= 768) {
-		e.preventDefault();
-		e.stopPropagation();
-	}
-};
-
 const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 	const [searchParams, setSearchParams] = useState({
 		destination: "",
@@ -142,9 +134,8 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 					defaultPickerValue={[calendarStartDate]}
 					picker='date'
 					panelRender={panelRender}
-					onFocus={handleRangePickerFocus} // Prevent focus triggering the keyboard
-					onClick={handleRangePickerFocus} // Prevent clicks triggering the keyboard
 					invalid={invalidFields.dates}
+					inputReadOnly
 				/>
 
 				<SelectWrapper invalid={invalidFields.roomType}>
@@ -334,7 +325,6 @@ const RangeDatePicker = styled(RangePicker)`
 		align-items: center;
 		padding-top: 7px;
 		padding-bottom: 7px;
-		cursor: pointer; /* Makes it feel like a dropdown */
 	}
 `;
 
