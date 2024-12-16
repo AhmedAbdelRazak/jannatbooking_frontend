@@ -87,6 +87,7 @@ const SidebarCartDrawer = () => {
 							}
 							disabledDate={disabledDate}
 							panelRender={panelRender}
+							inputReadOnly
 						/>
 					</ConfigProvider>
 				</DateRangePickerWrapper>

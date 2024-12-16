@@ -143,6 +143,7 @@ const Search = ({
 					picker='date'
 					panelRender={panelRender}
 					invalid={invalidFields.dates}
+					inputReadOnly
 				/>
 
 				<SelectWrapper invalid={invalidFields.roomType}>

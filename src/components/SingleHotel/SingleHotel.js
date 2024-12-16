@@ -427,6 +427,7 @@ const SingleHotel = ({ selectedHotel }) => {
 							current && current < dayjs().endOf("day")
 						}
 						panelRender={panelRender} // Add this to customize the panel rendering
+						inputReadOnly
 					/>
 				</DateRangeWrapper>
 
