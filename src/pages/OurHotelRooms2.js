@@ -18,13 +18,15 @@ import dayjs from "dayjs";
 import { FaCar, FaWalking } from "react-icons/fa";
 import SortDropdown from "../components/OurHotels/SortDropdown";
 
+// Helper to generate date range
 const generateDateRange = (startDate, endDate) => {
 	const start = dayjs(startDate);
 	const end = dayjs(endDate);
 	const dateArray = [];
 
 	let currentDate = start;
-	while (currentDate <= end) {
+	while (currentDate < end) {
+		// Adjusted to exclude the end date
 		dateArray.push(currentDate.format("YYYY-MM-DD"));
 		currentDate = currentDate.add(1, "day");
 	}
@@ -33,15 +35,34 @@ const generateDateRange = (startDate, endDate) => {
 };
 
 // Function to get pricing by day
-const calculatePricingByDay = (pricingRate, startDate, endDate, basePrice) => {
+const calculatePricingByDay = (
+	pricingRate,
+	startDate,
+	endDate,
+	basePrice,
+	defaultCost,
+	roomCommission
+) => {
 	const dateRange = generateDateRange(startDate, endDate);
 
-	// Calculate total price for each day
 	return dateRange.map((date) => {
 		const rateForDate = pricingRate.find((rate) => rate.calendarDate === date);
+		const selectedCommissionRate = rateForDate?.commissionRate
+			? rateForDate.commissionRate / 100 // Use commission from pricingRate
+			: roomCommission
+				? roomCommission / 100 // Use room-specific commission
+				: parseFloat(process.env.REACT_APP_COMMISSIONRATE) - 1; // Fallback to default env commission
+
 		return {
 			date,
-			price: rateForDate ? rateForDate.price : basePrice,
+			price: rateForDate
+				? parseFloat(rateForDate.price) || 0 // Use `price` if available
+				: parseFloat(basePrice || 0), // Fallback to `basePrice`
+			rootPrice: rateForDate
+				? parseFloat(rateForDate.rootPrice) ||
+					parseFloat(defaultCost || basePrice || 0) // Fallback to defaultCost -> basePrice -> 0
+				: parseFloat(defaultCost || basePrice || 0),
+			commissionRate: selectedCommissionRate, // Add selected commission rate for the date
 		};
 	});
 };
@@ -98,6 +119,7 @@ const formatAddress = (address) => {
 };
 
 // Function to calculate the total price for the stay
+// eslint-disable-next-line
 const calculateTotalPrice = (averagePrice, startDate, endDate) => {
 	if (!averagePrice || !startDate || !endDate) {
 		console.error("Missing data for calculating total price", {
@@ -400,6 +422,7 @@ const OurHotelRooms2 = () => {
 };
 
 // Component for rendering each room card
+// eslint-disable-next-line
 const RoomCard = ({
 	room,
 	hotelName,
@@ -427,76 +450,62 @@ const RoomCard = ({
 	// eslint-disable-next-line
 	const [thumbsSwiper, setThumbsSwiper] = useState(null);
 
-	// Define the commission rate dynamically (can be passed from props or a constant)
-
-	// Determine commission rate
+	// Calculate commission rate
 	const roomCommission =
 		room.roomCommission ||
 		hotel.commission ||
-		(Number(process.env.REACT_APP_COMMISSIONRATE) - 1) * 100;
-
-	const commissionRate = roomCommission / 100 + 1; // Convert to decimal
-
-	const averagePrice = calculateAveragePrice(
-		room.pricingRate,
-		startDate,
-		endDate
-	);
-
-	const displayedPrice = averagePrice || room.price.basePrice || "N/A";
-
-	const displayedPriceAfterCommission =
-		Number(averagePrice * commissionRate) ||
-		Number(room.price.basePrice * commissionRate) ||
-		"N/A";
+		(parseFloat(process.env.REACT_APP_COMMISSIONRATE) - 1) * 100 ||
+		10; // Default to 20% commission
+	const commissionRate = roomCommission / 100; // Convert to decimal
 
 	const pricingByDay = calculatePricingByDay(
-		room.pricingRate,
+		room.pricingRate || [],
 		startDate,
 		endDate,
-		room.price.basePrice
+		room.price.basePrice,
+		room.defaultCost,
+		commissionRate * 100
 	);
 
-	// Check if the room is unavailable (any date has price <= 0)
+	const totalPriceWithCommission = pricingByDay.reduce(
+		(total, day) => total + (day.price + day.rootPrice * day.commissionRate),
+		0
+	);
+
+	const nights = pricingByDay.length;
+
+	const pricePerNightWithCommission =
+		nights > 0 ? totalPriceWithCommission / nights : 0;
+
+	// Currency Conversion
+	// Convert prices based on selected currency
+	const calculateConvertedPrice = (price) => {
+		if (currency === "usd") return (price * rates.SAR_USD).toFixed(2);
+		if (currency === "eur") return (price * rates.SAR_EUR).toFixed(2);
+		return Number(price).toFixed(2); // Default to SAR
+	};
+
+	const convertedPricePerNight = calculateConvertedPrice(
+		pricePerNightWithCommission
+	);
+	const convertedTotalPrice = calculateConvertedPrice(totalPriceWithCommission);
+
+	// Check if the room is available
 	const isRoomAvailable = !pricingByDay.some((day) => day.price <= 0);
 
-	// Calculate total price
-	// eslint-disable-next-line
-	const totalPrice = calculateTotalPrice(displayedPrice, startDate, endDate);
-
-	// Calculate total price with commission
-	const totalPriceWithCommission = Number(
-		calculateTotalPrice(displayedPrice, startDate, endDate) * commissionRate
-	).toFixed(2);
-
-	const firstImage = room.photos[0]?.url || "";
-
-	const combinedFeatures = [
-		...room.amenities,
-		...room.views,
-		...room.extraAmenities,
-	];
-	const uniqueFeatures = [...new Set(combinedFeatures)].slice(0, 12);
-	// Determine visible features: show only the first 4 by default
-	const visibleFeatures = showAllAmenities
-		? uniqueFeatures
-		: uniqueFeatures.slice(0, 2);
-
 	const handleAddToCart = () => {
-		const rateDecimal = Number(commissionRate - 1).toFixed(2);
 		addRoomToCart(
 			room._id,
 			{
 				id: room._id,
 				name: room.displayName,
 				roomType: room.roomType,
-				price: displayedPrice,
-				defaultCost: room.defaultCost || displayedPrice,
+				price: pricePerNightWithCommission.toFixed(2),
+				defaultCost: room.defaultCost || room.price.basePrice,
 				photos: room.photos,
 				hotelName,
 				hotelAddress,
-				firstImage,
-				commissionRate: Number(rateDecimal),
+				commissionRate,
 			},
 			startDate,
 			endDate,
@@ -506,38 +515,31 @@ const RoomCard = ({
 			roomColor,
 			adults,
 			children,
-			Number(rateDecimal) // Pass the dynamic commission rate
+			commissionRate
 		);
-		openSidebar2(); // Open the cart drawer after adding a room
+		openSidebar2();
 	};
 
 	const handleChatClick = () => {
 		const hotelNameSlug = hotelName.replace(/\s+/g, "-").toLowerCase();
-
-		// Use URLSearchParams to update the search query without refreshing
 		const params = new URLSearchParams(window.location.search);
 		params.set("hotelNameSlug", hotelNameSlug);
-
-		// Update the URL without refreshing
 		const newUrl = `${window.location.pathname}?${params.toString()}`;
-		window.history.pushState({}, "", newUrl); // Push the new URL to browser history
+		window.history.pushState({}, "", newUrl);
 
-		// Trigger a custom event for ChatIcon to detect changes (optional)
 		const searchChangeEvent = new CustomEvent("searchChange");
 		window.dispatchEvent(searchChangeEvent);
 	};
 
-	const calculateConvertedPrice = (price) => {
-		if (currency === "usd") return (price * rates.SAR_USD).toFixed(2);
-		if (currency === "eur") return (price * rates.SAR_EUR).toFixed(2);
-		return Number(price).toFixed(2); // Default to SAR
-	};
-
-	const nights = dayjs(endDate).diff(dayjs(startDate), "day");
-
-	// Convert prices based on selected currency
-	const convertedPrice = calculateConvertedPrice(displayedPriceAfterCommission);
-	const convertedTotalPrice = calculateConvertedPrice(totalPriceWithCommission);
+	const combinedFeatures = [
+		...room.amenities,
+		...room.views,
+		...room.extraAmenities,
+	];
+	const uniqueFeatures = [...new Set(combinedFeatures)];
+	const visibleFeatures = showAllAmenities
+		? uniqueFeatures
+		: uniqueFeatures.slice(0, 2);
 
 	return (
 		<RoomCardWrapper>
@@ -569,20 +571,6 @@ const RoomCard = ({
 						</SwiperSlide>
 					))}
 				</Swiper>
-				{/* <Swiper
-					modules={[Thumbs]}
-					onSwiper={setThumbsSwiper}
-					spaceBetween={2}
-					slidesPerView={5}
-					watchSlidesProgress
-					className='thumbnail-swiper'
-				>
-					{room.photos.map((photo, idx) => (
-						<SwiperSlide key={idx}>
-							<ThumbnailImage src={photo.url} alt={room.displayName} />
-						</SwiperSlide>
-					))}
-				</Swiper> */}
 			</RoomImageWrapper>
 
 			<RoomDetails>
@@ -592,9 +580,6 @@ const RoomCard = ({
 						: room.displayName}
 				</RoomDisplayName>
 				<HotelName>{hotelName}</HotelName>
-				{/* <Location>
-					{formatAddress(hotelAddress).split(",").slice(0, 2).join(", ")}
-				</Location> */}
 				<StarRatings
 					rating={hotelRating || 0}
 					starRatedColor='orange'
@@ -611,7 +596,7 @@ const RoomCard = ({
 							color: "black",
 						}}
 					>
-						{currency && currency.toUpperCase()} {convertedPrice}
+						{currency && currency.toUpperCase()} {convertedPricePerNight}
 					</span>{" "}
 					<span style={{ fontSize: "0.82rem", color: "black" }}>/ NIGHT</span>
 					{nights > 0 && (
@@ -636,7 +621,6 @@ const RoomCard = ({
 						</AmenityItem>
 					))}
 				</AmenitiesWrapper>
-				{/* Show more/less link */}
 				{uniqueFeatures.length > 4 && (
 					<ShowMoreText onClick={toggleShowAmenities}>
 						{showAllAmenities ? "Show less..." : "Show more..."}
@@ -645,9 +629,6 @@ const RoomCard = ({
 				<Distances className='mt-1'>
 					<FaCar /> {distanceToElHaramDriving} <span>Driving</span> to El Haram
 				</Distances>
-				{/* <Distances>
-					<FaWalking /> {distanceToElHaramWalking} Walking to El Haram
-				</Distances> */}
 			</RoomDetails>
 			<div className='habal'></div>
 
@@ -660,7 +641,7 @@ const RoomCard = ({
 			>
 				<StyledButton
 					className='mb-2 mt-1'
-					disabled={!isRoomAvailable} // Disable button if room is unavailable
+					disabled={!isRoomAvailable}
 					style={{
 						backgroundColor: !isRoomAvailable ? "#ccc" : "var(--primaryBlue)",
 						cursor: !isRoomAvailable ? "not-allowed" : "pointer",

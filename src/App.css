@@ -124,3 +124,12 @@ body {
 .arabicFonts {
 	font-family: "Droid Arabic Kufi";
 }
+
+@media (max-width: 480px) {
+	.ant-calendar-range {
+		width: 320px !important;
+	}
+	.ant-calendar-range-part {
+		width: 100% !important;
+	}
+}

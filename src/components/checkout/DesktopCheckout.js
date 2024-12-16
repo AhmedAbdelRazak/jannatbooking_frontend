@@ -47,6 +47,8 @@ const DesktopCheckout = ({
 	setPayWholeAmount,
 	total_price_with_commission,
 	convertedAmounts,
+	depositAmount,
+	averageCommissionRate,
 }) => {
 	return (
 		<DesktopWrapper>
@@ -228,18 +230,16 @@ const DesktopCheckout = ({
 									setPay10Percent(e.target.checked);
 								}}
 							>
-								Pay {Number(roomCart[0].commissionRate * 100).toFixed(0)}%
-								Deposit{" "}
+								Pay {averageCommissionRate}% Deposit{" "}
 								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
-									(SAR{" "}
-									{Number(total_price_with_commission - total_price).toFixed(2)}
-									)
+									(SAR {depositAmount})
 								</span>{" "}
 								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
 									(${convertedAmounts && convertedAmounts.depositUSD})
 								</span>
 							</Checkbox>
 						</TermsWrapper>
+
 						<TermsWrapper>
 							<Checkbox
 								checked={payWholeAmount}
@@ -257,6 +257,7 @@ const DesktopCheckout = ({
 								</span>
 							</Checkbox>
 						</TermsWrapper>
+
 						{guestAgreedOnTermsAndConditions &&
 						(pay10Percent || payWholeAmount) ? (
 							<PaymentDetails
@@ -272,10 +273,10 @@ const DesktopCheckout = ({
 								setPostalCode={setPostalCode}
 								handleReservation={createNewReservation}
 								total={total_price}
-								pay10Percent={pay10Percent}
 								total_price_with_commission={total_price_with_commission}
-								customerDetails={customerDetails}
+								pay10Percent={pay10Percent}
 								convertedAmounts={convertedAmounts}
+								depositAmount={depositAmount}
 							/>
 						) : null}
 					</div>
@@ -301,99 +302,97 @@ const DesktopCheckout = ({
 				</DateRangePickerWrapper>
 
 				{roomCart.length > 0 ? (
-					roomCart.map((room) => (
-						<RoomItem key={room.id}>
-							<RoomImage src={room.photos[0]?.url} alt={room.name} />
+					roomCart.map((room) => {
+						const totalNights = room.pricingByDayWithCommission?.length || 0;
 
-							<RoomDetails>
-								<h3>{room.name}</h3>
-								<p>{room.amount} room(s)</p>
-								<DateRangeWrapper>
-									<label>Dates:</label>
-									<p>
-										{room.startDate} to {room.endDate}
-									</p>
-								</DateRangeWrapper>
-								{/* <p className='total'>
-									Price for {room.nights} night(s): {room.amount * room.price}{" "}
-									SAR
-								</p> */}
-								<h4>
-									{Number(
-										Number(room.price) +
-											Number(room.commissionRate * room.defaultCost)
-									).toFixed(2)}{" "}
-									SAR per night{" "}
-									{/* <strong
-										style={{
-											fontSize: "12px",
-											fontWeight: "bold",
-											color: "darkred",
-										}}
-									>
-										(After Taxes)
-									</strong> */}
-								</h4>
+						// Calculate the price per night and total price
+						const totalCommissionPrice =
+							room.pricingByDayWithCommission?.reduce(
+								(total, day) => total + (day.totalPriceWithCommission || 0),
+								0
+							) || 0;
+						const pricePerNight =
+							totalNights > 0 ? totalCommissionPrice / totalNights : 0;
 
-								{/* Room Quantity Controls */}
-								<QuantityControls>
-									<MinusIcon onClick={() => toggleRoomAmount(room.id, "dec")} />
-									<Quantity>{room.amount}</Quantity>
-									<PlusIcon onClick={() => toggleRoomAmount(room.id, "inc")} />
-								</QuantityControls>
+						return (
+							<RoomItem key={room.id}>
+								<RoomImage src={room.photos[0]?.url} alt={room.name} />
 
-								{/* Updated Accordion for Price Breakdown */}
-								<Collapse
-									accordion
-									expandIcon={({ isActive }) => (
-										<CaretRightOutlined
-											rotate={isActive ? 90 : 0}
-											style={{ color: "var(--primary-color)" }}
+								<RoomDetails>
+									<h3>{room.name}</h3>
+									<p>{room.amount} room(s)</p>
+									<DateRangeWrapper>
+										<label>Dates:</label>
+										<p>
+											{room.startDate} to {room.endDate}
+										</p>
+									</DateRangeWrapper>
+									<h4>{Number(pricePerNight).toFixed(2)} SAR per night</h4>
+
+									{/* Room Quantity Controls */}
+									<QuantityControls>
+										<MinusIcon
+											onClick={() => toggleRoomAmount(room.id, "dec")}
 										/>
-									)}
-									onChange={() =>
-										setExpanded((prev) => ({
-											...prev,
-											[room.id]: !prev[room.id],
-										}))
-									}
-									activeKey={expanded[room.id] ? "1" : null}
-								>
-									<Panel
-										header={
-											<PriceDetailsHeader>
-												<InfoCircleOutlined /> Price Breakdown
-											</PriceDetailsHeader>
-										}
-										key='1'
-									>
-										<PricingList>
-											{/* Ensure pricingByDay is mapped correctly */}
-											{room.pricingByDay && room.pricingByDay.length > 0 ? (
-												room.pricingByDay.map(({ date, price }, index) => {
-													return (
-														<li key={index}>
-															{date}:{" "}
-															{Number(
-																price * (Number(room.commissionRate) + 1)
-															).toFixed(2)}{" "}
-															SAR
-														</li>
-													);
-												})
-											) : (
-												<li>No price breakdown available</li>
-											)}
-										</PricingList>
-									</Panel>
-								</Collapse>
+										<Quantity>{room.amount}</Quantity>
+										<PlusIcon
+											onClick={() => toggleRoomAmount(room.id, "inc")}
+										/>
+									</QuantityControls>
 
-								<RemoveButton onClick={() => removeRoomItem(room.id)}>
-									Remove
-								</RemoveButton>
-							</RoomDetails>
-						</RoomItem>
-					))
+									{/* Updated Accordion for Price Breakdown */}
+									<Collapse
+										accordion
+										expandIcon={({ isActive }) => (
+											<CaretRightOutlined
+												rotate={isActive ? 90 : 0}
+												style={{ color: "var(--primary-color)" }}
+											/>
+										)}
+										onChange={() =>
+											setExpanded((prev) => ({
+												...prev,
+												[room.id]: !prev[room.id],
+											}))
+										}
+										activeKey={expanded[room.id] ? "1" : null}
+									>
+										<Panel
+											header={
+												<PriceDetailsHeader>
+													<InfoCircleOutlined /> Price Breakdown
+												</PriceDetailsHeader>
+											}
+											key='1'
+										>
+											<PricingList>
+												{room.pricingByDayWithCommission &&
+												room.pricingByDayWithCommission.length > 0 ? (
+													room.pricingByDayWithCommission.map(
+														({ date, totalPriceWithCommission }, index) => {
+															return (
+																<li key={index}>
+																	{date}:{" "}
+																	{Number(totalPriceWithCommission).toFixed(2)}{" "}
+																	SAR
+																</li>
+															);
+														}
+													)
+												) : (
+													<li>No price breakdown available</li>
+												)}
+											</PricingList>
+										</Panel>
+									</Collapse>
+
+									<RemoveButton onClick={() => removeRoomItem(room.id)}>
+										Remove
+									</RemoveButton>
+								</RoomDetails>
+							</RoomItem>
+						);
+					})
 				) : (
 					<p>No rooms selected.</p>
 				)}

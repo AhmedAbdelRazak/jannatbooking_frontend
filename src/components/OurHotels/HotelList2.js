@@ -560,7 +560,7 @@ const FreeCancellation = styled.p`
 		text-align: center;
 		/* margin-top: 10px !important; */
 		padding-top: 0px !important;
-		font-size: 0.72rem;
+		font-size: 0.65rem;
 	}
 `;
 
@@ -599,7 +599,7 @@ const ReceptionChat = styled.div`
 	cursor: pointer;
 
 	@media (max-width: 800px) {
-		width: 50% !important;
+		width: 63% !important;
 		margin-bottom: 10px;
 		font-size: 10px;
 	}

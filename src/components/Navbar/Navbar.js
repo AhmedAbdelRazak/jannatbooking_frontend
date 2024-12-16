@@ -197,7 +197,12 @@ const Navbar = () => {
 					</CartIconWrapper>
 				</IconsWrapper>
 
-				<MobileIcon onClick={toggleDrawer}>☰</MobileIcon>
+				<MobileIcon
+					isArabic={chosenLanguage === "Arabic"}
+					onClick={toggleDrawer}
+				>
+					☰
+				</MobileIcon>
 			</NavbarWrapper>
 			<SideDrawer isOpen={isDrawerOpen} language={chosenLanguage === "Arabic"}>
 				{chosenLanguage === "Arabic" ? (
@@ -521,6 +526,8 @@ const MobileIcon = styled.div`
 	display: none;
 	color: white;
 	font-size: 1.5rem;
+	margin-left: ${(props) => (props.isArabic ? "" : "10px")};
+	margin-right: ${(props) => (props.isArabic ? "15px" : "")};
 
 	@media (max-width: 768px) {
 		display: block;

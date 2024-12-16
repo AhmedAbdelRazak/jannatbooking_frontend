@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useHistory } from "react-router-dom";
 import { DatePicker, Select, InputNumber, Button } from "antd";
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 import { toast } from "react-toastify";
 import {
 	UserOutlined,
@@ -28,6 +28,8 @@ const Search = ({
 	const [calendarStartDate, setCalendarStartDate] = useState(
 		initialSearchParams.dates?.[0] || dayjs().add(1, "day")
 	);
+
+	const [invalidFields, setInvalidFields] = useState({});
 
 	const history = useHistory();
 
@@ -59,20 +61,31 @@ const Search = ({
 		}
 	};
 
-	const handleSelectChange = (value, field) => {
+	const handleSelectChange = (value, name) => {
 		setSearchParams((prevParams) => ({
 			...prevParams,
-			[field]: value,
+			[name]: value,
+		}));
+		setInvalidFields((prevInvalidFields) => ({
+			...prevInvalidFields,
+			[name]: false, // Clear error state for the field when it's updated
 		}));
 	};
 
+	const validateFields = () => {
+		const invalid = {};
+
+		if (!searchParams.dates.length) invalid.dates = true;
+		if (!searchParams.roomType) invalid.roomType = true;
+		if (!searchParams.destination) invalid.destination = true;
+		if (searchParams.adults === "") invalid.adults = true;
+
+		setInvalidFields(invalid);
+		return Object.keys(invalid).length === 0;
+	};
+
 	const handleSubmit = () => {
-		if (
-			!searchParams.destination ||
-			!searchParams.dates.length ||
-			!searchParams.roomType ||
-			searchParams.adults === ""
-		) {
+		if (!validateFields()) {
 			toast.error("Please fill in all required fields");
 			return;
 		}
@@ -107,7 +120,7 @@ const Search = ({
 
 	return (
 		<SearchWrapper>
-			<DestinationWrapper>
+			<DestinationWrapper invalid={invalidFields.destination}>
 				<Select
 					style={{ width: "100%" }}
 					placeholder='Where would you like to go?'
@@ -129,47 +142,52 @@ const Search = ({
 					defaultPickerValue={[calendarStartDate]}
 					picker='date'
 					panelRender={panelRender}
+					invalid={invalidFields.dates}
 				/>
 
-				<Select
-					style={{ width: "100%" }}
-					suffixIcon={<CalendarOutlined />}
-					placeholder='Select room type'
-					onChange={(value) => handleSelectChange(value, "roomType")}
-					value={searchParams.roomType}
-				>
-					<Option value=''>Room Type</Option>
-					<Option value='all'>All Rooms</Option>
-					{distinctRoomTypes.map((roomType) => (
-						<Option key={roomType} value={roomType}>
-							{roomType}
-						</Option>
-					))}
-				</Select>
+				<SelectWrapper invalid={invalidFields.roomType}>
+					<Select
+						style={{ width: "100%" }}
+						suffixIcon={<CalendarOutlined />}
+						placeholder='Select room type'
+						className='mb-3'
+						onChange={(value) => handleSelectChange(value, "roomType")}
+						value={searchParams.roomType}
+					>
+						<Option value=''>Room Type</Option>
+						<Option value='all'>All Rooms</Option>
+						{distinctRoomTypes.map((roomType) => (
+							<Option key={roomType} value={roomType}>
+								{roomType}
+							</Option>
+						))}
+					</Select>
+				</SelectWrapper>
 
-				<InputNumberWrapper>
-					<InputNumber
-						className='w-100'
-						prefix={<UserOutlined />}
-						min={1}
-						max={10}
-						placeholder='Adults'
-						onChange={(value) => handleSelectChange(value, "adults")}
-						value={searchParams.adults}
-					/>
-				</InputNumberWrapper>
-
-				<InputNumberWrapper>
-					<InputNumber
-						className='w-100'
-						prefix={<TeamOutlined />}
-						min={0}
-						max={10}
-						placeholder='Children'
-						onChange={(value) => handleSelectChange(value, "children")}
-						value={searchParams.children}
-					/>
-				</InputNumberWrapper>
+				<AdultsChildrenWrapper>
+					<InputNumberWrapper invalid={invalidFields.adults}>
+						<InputNumber
+							className='w-100'
+							prefix={<UserOutlined />}
+							min={1}
+							max={10}
+							placeholder='Adults'
+							onChange={(value) => handleSelectChange(value, "adults")}
+							value={searchParams.adults}
+						/>
+					</InputNumberWrapper>
+					<InputNumberWrapper>
+						<InputNumber
+							className='w-100'
+							prefix={<TeamOutlined />}
+							min={0}
+							max={10}
+							placeholder='Children'
+							onChange={(value) => handleSelectChange(value, "children")}
+							value={searchParams.children}
+						/>
+					</InputNumberWrapper>
+				</AdultsChildrenWrapper>
 			</InputsWrapper>
 
 			<SearchButtonWrapper>
@@ -184,6 +202,10 @@ const Search = ({
 export default Search;
 
 // Styled-components for styling
+
+const highlightBorder = css`
+	border: 1px solid red;
+`;
 
 const SearchWrapper = styled.div`
 	position: absolute;
@@ -221,6 +243,7 @@ const SearchWrapper = styled.div`
 const DestinationWrapper = styled.div`
 	width: 100%;
 	margin-bottom: 10px;
+	${(props) => props.invalid && highlightBorder};
 
 	.ant-select-selector {
 		padding-top: 7px !important;
@@ -236,6 +259,7 @@ const InputsWrapper = styled.div`
 	width: 100%;
 	grid-template-columns: repeat(4, 1fr);
 	gap: 10px;
+	${(props) => props.invalid && highlightBorder};
 
 	@media (max-width: 768px) {
 		grid-template-columns: 1fr;
@@ -272,21 +296,16 @@ const SearchButtonWrapper = styled.div`
 `;
 
 const StyledRangePickerContainer = styled.div`
-	@media (max-width: 768px) {
-		.ant-picker-panel:last-child {
-			width: 0;
-			overflow: hidden;
-
-			.ant-picker-header,
-			.ant-picker-body {
-				display: none;
-			}
+	@media (max-width: 576px) {
+		.ant-picker-panels {
+			flex-direction: column !important;
 		}
 	}
 `;
 
 const RangeDatePicker = styled(RangePicker)`
 	width: 100%;
+	${(props) => props.invalid && highlightBorder};
 
 	.ant-picker-input {
 		display: flex;
@@ -299,6 +318,7 @@ const RangeDatePicker = styled(RangePicker)`
 
 const InputNumberWrapper = styled.div`
 	width: 100%;
+	${(props) => props.invalid && highlightBorder};
 
 	.ant-input-number {
 		width: 100%;
@@ -307,5 +327,33 @@ const InputNumberWrapper = styled.div`
 			padding-top: 7px;
 			padding-bottom: 7px;
 		}
+	}
+`;
+
+const SelectWrapper = styled.div`
+	width: 100%;
+	${(props) => props.invalid && highlightBorder};
+
+	.ant-select-selector {
+		padding-top: 7px !important;
+		padding-bottom: 7px !important;
+		height: auto !important;
+		display: flex;
+		align-items: center;
+	}
+`;
+
+const AdultsChildrenWrapper = styled.div`
+	display: grid;
+	grid-template-columns: repeat(
+		2,
+		1fr
+	); /* Two equal columns for Adults and Children */
+	gap: 10px;
+	width: 100%;
+	${(props) => props.invalid && highlightBorder};
+
+	@media (min-width: 768px) {
+		grid-column: span 2; /* Ensure Adults and Children span two columns together */
 	}
 `;

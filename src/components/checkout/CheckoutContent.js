@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
 import dayjs from "dayjs";
@@ -15,6 +15,39 @@ import DesktopCheckout from "./DesktopCheckout";
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
 const { Option } = Select;
+
+const calculateDepositDetails = (roomCart) => {
+	if (!roomCart || roomCart.length === 0) {
+		return { averageCommissionRate: 0, depositAmount: 0 };
+	}
+
+	const totalCommissionRate = roomCart.reduce((total, room) => {
+		const roomCommissionRate = room.pricingByDayWithCommission?.reduce(
+			(sum, day) => sum + (day.commissionRate || 0),
+			0
+		);
+		const daysCount = room.pricingByDayWithCommission?.length || 1;
+		return total + roomCommissionRate / daysCount;
+	}, 0);
+
+	const averageCommissionRate = totalCommissionRate / roomCart.length;
+
+	const depositAmount = roomCart.reduce((total, room) => {
+		return (
+			total +
+			room.pricingByDayWithCommission?.reduce(
+				(sum, day) =>
+					sum + day.totalPriceWithCommission * (day.commissionRate || 0),
+				0
+			)
+		);
+	}, 0);
+
+	return {
+		averageCommissionRate: Number(averageCommissionRate * 100).toFixed(2), // Percentage
+		depositAmount: Number(depositAmount).toFixed(2), // Total deposit amount
+	};
+};
 
 const CheckoutContent = () => {
 	const {
@@ -56,10 +89,16 @@ const CheckoutContent = () => {
 		totalUSD: null,
 	});
 
+	const { averageCommissionRate, depositAmount } = useMemo(
+		() => calculateDepositDetails(roomCart),
+		[roomCart]
+	);
+
+	console.log(roomCart, "roomCartroomCart");
 	useEffect(() => {
 		// Fetch conversion for both deposit and total amounts
 		const fetchConversion = async () => {
-			const deposit = total_price_with_commission - total_price;
+			const deposit = depositAmount;
 			const total = total_price_with_commission;
 			const amounts = [deposit, total];
 
@@ -81,22 +120,41 @@ const CheckoutContent = () => {
 	// Function to transform roomCart into pickedRoomsType format
 	const transformRoomCartToPickedRoomsType = (roomCart) => {
 		return roomCart.flatMap((room) => {
-			// For each room, create an array of objects where each room's "amount" becomes multiple objects
 			return Array.from({ length: room.amount }, () => {
-				const averagePriceWithCommission = room.pricingByDayWithCommission
-					? room.pricingByDayWithCommission.reduce(
-							(sum, day) => sum + Number(day.price),
-							0
-						) / room.pricingByDayWithCommission.length
-					: 0;
+				// Transform each day in pricingByDayWithCommission
+				const pricingDetails =
+					room.pricingByDayWithCommission?.map((day) => ({
+						date: day.date,
+						price: day.totalPriceWithCommission, // Use totalPriceWithCommission
+						rootPrice: Number(day.rootPrice) || 0, // Use rootPrice
+						commissionRate: day.commissionRate || 0, // Use commissionRate
+						totalPriceWithCommission: Number(day.totalPriceWithCommission), // Keep totalPriceWithCommission
+						totalPriceWithoutCommission: Number(day.price), // Use price from roomCart
+					})) || [];
+
+				// Calculate the average price with commission
+				const averagePriceWithCommission =
+					pricingDetails.reduce(
+						(sum, day) => sum + day.totalPriceWithCommission,
+						0
+					) / pricingDetails.length;
 
 				return {
-					room_type: room.roomType, // Using "roomType" as room_type
-					displayName: room.name, // To store the display name
-					chosenPrice: Number(averagePriceWithCommission).toFixed(2), // Average price from pricingByDayWithCommission
+					room_type: room.roomType, // Room type
+					displayName: room.name, // Display name
+					chosenPrice: Number(averagePriceWithCommission).toFixed(2), // Average price from pricing details
 					count: 1, // Each room is counted individually in pickedRoomsType
-					pricingByDay: room.pricingByDayWithCommission || [], // Pricing breakdown by day
+					pricingByDay: pricingDetails, // Transformed pricing details
 					roomColor: room.roomColor, // Room color
+					// Additional calculated totals
+					totalPriceWithCommission: pricingDetails.reduce(
+						(sum, day) => sum + day.totalPriceWithCommission,
+						0
+					), // Total price with commission
+					hotelShouldGet: pricingDetails.reduce(
+						(sum, day) => sum + day.rootPrice,
+						0
+					), // Total price without commission
 				};
 			});
 		});
@@ -271,12 +329,8 @@ const CheckoutContent = () => {
 			children: Number(roomCart[0].children) ? Number(roomCart[0].children) : 0,
 			total_amount: total_price_with_commission,
 			payment: pay10Percent ? "Deposit Paid" : "Paid Online",
-			paid_amount: pay10Percent
-				? Number(Number(total_price_with_commission) - Number(total_price))
-				: total_price_with_commission,
-			commission: Number(
-				Number(total_price_with_commission) - Number(total_price)
-			),
+			paid_amount: pay10Percent ? depositAmount : total_price_with_commission,
+			commission: depositAmount,
 
 			commissionPaid: true,
 
@@ -375,6 +429,18 @@ const CheckoutContent = () => {
 
 						{roomCart.length > 0 ? (
 							roomCart.map((room) => {
+								const totalNights =
+									room.pricingByDayWithCommission?.length || 0;
+
+								// Calculate the price per night and total price
+								const totalCommissionPrice =
+									room.pricingByDayWithCommission?.reduce(
+										(total, day) => total + (day.totalPriceWithCommission || 0),
+										0
+									) || 0;
+								const pricePerNight =
+									totalNights > 0 ? totalCommissionPrice / totalNights : 0;
+
 								return (
 									<RoomItem key={room.id}>
 										<RoomImage src={room.photos[0]?.url} alt={room.name} />
@@ -388,26 +454,7 @@ const CheckoutContent = () => {
 													{room.startDate} to {room.endDate}
 												</p>
 											</DateRangeWrapper>
-											{/* <p className='total'>
-												Price for {room.nights} night(s):{" "}
-												{room.amount * room.price} SAR
-											</p> */}
-											<h4>
-												{Number(
-													Number(room.price) +
-														Number(room.commissionRate * room.defaultCost)
-												).toFixed(2)}{" "}
-												SAR per night{" "}
-												{/* <strong
-													style={{
-														fontSize: "12px",
-														fontWeight: "bold",
-														color: "darkred",
-													}}
-												>
-													(After Taxes)
-												</strong> */}
-											</h4>
+											<h4>{Number(pricePerNight).toFixed(2)} SAR per night</h4>
 
 											{/* Room Quantity Controls */}
 											<QuantityControls>
@@ -446,18 +493,16 @@ const CheckoutContent = () => {
 													key='1'
 												>
 													<PricingList>
-														{/* Ensure pricingByDay is mapped correctly */}
-														{room.pricingByDay &&
-														room.pricingByDay.length > 0 ? (
-															room.pricingByDay.map(
-																({ date, price }, index) => {
+														{room.pricingByDayWithCommission &&
+														room.pricingByDayWithCommission.length > 0 ? (
+															room.pricingByDayWithCommission.map(
+																({ date, totalPriceWithCommission }, index) => {
 																	return (
 																		<li key={index}>
 																			{date}:{" "}
-																			{Number(
-																				price *
-																					(Number(room.commissionRate) + 1)
-																			).toFixed(2)}{" "}
+																			{Number(totalPriceWithCommission).toFixed(
+																				2
+																			)}{" "}
 																			SAR
 																		</li>
 																	);
@@ -485,7 +530,19 @@ const CheckoutContent = () => {
 						<TotalsWrapper>
 							<p>Total Rooms: {total_rooms}</p>
 							<p className='total-price'>
-								Total Price: {Number(total_price_with_commission).toFixed(2)}{" "}
+								Total Price:{" "}
+								{Number(
+									roomCart.reduce(
+										(total, room) =>
+											total +
+											room.pricingByDayWithCommission.reduce(
+												(subTotal, day) =>
+													subTotal + day.totalPriceWithCommission,
+												0
+											),
+										0
+									)
+								).toFixed(2)}{" "}
 								SAR
 							</p>
 						</TotalsWrapper>
@@ -668,18 +725,16 @@ const CheckoutContent = () => {
 									setPay10Percent(e.target.checked);
 								}}
 							>
-								Pay {Number(roomCart[0].commissionRate * 100).toFixed(0)}%
-								Deposit{" "}
+								Pay {averageCommissionRate}% Deposit{" "}
 								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
-									(SAR{" "}
-									{Number(total_price_with_commission - total_price).toFixed(2)}
-									)
+									(SAR {depositAmount})
 								</span>{" "}
 								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
 									(${convertedAmounts && convertedAmounts.depositUSD})
 								</span>
 							</Checkbox>
 						</TermsWrapper>
+
 						<TermsWrapper>
 							<Checkbox
 								checked={payWholeAmount}
@@ -697,6 +752,7 @@ const CheckoutContent = () => {
 								</span>
 							</Checkbox>
 						</TermsWrapper>
+
 						{guestAgreedOnTermsAndConditions &&
 						(pay10Percent || payWholeAmount) ? (
 							<PaymentDetails
@@ -715,6 +771,7 @@ const CheckoutContent = () => {
 								total_price_with_commission={total_price_with_commission}
 								pay10Percent={pay10Percent}
 								convertedAmounts={convertedAmounts}
+								depositAmount={depositAmount}
 							/>
 						) : null}
 					</div>
@@ -757,6 +814,8 @@ const CheckoutContent = () => {
 				setPayWholeAmount={setPayWholeAmount}
 				total_price_with_commission={total_price_with_commission}
 				convertedAmounts={convertedAmounts}
+				depositAmount={depositAmount}
+				averageCommissionRate={averageCommissionRate}
 			/>
 		</CheckoutContentWrapper>
 	);

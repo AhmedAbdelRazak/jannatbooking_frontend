@@ -21,6 +21,8 @@ const SidebarCartDrawer = () => {
 		total_price_with_commission,
 	} = useCartContext();
 
+	console.log(roomCart, "roomCartroomCart");
+
 	const [selectedCurrency, setSelectedCurrency] = useState("SAR");
 	const [currencyRates, setCurrencyRates] = useState({});
 
@@ -61,6 +63,10 @@ const SidebarCartDrawer = () => {
 	// Disable past dates
 	const disabledDate = (current) => current && current < dayjs().endOf("day");
 
+	const panelRender = (panelNode) => (
+		<StyledRangePickerContainer>{panelNode}</StyledRangePickerContainer>
+	);
+
 	return (
 		<>
 			<Overlay isOpen={isSidebarOpen2} onClick={closeSidebar2} />
@@ -71,20 +77,16 @@ const SidebarCartDrawer = () => {
 				{/* Ant Design Date Range Picker - Displayed only once */}
 				<DateRangePickerWrapper>
 					<ConfigProvider locale={locale}>
-						<RangePicker
+						<RangeDatePicker
 							format='YYYY-MM-DD'
-							disabledDate={disabledDate}
-							onChange={(dates) => handleDateChange(dates)}
+							onChange={handleDateChange}
 							value={
 								roomCart.length > 0
-									? [
-											dayjs(roomCart[0]?.startDate), // Preselect the start date from the first room
-											dayjs(roomCart[0]?.endDate), // Preselect the end date from the first room
-										]
-									: null // Default to null if the cart is empty
+									? [dayjs(roomCart[0]?.startDate), dayjs(roomCart[0]?.endDate)]
+									: null
 							}
-							style={{ width: "100%" }} // Full-width on small screens
-							dropdownClassName='mobile-friendly-picker' // Custom styling
+							disabledDate={disabledDate}
+							panelRender={panelRender}
 						/>
 					</ConfigProvider>
 				</DateRangePickerWrapper>
@@ -92,14 +94,24 @@ const SidebarCartDrawer = () => {
 				<DrawerContent>
 					{roomCart.length > 0 ? (
 						roomCart.map((room) => {
-							// Calculate converted prices
-							const pricePerNight =
-								Number(room.price) +
-								Number(room.commissionRate * room.defaultCost);
-							const totalAmount = room.amount * room.nights * pricePerNight;
+							// Calculate the total price with commission
+							const totalPriceWithCommission = room.pricingByDay.reduce(
+								(total, day) =>
+									total + day.price + day.rootPrice * day.commissionRate,
+								0
+							);
 
-							const convertedPricePerNight = convertCurrency(pricePerNight);
-							const convertedTotalAmount = convertCurrency(totalAmount);
+							// Calculate the price per night with commission
+							const pricePerNightWithCommission =
+								totalPriceWithCommission / room.nights;
+
+							// Convert currency
+							const convertedPricePerNight = convertCurrency(
+								pricePerNightWithCommission
+							);
+							const convertedTotalAmount = convertCurrency(
+								totalPriceWithCommission
+							);
 
 							return (
 								<CartItem key={room.id}>
@@ -142,6 +154,7 @@ const SidebarCartDrawer = () => {
 						<EmptyMessage>No reservations yet.</EmptyMessage>
 					)}
 				</DrawerContent>
+
 				<TotalsWrapper>
 					<TotalRooms>Total Rooms: {total_rooms}</TotalRooms>
 					<TotalPrice>
@@ -193,8 +206,7 @@ const DrawerWrapper = styled.div`
 	padding: 20px;
 	display: flex;
 	flex-direction: column;
-	z-index: 200;
-	z-index: 10000;
+	z-index: 1001;
 	overflow-y: auto;
 	transition:
 		transform 0.3s ease-in-out,
@@ -230,43 +242,21 @@ const DrawerHeader = styled.h2`
 	margin-bottom: 15px;
 `;
 
-// Date Range Picker Wrapper Styling
+const StyledRangePickerContainer = styled.div`
+	@media (max-width: 576px) {
+		.ant-picker-panels {
+			flex-direction: column !important;
+		}
+	}
+`;
+
 const DateRangePickerWrapper = styled.div`
 	margin: 10px auto;
 	width: 85%;
+`;
 
-	@media (max-width: 768px) {
-		/* Ensure the date picker input takes the full width on mobile */
-		.ant-picker {
-			width: 100% !important;
-		}
-
-		/* Target the dropdown and ensure it takes the full screen width */
-		.ant-picker-dropdown {
-			width: 100vw !important; /* Full screen width */
-			left: 0 !important; /* Align to the left */
-			right: 0 !important; /* Align to the right */
-			top: 50px !important; /* Adjust top for proper placement */
-			transform: none !important; /* Remove any transform offsets */
-		}
-
-		/* Ensure the picker container takes the full width */
-		.ant-picker-range-wrapper {
-			width: 100% !important;
-			margin: 0 auto; /* Center the content */
-		}
-
-		/* Make the date panel fill the screen height on mobile */
-		.ant-picker-date-panel-container {
-			height: 100vh !important; /* Full height of the screen */
-			overflow-y: scroll !important; /* Allow scrolling for better UX */
-		}
-
-		/* Optional: Customize the calendar for smaller screens */
-		.ant-picker-calendar {
-			font-size: 0.85rem !important; /* Slightly reduce the font size */
-		}
-	}
+const RangeDatePicker = styled(RangePicker)`
+	width: 100%;
 `;
 
 const DrawerContent = styled.div`

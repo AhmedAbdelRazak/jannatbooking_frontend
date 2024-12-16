@@ -16,6 +16,7 @@ const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
 
 // Helper function to calculate pricing by day
+// eslint-disable-next-line
 const calculatePricingByDay = (
 	pricingRate,
 	startDate,
@@ -107,25 +108,46 @@ const GeneratedLinkCheckout = () => {
 			params.get(`roomType${roomIndex}`) &&
 			params.get(`displayName${roomIndex}`)
 		) {
-			pickedRooms.push({
-				roomType: params.get(`roomType${roomIndex}`),
-				displayName: params.get(`displayName${roomIndex}`),
-				count: parseInt(params.get(`roomCount${roomIndex}`), 10),
-				pricePerNight: parseFloat(params.get(`pricePerNight${roomIndex}`)) || 0,
-				commissionRate:
-					parseFloat(params.get(`commissionRate${roomIndex}`)) || 1, // Extract commissionRate
-			});
+			try {
+				// Parse and decode pricing breakdown
+				const pricingBreakdown = JSON.parse(
+					decodeURIComponent(params.get(`pricingBreakdown${roomIndex}`) || "[]")
+				);
+
+				pickedRooms.push({
+					roomType: params.get(`roomType${roomIndex}`),
+					displayName: params.get(`displayName${roomIndex}`),
+					count: parseInt(params.get(`roomCount${roomIndex}`), 10) || 1,
+					pricePerNight:
+						parseFloat(params.get(`pricePerNight${roomIndex}`)) || 0,
+					commissionRate:
+						parseFloat(params.get(`commissionRate${roomIndex}`)) || 1,
+					pricingByDay: pricingBreakdown.map((day) => ({
+						date: day.date,
+						price: parseFloat(day.price) || 0,
+						rootPrice: parseFloat(day.rootPrice) || 0,
+						commissionRate: parseFloat(day.commissionRate) || 0,
+						totalPriceWithCommission:
+							parseFloat(day.totalPriceWithCommission) || 0,
+					})),
+				});
+			} catch (error) {
+				console.error(
+					`Error parsing pricingBreakdown for room ${roomIndex}:`,
+					error
+				);
+			}
+
 			roomIndex++;
 		}
 
-		// Fetch hotel details and adjust pricing by day
+		// Fetch hotel details and enrich room data
 		if (hotelId) {
 			gettingHotelDetailsById(hotelId).then((data) => {
 				if (data) {
 					setHotelDetails(data);
 
-					// Update pickedRooms with adjusted pricing by day
-					const updatedPickedRooms = pickedRooms.map((room) => {
+					const enrichedRooms = pickedRooms.map((room) => {
 						const matchingRoom = data.roomCountDetails.find(
 							(detail) =>
 								detail.roomType === room.roomType &&
@@ -133,31 +155,22 @@ const GeneratedLinkCheckout = () => {
 						);
 
 						if (matchingRoom) {
-							const calculatedPricing = calculatePricingByDay(
-								matchingRoom.pricingByDay || [],
-								params.get("checkInDate"),
-								params.get("checkOutDate"),
-								room.pricePerNight,
-								room.commissionRate // Pass commission rate to adjust pricing
-							);
-
+							// Merge backend data with URL data
 							return {
 								...room,
-								photos: matchingRoom.photos || [], // Add photos
-								pricingByDay: calculatedPricing,
+								photos: matchingRoom.photos || [],
 							};
 						} else {
-							message.error(
-								"One of the selected room details not found in hotel data."
+							console.warn(
+								`Room details not found for room type: ${room.roomType}`
 							);
 							return room;
 						}
 					});
 
-					// Update formData with new pickedRooms
 					setFormData((prevFormData) => ({
 						...prevFormData,
-						pickedRooms: updatedPickedRooms,
+						pickedRooms: enrichedRooms,
 					}));
 				} else {
 					message.error("Failed to fetch hotel details.");
@@ -176,27 +189,17 @@ const GeneratedLinkCheckout = () => {
 				: null,
 			numberOfNights: parseInt(params.get("numberOfNights"), 10) || 0,
 			totalAmount: parseFloat(params.get("totalAmount")) || 0,
-			totalCommission: parseFloat(params.get("totalCommission")) || 0, // Added totalCommission parsing
+			totalCommission: parseFloat(params.get("totalCommission")) || 0,
 			adults: parseInt(params.get("adults"), 10) || 1,
 			children: parseInt(params.get("children"), 10) || 0,
 			nationality: params.get("nationality") || "",
-			name: params.get("name") ? params.get("name") : user ? user.name : "",
-			email:
-				user && user.email
-					? user.email
-					: params.get("email")
-						? params.get("email")
-						: "",
-			phone:
-				user && user.phone
-					? user.phone
-					: params.get("phone")
-						? params.get("phone")
-						: "",
+			name: params.get("name") || "",
+			email: params.get("email") || "",
+			phone: params.get("phone") || "",
 			pickedRooms,
 		}));
 		// eslint-disable-next-line
-	}, [location.search]); // Removed user dependency
+	}, [location.search]);
 
 	useEffect(() => {
 		const fetchConversion = async () => {
@@ -222,16 +225,42 @@ const GeneratedLinkCheckout = () => {
 	// eslint-disable-next-line
 	const transformPickedRoomsToPickedRoomsType = (pickedRooms) => {
 		return pickedRooms.flatMap((room) => {
-			return Array.from({ length: room.count }, () => ({
-				room_type: room.roomType, // Room type
-				displayName: room.displayName, // Display name for the room
-				chosenPrice: (
-					room.pricePerNight *
-					(Number(room.commissionRate) / 100 + 1)
-				).toFixed(2), // Use specific room commissionRate
-				count: 1, // Each room counted individually
-				pricingByDay: room.pricingByDay || [], // Pricing breakdown by day
-			}));
+			// Process each room individually
+			return Array.from({ length: room.count }, () => {
+				// Transform each day's pricing details for the room
+				const pricingDetails = room.pricingByDay.map((day) => ({
+					date: day.date,
+					price: Number(day.price), // Base price of the room
+					rootPrice: Number(day.rootPrice), // Hotel's base price
+					commissionRate: Number(day.commissionRate), // Commission rate
+					totalPriceWithCommission: Number(day.totalPriceWithCommission), // Final price with commission
+					totalPriceWithoutCommission: Number(day.price), // Original price without added commission
+				}));
+
+				// Calculate the average price with commission
+				const averagePriceWithCommission =
+					pricingDetails.reduce(
+						(sum, day) => sum + day.totalPriceWithCommission,
+						0
+					) / pricingDetails.length;
+
+				return {
+					room_type: room.roomType, // Room type
+					displayName: room.displayName, // Display name
+					chosenPrice: averagePriceWithCommission.toFixed(2), // Average price with commission
+					count: 1, // Each room is represented individually
+					pricingByDay: pricingDetails, // Detailed pricing breakdown
+					// Additional calculated totals
+					totalPriceWithCommission: pricingDetails.reduce(
+						(sum, day) => sum + day.totalPriceWithCommission,
+						0
+					), // Total price with commission
+					hotelShouldGet: pricingDetails.reduce(
+						(sum, day) => sum + day.rootPrice,
+						0
+					), // Total base price the hotel should get
+				};
+			});
 		});
 	};
 
@@ -442,20 +471,32 @@ const GeneratedLinkCheckout = () => {
 				activeKey={mobileExpanded ? "1" : null}
 			>
 				<Panel header='Your Reservation Summary' key='1'>
-					{hotelDetails && (
-						<RightSection>
+					<RightSection>
+						<h2>Your Reservation</h2>
+
+						{/* Date Range Picker */}
+						<DateRangePickerWrapper>
 							<RangePicker
+								format='YYYY-MM-DD'
 								value={[formData.checkInDate, formData.checkOutDate]}
 								disabled
 								style={{ width: "100%", marginBottom: "10px" }}
+								dropdownClassName='mobile-friendly-picker'
 							/>
-							{formData.pickedRooms.map((room, index) => {
-								// Calculate average price per night with commission
-								const averagePricePerNight =
-									room.pricingByDay.reduce(
-										(acc, day) => acc + parseFloat(day.price),
+						</DateRangePickerWrapper>
+
+						{formData.pickedRooms.length > 0 ? (
+							formData.pickedRooms.map((room, index) => {
+								const totalNights = room.pricingByDay?.length || 0;
+
+								// Calculate the price per night and total price
+								const totalPriceWithCommission =
+									room.pricingByDay?.reduce(
+										(total, day) => total + (day.totalPriceWithCommission || 0),
 										0
-									) / room.pricingByDay.length;
+									) || 0;
+								const pricePerNight =
+									totalNights > 0 ? totalPriceWithCommission / totalNights : 0;
 
 								return (
 									<RoomItem key={index}>
@@ -463,6 +504,7 @@ const GeneratedLinkCheckout = () => {
 											src={room.photos?.[0]?.url || "/default-room.jpg"}
 											alt='Room'
 										/>
+
 										<RoomDetails>
 											<h3>{room.displayName}</h3>
 											<p>{room.count} Room(s)</p>
@@ -474,13 +516,16 @@ const GeneratedLinkCheckout = () => {
 												Dates: {formData.checkInDate?.format("YYYY-MM-DD")} to{" "}
 												{formData.checkOutDate?.format("YYYY-MM-DD")}
 											</p>
-											<h4>{averagePricePerNight.toFixed(2)} SAR per night</h4>
-										</RoomDetails>
-										{room.pricingByDay && room.pricingByDay.length > 0 && (
+											<h4>{Number(pricePerNight).toFixed(2)} SAR per night</h4>
+
+											{/* Accordion for Price Breakdown */}
 											<Collapse
 												accordion
 												expandIcon={({ isActive }) => (
-													<CaretRightOutlined rotate={isActive ? 90 : 0} />
+													<CaretRightOutlined
+														rotate={isActive ? 90 : 0}
+														style={{ color: "var(--primary-color)" }}
+													/>
 												)}
 											>
 												<Panel
@@ -492,29 +537,53 @@ const GeneratedLinkCheckout = () => {
 													key='1'
 												>
 													<PricingList>
-														{room.pricingByDay.map(({ date, price }, i) => (
-															<li key={i}>
-																{dayjs(date).format("YYYY-MM-DD")}: {price} SAR
-															</li>
-														))}
+														{room.pricingByDay?.length > 0 ? (
+															room.pricingByDay.map(
+																({ date, totalPriceWithCommission }, i) => (
+																	<li key={i}>
+																		{dayjs(date).format("YYYY-MM-DD")}:{" "}
+																		{Number(totalPriceWithCommission).toFixed(
+																			2
+																		)}{" "}
+																		SAR
+																	</li>
+																)
+															)
+														) : (
+															<li>No price breakdown available</li>
+														)}
 													</PricingList>
 												</Panel>
 											</Collapse>
-										)}
+										</RoomDetails>
 									</RoomItem>
 								);
-							})}
-							{/* Calculate total with commission */}
-							<h4>
-								Total:{" "}
+							})
+						) : (
+							<p>No rooms selected.</p>
+						)}
+
+						{/* Totals Section */}
+						<TotalsWrapper>
+							<p>Total Rooms: {formData.pickedRooms.length}</p>
+							<p className='total-price'>
+								Total Price:{" "}
 								{Number(
-									Number(formData.totalAmount) +
-										Number(formData.totalCommission)
+									formData.pickedRooms.reduce(
+										(total, room) =>
+											total +
+											room.pricingByDay.reduce(
+												(subTotal, day) =>
+													subTotal + day.totalPriceWithCommission,
+												0
+											),
+										0
+									)
 								).toFixed(2)}{" "}
 								SAR
-							</h4>
-						</RightSection>
-					)}
+							</p>
+						</TotalsWrapper>
+					</RightSection>
 				</Panel>
 			</MobileAccordion>
 
@@ -710,51 +779,61 @@ const GeneratedLinkCheckout = () => {
 								Number(formData.totalAmount) + Number(formData.totalCommission)
 							}
 							convertedAmounts={convertedAmounts}
+							depositAmount={Number(formData.totalCommission)}
 						/>
 					) : null}
 				</LeftSection>
 
 				<RightSection>
 					<h2>Your Reservation</h2>
-					{hotelDetails && (
-						<>
-							<RangePicker
-								value={[formData.checkInDate, formData.checkOutDate]}
-								disabled
-								style={{ width: "100%", marginBottom: "10px" }}
-							/>
-							{formData.pickedRooms.map((room, index) => {
-								// Calculate average price per night with commission
-								const averagePricePerNight =
-									room.pricingByDay.reduce(
-										(acc, day) => acc + parseFloat(day.price),
-										0
-									) / room.pricingByDay.length;
 
-								return (
-									<RoomItem key={index}>
-										<RoomImage
-											src={room.photos?.[0]?.url || "/default-room.jpg"}
-											alt='Room'
-										/>
-										<RoomDetails>
-											<h3>{room.displayName}</h3>
-											<p>{room.count} Room(s)</p>
-											<p>
-												{formData.adults} Adult(s), {formData.children} Children
-											</p>
-											<p>
-												Dates: {formData.checkInDate?.format("YYYY-MM-DD")} to{" "}
-												{formData.checkOutDate?.format("YYYY-MM-DD")}
-											</p>
-											<p>{formData.numberOfNights} Nights</p>
-											<h4>{averagePricePerNight.toFixed(2)} SAR per night</h4>
-										</RoomDetails>
+					<RangePicker
+						value={[formData.checkInDate, formData.checkOutDate]}
+						disabled
+						style={{ width: "100%", marginBottom: "10px" }}
+					/>
+
+					{formData.pickedRooms.length > 0 ? (
+						formData.pickedRooms.map((room, index) => {
+							const totalNights = room.pricingByDay.length || 0;
+
+							// Calculate the total price with commission and average price per night
+							const totalPriceWithCommission = room.pricingByDay.reduce(
+								(total, day) => total + day.totalPriceWithCommission,
+								0
+							);
+							const averagePricePerNight =
+								totalNights > 0 ? totalPriceWithCommission / totalNights : 0;
+
+							return (
+								<RoomItem key={index}>
+									<RoomImage
+										src={room.photos?.[0]?.url || "/default-room.jpg"}
+										alt='Room'
+									/>
+
+									<RoomDetails>
+										<h3>{room.displayName}</h3>
+										<p>{room.count} Room(s)</p>
+										<p>
+											{formData.adults} Adult(s), {formData.children} Children
+										</p>
+										<p>
+											Dates: {formData.checkInDate?.format("YYYY-MM-DD")} to{" "}
+											{formData.checkOutDate?.format("YYYY-MM-DD")}
+										</p>
+										<p>{formData.numberOfNights} Nights</p>
+										<h4>{averagePricePerNight.toFixed(2)} SAR per night</h4>
+
+										{/* Accordion for Price Breakdown */}
 										{room.pricingByDay && room.pricingByDay.length > 0 && (
 											<Collapse
 												accordion
 												expandIcon={({ isActive }) => (
-													<CaretRightOutlined rotate={isActive ? 90 : 0} />
+													<CaretRightOutlined
+														rotate={isActive ? 90 : 0}
+														style={{ color: "var(--primary-color)" }}
+													/>
 												)}
 											>
 												<Panel
@@ -766,29 +845,47 @@ const GeneratedLinkCheckout = () => {
 													key='1'
 												>
 													<PricingList>
-														{room.pricingByDay.map(({ date, price }, i) => (
-															<li key={i}>
-																{dayjs(date).format("YYYY-MM-DD")}:{" "}
-																{Number(price).toFixed(2)} SAR
-															</li>
-														))}
+														{room.pricingByDay.map(
+															({ date, totalPriceWithCommission }, i) => (
+																<li key={i}>
+																	{dayjs(date).format("YYYY-MM-DD")}:{" "}
+																	{Number(totalPriceWithCommission).toFixed(2)}{" "}
+																	SAR
+																</li>
+															)
+														)}
 													</PricingList>
 												</Panel>
 											</Collapse>
 										)}
-									</RoomItem>
-								);
-							})}
-							<h4>
-								Total:{" "}
-								{Number(
-									Number(formData.totalAmount) +
-										Number(formData.totalCommission)
-								).toFixed(2)}{" "}
-								SAR
-							</h4>
-						</>
+									</RoomDetails>
+								</RoomItem>
+							);
+						})
+					) : (
+						<p>No rooms selected.</p>
 					)}
+
+					{/* Totals Section */}
+					<TotalsWrapper>
+						<p>Total Rooms: {formData.pickedRooms.length}</p>
+						<p className='total-price'>
+							Total Price:{" "}
+							{Number(
+								formData.pickedRooms.reduce(
+									(total, room) =>
+										total +
+										room.pricingByDay.reduce(
+											(subTotal, day) =>
+												subTotal + day.totalPriceWithCommission,
+											0
+										),
+									0
+								)
+							).toFixed(2)}{" "}
+							SAR
+						</p>
+					</TotalsWrapper>
 				</RightSection>
 			</DesktopWrapper>
 		</GeneratedLinkCheckoutWrapper>
@@ -921,5 +1018,34 @@ const TermsWrapper = styled.div`
 
 	.ant-checkbox-wrapper {
 		margin-left: 10px;
+	}
+`;
+
+const TotalsWrapper = styled.div`
+	margin-top: 20px;
+	padding-top: 10px;
+	border-top: 1px solid #ddd;
+	text-align: center;
+	.total-price {
+		font-size: 1.4rem;
+		font-weight: bold;
+	}
+`;
+
+const DateRangePickerWrapper = styled.div`
+	margin: 10px 0;
+
+	.ant-picker {
+		width: 100%;
+	}
+
+	@media (max-width: 768px) {
+		.ant-picker-dropdown {
+			width: 100vw;
+			left: 0;
+			right: 0;
+			top: 50px;
+			transform: none;
+		}
 	}
 `;

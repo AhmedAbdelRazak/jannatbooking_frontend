@@ -50,16 +50,34 @@ const generateDateRange = (startDate, endDate) => {
 };
 
 // Function to get pricing by day
-const calculatePricingByDay = (pricingRate, startDate, endDate, basePrice) => {
+const calculatePricingByDay = (
+	pricingRate,
+	startDate,
+	endDate,
+	basePrice,
+	defaultCost,
+	roomCommission
+) => {
 	const dateRange = generateDateRange(startDate, endDate);
 
 	return dateRange.map((date) => {
 		const rateForDate = pricingRate.find((rate) => rate.calendarDate === date);
+		const selectedCommissionRate = rateForDate?.commissionRate
+			? rateForDate.commissionRate / 100 // Use commission from pricingRate
+			: roomCommission
+				? roomCommission / 100 // Use room-specific commission
+				: parseFloat(process.env.REACT_APP_COMMISSIONRATE) - 1; // Fallback to default env commission
+
 		return {
 			date,
 			price: rateForDate
-				? parseFloat(rateForDate.price)
-				: parseFloat(basePrice), // Fallback to base price
+				? parseFloat(rateForDate.price) || 0 // Use `price` if available
+				: parseFloat(basePrice || 0), // Fallback to `basePrice`
+			rootPrice: rateForDate
+				? parseFloat(rateForDate.rootPrice) ||
+					parseFloat(defaultCost || basePrice || 0) // Fallback to defaultCost -> basePrice -> 0
+				: parseFloat(defaultCost || basePrice || 0),
+			commissionRate: selectedCommissionRate, // Add selected commission rate for the date
 		};
 	});
 };
@@ -81,6 +99,8 @@ const SingleHotel = ({ selectedHotel }) => {
 
 	const [selectedCurrency, setSelectedCurrency] = useState("SAR");
 	const [currencyRates, setCurrencyRates] = useState({});
+
+	console.log(selectedHotel, "selectedHotel");
 
 	useEffect(() => {
 		const currency = localStorage.getItem("selectedCurrency") || "SAR";
@@ -168,64 +188,71 @@ const SingleHotel = ({ selectedHotel }) => {
 
 		// Calculate pricing by day
 		const pricingByDay = calculatePricingByDay(
-			room.pricingRate,
+			room.pricingRate || [], // Use room-specific pricing rate
 			startDate,
 			endDate,
-			room.price.basePrice
+			room.price.basePrice, // Default base price
+			room.defaultCost, // Fallback cost
+			room.roomCommission ||
+				selectedHotel.commission ||
+				parseFloat(process.env.REACT_APP_COMMISSIONRATE) ||
+				0 // Commission rate fallback
 		);
 
-		// Calculate the total price and number of nights
+		// Calculate total nights
+		const numberOfNights = pricingByDay.length;
+
+		// Calculate total price and commission
 		const totalPrice = pricingByDay.reduce(
 			(total, day) => total + day.price,
 			0
 		);
-		const numberOfNights = pricingByDay.length;
 
-		// Determine commission rate
-		const roomCommission =
-			room.roomCommission ||
-			selectedHotel.commission ||
-			(Number(process.env.REACT_APP_COMMISSIONRATE) - 1) * 100;
+		const totalCommission = pricingByDay.reduce(
+			(total, day) => total + day.rootPrice * (day.commissionRate || 0),
+			0
+		);
 
-		const commissionRate = roomCommission / 100; // Convert to decimal
+		// Calculate per-night price with commission
+		const pricePerNightWithCommission =
+			totalPrice / numberOfNights + totalCommission / numberOfNights;
 
-		// Calculate the average price per night
-		const averagePrice = numberOfNights
-			? (totalPrice / numberOfNights).toFixed(2)
-			: room.price.basePrice;
+		// Calculate total price with commission
 
-		// Room details structure matches OurHotelRooms, with safe checks for photos
+		// eslint-disable-next-line
+		const totalPriceWithCommission = totalPrice + totalCommission;
+
+		// Prepare room details for cart
 		const roomDetails = {
 			id: room._id,
 			name: room.displayName,
 			roomType: room.roomType,
-			price: averagePrice,
-			defaultCost: room.defaultCost || averagePrice, // Pass default cost
-			photos: room.photos || [], // Default to an empty array if photos is undefined
+			price: pricePerNightWithCommission.toFixed(2), // Average nightly price with commission
+			defaultCost: room.defaultCost || room.price.basePrice, // Fallback cost
+			photos: room.photos || [], // Room photos
 			hotelName: selectedHotel.hotelName,
 			hotelAddress: selectedHotel.hotelAddress,
-			firstImage:
-				room.photos && room.photos.length > 0 ? room.photos[0].url : "", // Safe check for first image
-			commissionRate, // Pass calculated commission
 		};
 
-		const adults = 1;
-		// Add room to cart with relevant details, including pricingByDay
+		// Add room to cart
 		addRoomToCart(
-			room._id,
-			roomDetails,
-			startDate,
-			endDate,
-			selectedHotel._id,
-			selectedHotel.belongsTo,
-			pricingByDay,
-			room.roomColor,
-			adults,
-			0,
-			commissionRate
+			room._id, // Room ID
+			roomDetails, // Room details object
+			startDate, // Reservation start date
+			endDate, // Reservation end date
+			selectedHotel._id, // Hotel ID
+			selectedHotel.belongsTo, // Hotel group/chain (if applicable)
+			pricingByDay, // Pricing breakdown by day
+			room.roomColor, // Room color (if applicable)
+			1, // Default adults count
+			0, // Default children count
+			room.roomCommission ||
+				selectedHotel.commission ||
+				parseFloat(process.env.REACT_APP_COMMISSIONRATE) // Commission rate
 		);
 
-		openSidebar2(); // Open the sidebar/cart drawer
+		// Open sidebar to show cart
+		openSidebar2();
 	};
 
 	const handleTabClick = (sectionId) => {
@@ -425,48 +452,37 @@ const SingleHotel = ({ selectedHotel }) => {
 						room.pricingRate || [],
 						startDate,
 						endDate,
-						room.price.basePrice
+						room.price.basePrice,
+						room.defaultCost, // Include defaultCost for fallback
+						room.roomCommission || selectedHotel.commission
 					);
 
-					const totalPrice = pricingByDay.reduce(
-						(total, day) => total + day.price,
-						0
-					);
-
+					console.log(pricingByDay, "pricingByDaypricingByDay");
 					const numberOfNights = pricingByDay.length;
 
 					// Check if any date in the range has a price of 0
 					const isRoomAvailable = !pricingByDay.some((day) => day.price <= 0);
-					console.log(pricingByDay, "pricingByDaypricingByDay");
-					console.log(isRoomAvailable, "isRoomAvailableisRoomAvailable");
 
-					// Determine commission rate and calculate commission
-					const roomCommission =
-						room.roomCommission ||
-						selectedHotel.commission ||
-						(Number(process.env.REACT_APP_COMMISSIONRATE) - 1) * 100;
-					const commissionRate = roomCommission / 100; // Convert to decimal
-					const commission =
-						(room.defaultCost || room.price.basePrice) *
-						numberOfNights *
-						commissionRate;
-
-					// Calculate final prices with commission
-					const pricePerNight = totalPrice / (numberOfNights || 1);
-					const pricePerNightWithCommission =
-						pricePerNight + commission / numberOfNights;
-					const totalPriceWithCommission = totalPrice + commission;
-
-					// Currency conversion
-					const convertedPricePerNight = convertCurrency(
-						pricePerNightWithCommission
+					const totalPriceAfterCommission = pricingByDay.reduce(
+						(total, day) => {
+							const dailyTotal =
+								day.price + (day.rootPrice * day.commissionRate || 0);
+							// console.log(`Date: ${day.date}, Price: ${day.price}, RootPrice: ${day.rootPrice}, CommissionRate: ${day.commissionRate}, Daily Total: ${dailyTotal}`);
+							// console.log(`Running Total (before adding dailyTotal): ${total}`);
+							const updatedTotal = total + dailyTotal;
+							// console.log(`Running Total (after adding dailyTotal): ${updatedTotal}`);
+							return updatedTotal;
+						},
+						0
 					);
-					const convertedTotalPrice = convertCurrency(totalPriceWithCommission);
+
+					// Calculate price per night after commission
+					const pricePerNightAfterCommission =
+						totalPriceAfterCommission / numberOfNights;
 
 					return (
 						<RoomCardWrapper key={room._id || index}>
 							{/* Badge for Unavailability */}
-
 							<RoomImageWrapper dir='ltr'>
 								<Swiper
 									modules={[Pagination, Autoplay, Thumbs]}
@@ -562,19 +578,16 @@ const SingleHotel = ({ selectedHotel }) => {
 							<PriceSection>
 								<FinalPrice>
 									<span className='current-price'>
-										{convertedPricePerNight} {selectedCurrency.toUpperCase()} /
-										Night
+										{convertCurrency(pricePerNightAfterCommission)}{" "}
+										{selectedCurrency.toUpperCase()} / Night
 									</span>
 									<div className='nights'>{numberOfNights} nights</div>
 									<div className='finalTotal'>
-										Total: {convertedTotalPrice}{" "}
+										Total (incl. Commission):{" "}
+										{convertCurrency(totalPriceAfterCommission)}{" "}
 										{selectedCurrency.toUpperCase()}
 									</div>
 								</FinalPrice>
-								{/* <div className='commission'>
-									Commission: {convertCurrency(commission)}{" "}
-									{selectedCurrency.toUpperCase()}
-								</div> */}
 							</PriceSection>
 							<div
 								style={{
@@ -1016,14 +1029,9 @@ const StyledButton = styled(Button)`
 
 // Styled RangePicker container for customizing panel rendering
 const StyledRangePickerContainer = styled.div`
-	@media (max-width: 768px) {
-		.ant-picker-panel:last-child {
-			width: 0;
-			overflow: hidden;
-			.ant-picker-header,
-			.ant-picker-body {
-				display: none;
-			}
+	@media (max-width: 576px) {
+		.ant-picker-panels {
+			flex-direction: column !important;
 		}
 	}
 `;
