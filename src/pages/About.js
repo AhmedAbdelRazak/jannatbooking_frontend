@@ -2,10 +2,12 @@ import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useCartContext } from "../cart_context";
 import { gettingJannatWebsiteData } from "../apiCore"; // Import the function to get data
+import { Helmet } from "react-helmet";
 
 const About = () => {
 	const { chosenLanguage } = useCartContext();
 	const [jannatBookingData, setJannatBookingData] = useState(null);
+	const [plainDescription, setPlainDescription] = useState("");
 	const [loading, setLoading] = useState(false);
 
 	const gettingJannatBookingData = () => {
@@ -25,11 +27,88 @@ const About = () => {
 		// eslint-disable-next-line
 	}, []);
 
+	useEffect(() => {
+		if (jannatBookingData?.aboutUsEnglish) {
+			const cleanedDescription = jannatBookingData.aboutUsEnglish.replace(
+				/<br>/g,
+				""
+			);
+			const plainTextDescription = cleanedDescription.replace(/<[^>]+>/g, "");
+			setPlainDescription(plainTextDescription);
+		}
+	}, [jannatBookingData]); // Safely include 'jannatBookingData' as a dependency
+
 	return (
 		<AboutWrapper
 			dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
 			isArabic={chosenLanguage === "Arabic"}
 		>
+			<Helmet>
+				<meta charSet='utf-8' />
+				<title>About Jannat Booking | Haj & Omrah Hotels | Our Story</title>
+				<meta
+					name='description'
+					content={`Discover Jannat Booking - your trusted platform for Haj and Omrah hotel bookings. Learn about our journey, values, and dedication to providing a seamless pilgrimage experience. ${plainDescription}`}
+				/>
+				<meta
+					name='keywords'
+					content='Jannat Booking, Haj hotel booking, Omrah hotel booking, pilgrimage hotels, Haj accommodations, Umrah reservations, Haj packages, Omrah trips, affordable hotels Haj, luxury Haj hotels, Makkah hotels, Madinah hotels'
+				/>
+
+				{/* Open Graph / Facebook */}
+				<meta property='og:type' content='website' />
+				<meta
+					property='og:title'
+					content='About Jannat Booking | Haj & Omrah Hotels'
+				/>
+				<meta
+					property='og:description'
+					content='Learn more about Jannat Booking and how we make your Haj and Omrah hotel reservations seamless and trustworthy. Explore our story and dedication to pilgrims.'
+				/>
+				<meta property='og:url' content='https://jannatbooking.com/about' />
+				<meta
+					property='og:image'
+					content={
+						jannatBookingData?.aboutUsBanner?.url ||
+						"https://jannatbooking.com/default_banner.jpg"
+					}
+				/>
+				<meta property='og:locale' content='en_US' />
+
+				{/* Twitter */}
+				<meta name='twitter:card' content='summary_large_image' />
+				<meta
+					name='twitter:title'
+					content='About Jannat Booking | Haj & Omrah Hotels'
+				/>
+				<meta
+					name='twitter:description'
+					content='Discover Jannat Booking, the top platform for Haj and Omrah hotel reservations. Explore our mission and values for seamless pilgrim experiences.'
+				/>
+				<meta
+					name='twitter:image'
+					content={
+						jannatBookingData?.aboutUsBanner?.url ||
+						"https://jannatbooking.com/default_banner.jpg"
+					}
+				/>
+
+				{/* Canonical Link */}
+				<link rel='canonical' href='https://jannatbooking.com/about' />
+
+				{/* Favicon */}
+				<link rel='icon' href='/favicon.ico' />
+
+				{/* Preload Banner Image */}
+				{jannatBookingData?.aboutUsBanner?.url && (
+					<link
+						rel='preload'
+						href={jannatBookingData.aboutUsBanner.url}
+						as='image'
+					/>
+				)}
+			</Helmet>
+
 			{window.scrollTo({ top: 8, behavior: "smooth" })}
 			{loading ? (
 				<p>Loading...</p>

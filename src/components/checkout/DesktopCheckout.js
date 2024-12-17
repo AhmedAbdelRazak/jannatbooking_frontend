@@ -5,6 +5,7 @@ import { DatePicker, Button, Collapse, Select, Checkbox } from "antd";
 import PaymentDetails from "./PaymentDetails";
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { FaMinus, FaPlus } from "react-icons/fa";
+import ReactGA from "react-ga4";
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
@@ -210,9 +211,14 @@ const DesktopCheckout = ({
 						<TermsWrapper>
 							<Checkbox
 								checked={guestAgreedOnTermsAndConditions}
-								onChange={(e) =>
-									setGuestAgreedOnTermsAndConditions(e.target.checked)
-								}
+								onChange={(e) => {
+									setGuestAgreedOnTermsAndConditions(e.target.checked);
+									ReactGA.event({
+										category: "User Accepted Terms And Cond",
+										action: "User Accepted Terms And Cond",
+										label: `User Accepted Terms And Cond`,
+									});
+								}}
 							>
 								Accept Terms & Conditions
 							</Checkbox>
@@ -228,6 +234,11 @@ const DesktopCheckout = ({
 								onChange={(e) => {
 									setPayWholeAmount(false);
 									setPay10Percent(e.target.checked);
+									ReactGA.event({
+										category: "User Checked On Paying Deposit",
+										action: "User Checked On Paying Deposit",
+										label: `User Checked On Paying Deposit`,
+									});
 								}}
 							>
 								Pay {averageCommissionRate}% Deposit{" "}
@@ -246,6 +257,11 @@ const DesktopCheckout = ({
 								onChange={(e) => {
 									setPay10Percent(false);
 									setPayWholeAmount(e.target.checked);
+									ReactGA.event({
+										category: "User Checked On Paying Whole Amount",
+										action: "User Checked On Paying Whole Amount",
+										label: `User Checked On Paying Whole Amount`,
+									});
 								}}
 							>
 								Pay the whole Total Amount{" "}

@@ -7,6 +7,7 @@ import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import StarRatings from "react-star-ratings";
 import { amenitiesList } from "../../Assets"; // Assuming amenitiesList is imported here
+import ReactGA from "react-ga4";
 
 const PopularHotels = ({ activeHotels }) => {
 	const settings = {
@@ -80,11 +81,16 @@ const PopularHotels = ({ activeHotels }) => {
 					<div key={hotel._id} className='slide'>
 						<HotelCard
 							hoverable
-							onClick={() =>
-								(window.location.href = `/single-hotel/${hotel.hotelName
+							onClick={() => {
+								ReactGA.event({
+									category: "User Navigated To A Hotel From Home",
+									action: "User Navigated To A Hotel From Home",
+									label: `User Navigated To A Hotel From Home`,
+								});
+								window.location.href = `/single-hotel/${hotel.hotelName
 									.replace(/\s+/g, "-")
-									.toLowerCase()}`)
-							}
+									.toLowerCase()}`;
+							}}
 							cover={
 								<HotelImage
 									src={hotel.hotelPhotos[0]?.url || "/placeholder-image.jpg"}

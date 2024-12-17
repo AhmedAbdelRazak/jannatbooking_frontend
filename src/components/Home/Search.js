@@ -9,6 +9,7 @@ import {
 	TeamOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import ReactGA from "react-ga4";
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -182,7 +183,15 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 				</AdultsChildrenWrapper>
 			</InputsWrapper>
 
-			<SearchButtonWrapper>
+			<SearchButtonWrapper
+				onClick={() => {
+					ReactGA.event({
+						category: "User Searched For A Room From Home Page",
+						action: "User Searched For A Room From Home Page",
+						label: `User Searched For A Room From Home Page`,
+					});
+				}}
+			>
 				<Button className='search-button' onClick={handleSubmit}>
 					Search
 				</Button>

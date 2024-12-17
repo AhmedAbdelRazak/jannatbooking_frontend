@@ -7,6 +7,7 @@ import "swiper/css/pagination";
 import "swiper/css/autoplay";
 import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
+import ReactGA from "react-ga4";
 
 const Hero = ({ homePage }) => {
 	const { chosenLanguage } = useCartContext();
@@ -99,9 +100,14 @@ const Hero = ({ homePage }) => {
 											<div
 												className='theme-btn'
 												style={{ backgroundColor: item.btnBackgroundColor }}
-												onClick={() =>
-													(window.location.href = item.pageRedirectURL)
-												}
+												onClick={() => {
+													ReactGA.event({
+														category: "User Navigated To Hotels From Banner",
+														action: "User Navigated To Hotels From Banner",
+														label: `User Navigated To Hotels From Banner`,
+													});
+													window.location.href = item.pageRedirectURL;
+												}}
 											>
 												{item.buttonTitle}
 											</div>

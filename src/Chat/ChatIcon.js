@@ -141,8 +141,9 @@ const ChatIcon = () => {
 
 	const toggleChatWindow = () => {
 		ReactGA.event({
-			category: "User Open Chat Window",
-			action: "User Open Chat Window",
+			category: "User Opened Chat Window",
+			action: "User Opened Chat Window",
+			label: `User Opened Chat Window`,
 		});
 		setIsOpen(!isOpen);
 		if (isOpen) {

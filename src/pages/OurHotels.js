@@ -5,6 +5,8 @@ import { Spin } from "antd";
 import Search from "../components/OurHotels/Search";
 import HotelList2 from "../components/OurHotels/HotelList2";
 import SortDropdown from "../components/OurHotels/SortDropdown";
+import { Helmet } from "react-helmet";
+import favicon from "../favicon.ico";
 
 const roomTypesMapping = [
 	{ value: "standardRooms", label: "Standard Rooms" },
@@ -110,6 +112,63 @@ const OurHotels = () => {
 
 	return (
 		<OurHotelsWrapper>
+			<Helmet>
+				<title>
+					Explore the Best Haj and Umrah Hotels in Makkah & Madinah | Jannat
+					Booking
+				</title>
+
+				<meta
+					name='description'
+					content='Book your stay at the best hotels in Makkah and Madinah for Haj and Umrah. Compare prices, amenities, and locations near Al Haram. Discover comfortable, affordable, and luxury hotels for your pilgrimage journey.'
+				/>
+
+				<meta
+					name='keywords'
+					content='Haj hotels, Umrah hotels, hotels in Makkah, hotels in Madinah, hotels near Al Haram, luxury hotels Makkah, budget hotels Madinah, family rooms, free Wi-Fi, parking, Haj and Umrah accommodations'
+				/>
+
+				{/* Open Graph Tags */}
+				<meta
+					property='og:title'
+					content='Explore the Best Hotels in Makkah & Madinah for Haj and Umrah | Jannat Booking'
+				/>
+				<meta
+					property='og:description'
+					content='Find the top-rated hotels in Makkah and Madinah for your Haj and Umrah pilgrimage. Explore comfortable stays near Al Haram with great amenities.'
+				/>
+				<meta property='og:type' content='website' />
+				<meta
+					property='og:url'
+					content='https://jannatbooking.com/our-hotels'
+				/>
+				<meta
+					property='og:image'
+					content='https://res.cloudinary.com/infiniteapps/image/upload/v1734109765/janat/1734109764527.jpg'
+				/>
+
+				{/* Twitter Card */}
+				<meta name='twitter:card' content='summary_large_image' />
+				<meta
+					name='twitter:title'
+					content='Book the Best Haj and Umrah Hotels in Makkah & Madinah | Jannat Booking'
+				/>
+				<meta
+					name='twitter:description'
+					content='Plan your Haj and Umrah pilgrimage with Jannat Booking. Browse top-rated hotels in Makkah and Madinah near Al Haram with great amenities.'
+				/>
+				<meta
+					name='twitter:image'
+					content='https://res.cloudinary.com/infiniteapps/image/upload/v1734109751/janat/1734109751072.jpg'
+				/>
+
+				{/* Canonical URL */}
+				<link rel='canonical' href='https://jannatbooking.com/our-hotels' />
+
+				{/* Favicon */}
+				<link rel='icon' href={favicon} />
+			</Helmet>
+
 			<SearchSection>
 				<Search
 					distinctRoomTypes={distinctRoomTypes}

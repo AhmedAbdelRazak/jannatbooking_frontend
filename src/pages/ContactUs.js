@@ -9,6 +9,8 @@ import { contactUs } from "../auth";
 import { ToastContainer, toast } from "react-toastify";
 import { gettingJannatWebsiteData as getContacts } from "../apiCore";
 import styled from "styled-components";
+import { Helmet } from "react-helmet";
+import favicon from "../favicon.ico";
 
 const { Title, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -80,6 +82,47 @@ const ContactUs = () => {
 	return (
 		<ContactUsWrapper>
 			{window.scrollTo({ top: 10, behavior: "smooth" })}
+
+			<Helmet>
+				<title>Contact Us | Jannat Booking - Haj & Omrah Support</title>
+				<meta
+					name='description'
+					content="Contact Jannat Booking for inquiries, support, or feedback regarding Haj and Omrah hotel bookings. We're here to assist you with your pilgrimage accommodations."
+				/>
+				<meta
+					name='keywords'
+					content='Jannat Booking, Contact Us, Haj hotel support, Omrah hotel inquiries, pilgrimage support, hotel booking assistance, customer service'
+				/>
+
+				{/* Open Graph Tags */}
+				<meta property='og:title' content='Contact Us | Jannat Booking' />
+				<meta
+					property='og:description'
+					content='Get in touch with Jannat Booking for Haj and Omrah hotel bookings. Our support team is here to help you with all your inquiries and reservations.'
+				/>
+				<meta property='og:url' content='https://jannatbooking.com/contact' />
+				<meta property='og:type' content='website' />
+				<meta
+					property='og:image'
+					content='https://jannatbooking.com/contact_banner.jpg'
+				/>
+				<meta property='og:locale' content='en_US' />
+
+				{/* Twitter Card */}
+				<meta name='twitter:card' content='summary_large_image' />
+				<meta name='twitter:title' content='Contact Us | Jannat Booking' />
+				<meta
+					name='twitter:description'
+					content="Reach out to Jannat Booking for assistance with Haj and Omrah hotel reservations. We're happy to help with your inquiries."
+				/>
+
+				{/* Canonical URL */}
+				<link rel='canonical' href='https://jannatbooking.com/contact' />
+
+				{/* Favicon */}
+				<link rel='icon' href={favicon} />
+			</Helmet>
+
 			<Row justify='center' align='middle'>
 				<Col xs={24} sm={20} md={16} lg={12} xl={16}>
 					<ContactUsContent>

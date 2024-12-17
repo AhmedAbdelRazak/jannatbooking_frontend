@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import styled from "styled-components";
 import { useLocation } from "react-router-dom";
+import { Helmet } from "react-helmet";
 
 const ConfirmationPage = () => {
 	const location = useLocation();
@@ -52,6 +53,34 @@ const ConfirmationPage = () => {
 
 	return (
 		<ConfirmationPageWrapper>
+			<Helmet>
+				<title>Booking Confirmation | Jannat Booking</title>
+				<meta
+					name='description'
+					content={`Thank you, ${name}! Your booking at ${hotelName} is confirmed. Check-in: ${checkinDate}, Check-out: ${checkoutDate}. Total price: ${totalPrice} SAR.`}
+				/>
+				<meta
+					name='keywords'
+					content='Jannat Booking, booking confirmation, Haj hotel booking, Omrah hotel reservations, pilgrimage hotels, confirmed booking, check-in, check-out'
+				/>
+				<meta
+					property='og:title'
+					content='Booking Confirmation | Jannat Booking'
+				/>
+				<meta
+					property='og:description'
+					content={`Your stay at ${hotelName} is confirmed! Check-in: ${checkinDate}, Check-out: ${checkoutDate}, for ${nights} nights. Total price: ${totalPrice} SAR.`}
+				/>
+				<meta
+					property='og:url'
+					content='https://jannatbooking.com/reservation-confirmed'
+				/>
+				<meta property='og:type' content='website' />
+				<link
+					rel='canonical'
+					href='https://jannatbooking.com/reservation-confirmed'
+				/>
+			</Helmet>
 			<MessageWrapper>
 				<h2>Reservation Confirmed!</h2>
 				<p style={{ color: "darkgreen" }}>

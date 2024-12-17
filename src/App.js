@@ -26,6 +26,7 @@ import About from "./pages/About";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import ContactUs from "./pages/ContactUs";
 import OurHotelRooms2 from "./pages/OurHotelRooms2";
+import ReactGA from "react-ga4";
 
 const App = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
@@ -40,6 +41,13 @@ const App = () => {
 		languageToggle(chosenLanguage);
 		// eslint-disable-next-line
 	}, [chosenLanguage]);
+
+	useEffect(() => {
+		ReactGA.initialize(process.env.REACT_APP_GOOGLE_ANALYTICS_MEASUREMENTID);
+		ReactGA.send(window.location.pathname + window.location.search);
+
+		// eslint-disable-next-line
+	}, [window.location.pathname]);
 
 	useEffect(() => {
 		const fetchCurrencyRates = async () => {

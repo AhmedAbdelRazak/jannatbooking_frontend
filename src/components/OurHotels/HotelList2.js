@@ -9,6 +9,7 @@ import StarRatings from "react-star-ratings";
 import { amenitiesList, viewsList, extraAmenitiesList } from "../../Assets";
 // eslint-disable-next-line
 import { FaCar, FaWalking } from "react-icons/fa";
+import ReactGA from "react-ga4";
 
 // Helper function to format the address
 const formatAddress = (address) => {
@@ -138,11 +139,17 @@ const HotelCard = ({ hotel, currency }) => {
 					{hotel.hotelPhotos.map((photo, idx) => (
 						<SwiperSlide key={idx}>
 							<div
-								onClick={() =>
-									(window.location.href = `/single-hotel/${hotel.hotelName
+								onClick={() => {
+									ReactGA.event({
+										category: "User Nav To A HOTEL from Our Hotels Page",
+										action: "User Nav To A HOTEL from Our Hotels Page",
+										label: `User Nav To A HOTEL from Our Hotels Page`,
+									});
+
+									window.location.href = `/single-hotel/${hotel.hotelName
 										.replace(/\s+/g, "-")
-										.toLowerCase()}`)
-								}
+										.toLowerCase()}`;
+								}}
 							>
 								<img
 									src={photo.url}

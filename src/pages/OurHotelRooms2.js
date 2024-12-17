@@ -17,6 +17,7 @@ import dayjs from "dayjs";
 // eslint-disable-next-line
 import { FaCar, FaWalking } from "react-icons/fa";
 import SortDropdown from "../components/OurHotels/SortDropdown";
+import ReactGA from "react-ga4";
 
 // Helper to generate date range
 const generateDateRange = (startDate, endDate) => {
@@ -557,11 +558,16 @@ const RoomCard = ({
 					{room.photos.map((photo, idx) => (
 						<SwiperSlide
 							key={idx}
-							onClick={() =>
-								(window.location.href = `/single-hotel/${hotelName
+							onClick={() => {
+								ReactGA.event({
+									category: "User Navigated To A Hotel From Rooms Page",
+									action: "User Navigated To A Hotel From Rooms Page",
+									label: `User Navigated To A Hotel From Rooms Page`,
+								});
+								window.location.href = `/single-hotel/${hotelName
 									.replace(/\s+/g, "-")
-									.toLowerCase()}`)
-							}
+									.toLowerCase()}`;
+							}}
 						>
 							<img
 								src={photo.url}
@@ -637,6 +643,13 @@ const RoomCard = ({
 					display: "flex",
 					flexDirection: "column",
 					alignItems: "center",
+				}}
+				onClick={() => {
+					ReactGA.event({
+						category: "User Added To The Cart From Rooms Page",
+						action: "User Added To The Cart From Rooms Page",
+						label: `User Added To The Cart From Rooms Page`,
+					});
 				}}
 			>
 				<StyledButton

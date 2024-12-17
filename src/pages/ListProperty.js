@@ -7,6 +7,8 @@ import { toast } from "react-toastify";
 import ListPropertyHero from "../components/Signup/ListPropertyHero";
 import LoadingSpinner from "../components/Signup/LoadingSpinner";
 import { useEffect } from "react";
+import { Helmet } from "react-helmet";
+import favicon from "../favicon.ico";
 
 const ListProperty = () => {
 	const [values, setValues] = useState(defaultUserValues);
@@ -147,6 +149,76 @@ const ListProperty = () => {
 	}, []);
 	return (
 		<ListPropertyWrapper>
+			<Helmet>
+				<title>List Your Property | Jannat Booking - Haj & Omrah Hotels</title>
+				<meta
+					name='description'
+					content='List your property with Jannat Booking to offer the best Haj and Omrah accommodations. Join now and connect with thousands of travelers worldwide.'
+				/>
+				<meta
+					name='keywords'
+					content='List Property, Jannat Booking, Haj hotels, Omrah accommodations, property signup, hotel owners, room rentals, pilgrimage bookings'
+				/>
+
+				{/* Open Graph Tags */}
+				<meta
+					property='og:title'
+					content='List Your Property | Jannat Booking - Haj & Omrah Hotels'
+				/>
+				<meta
+					property='og:description'
+					content='Offer your property for Haj and Omrah pilgrims. List with Jannat Booking and help travelers find their perfect stay.'
+				/>
+				<meta
+					property='og:url'
+					content='https://jannatbooking.com/list-property'
+				/>
+				<meta
+					property='og:image'
+					content='https://res.cloudinary.com/infiniteapps/image/upload/v1734109751/janat/list_property_banner.jpg'
+				/>
+				<meta property='og:type' content='website' />
+
+				{/* Twitter Tags */}
+				<meta name='twitter:card' content='summary_large_image' />
+				<meta
+					name='twitter:title'
+					content='List Your Property | Jannat Booking'
+				/>
+				<meta
+					name='twitter:description'
+					content='Join Jannat Booking and list your property for Haj and Omrah travelers. Reach a wide audience and grow your business.'
+				/>
+				<meta
+					name='twitter:image'
+					content='https://res.cloudinary.com/infiniteapps/image/upload/v1734109751/janat/list_property_banner.jpg'
+				/>
+
+				{/* Canonical URL */}
+				<link rel='canonical' href='https://jannatbooking.com/list-property' />
+
+				{/* Favicon */}
+				<link rel='icon' href={favicon} />
+			</Helmet>
+
+			<ListPropertyWrapper>
+				{loading ? (
+					<LoadingSpinner /> // Show spinner if loading is true
+				) : (
+					<>
+						<ListPropertyHero />
+						<CenteredContainer>
+							<StyledCard>
+								<ListYourProperty
+									handleChange={handleChange}
+									clickSubmit={clickSubmit}
+									values={values}
+								/>
+							</StyledCard>
+						</CenteredContainer>
+					</>
+				)}
+			</ListPropertyWrapper>
 			{loading ? (
 				<LoadingSpinner /> // Show spinner if loading is true
 			) : (

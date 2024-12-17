@@ -16,6 +16,7 @@ import { useCartContext } from "../../cart_context";
 import HeaderTopbar from "./HeaderTopbar";
 import { gettingJannatWebsiteData } from "../../apiCore";
 import { isAuthenticated, signout } from "../../auth";
+import ReactGA from "react-ga4";
 
 const Navbar = () => {
 	const { languageToggle, chosenLanguage, total_rooms, openSidebar2 } =
@@ -180,11 +181,29 @@ const Navbar = () => {
 				<IconsWrapper>
 					<LanguageToggle>
 						{chosenLanguage === "Arabic" ? (
-							<span onClick={() => languageToggle("English")}>
+							<span
+								onClick={() => {
+									ReactGA.event({
+										category: "User Changed Lang Into English",
+										action: "User Changed Lang Into English",
+										label: `User Changed Lang Into English`,
+									});
+									languageToggle("English");
+								}}
+							>
 								<i className='fa-solid fa-earth-americas'></i> En
 							</span>
 						) : (
-							<span onClick={() => languageToggle("Arabic")}>
+							<span
+								onClick={() => {
+									ReactGA.event({
+										category: "User Changed Lang Into Arabic",
+										action: "User Changed Lang Into Arabic",
+										label: `User Changed Lang Into Arabic`,
+									});
+									languageToggle("Arabic");
+								}}
+							>
 								<i className='fa-solid fa-earth-americas'></i> Ar
 							</span>
 						)}
@@ -385,11 +404,30 @@ const Navbar = () => {
 				<div className='icon-container'>
 					<LanguageToggle>
 						{chosenLanguage === "Arabic" ? (
-							<span onClick={() => languageToggle("English")}>
+							<span
+								onClick={() => {
+									ReactGA.event({
+										category: "User Changed Lang Into English",
+										action: "User Changed Lang Into English",
+										label: `User Changed Lang Into English`,
+									});
+
+									languageToggle("English");
+								}}
+							>
 								<i className='fa-solid fa-earth-americas'></i> En
 							</span>
 						) : (
-							<span onClick={() => languageToggle("Arabic")}>
+							<span
+								onClick={() => {
+									ReactGA.event({
+										category: "User Changed Lang Into Arabic",
+										action: "User Changed Lang Into Arabic",
+										label: `User Changed Lang Into Arabic`,
+									});
+									languageToggle("Arabic");
+								}}
+							>
 								<i className='fa-solid fa-earth-americas'></i> Ar
 							</span>
 						)}

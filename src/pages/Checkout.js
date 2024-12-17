@@ -1,36 +1,90 @@
 import React, { useEffect } from "react";
 import styled from "styled-components";
 import CheckoutContent from "../components/checkout/CheckoutContent";
-import { useCartContext } from "../cart_context"; // Make sure to import useCartContext
+import { useCartContext } from "../cart_context";
+import { Helmet } from "react-helmet";
 
 const Checkout = () => {
-	const { roomCart } = useCartContext(); // Access roomCart from the context
+	const { roomCart } = useCartContext();
 
 	useEffect(() => {
 		if (window.innerWidth > 768) {
-			// Only scroll to top if the screen width is larger than 768px (tablet or larger)
 			window.scrollTo({ top: 50, behavior: "smooth" });
 		} else {
 			window.scrollTo({ top: 5, behavior: "smooth" });
 		}
-	}, []); // Empty dependency array to run on mount
+	}, []);
 
-	// If roomCart is empty, show the message and button
 	if (roomCart.length === 0) {
 		return (
-			<EmptyCartWrapper>
-				<Message>No rooms in your cart at the moment.</Message>
-				<Button onClick={() => (window.location.href = "/our-hotels")}>
-					Browse Our Hotels
-				</Button>
-			</EmptyCartWrapper>
+			<>
+				<Helmet>
+					<title>Checkout | Jannat Booking - Haj & Omrah Hotels</title>
+					<meta
+						name='description'
+						content='Your cart is empty. Browse our wide range of Haj and Omrah hotels and complete your booking with ease. Jannat Booking offers the best accommodations for pilgrims.'
+					/>
+					<meta
+						name='keywords'
+						content='Jannat Booking, checkout, Haj hotels, Omrah hotels, pilgrim reservations, cart empty, hotel booking'
+					/>
+					<meta property='og:title' content='Empty Cart | Jannat Booking' />
+					<meta
+						property='og:description'
+						content='Your cart is empty. Start your Haj and Omrah journey with Jannat Booking - trusted hotel reservations for pilgrims.'
+					/>
+					<meta
+						property='og:url'
+						content='https://jannatbooking.com/checkout'
+					/>
+					<meta property='og:type' content='website' />
+					<meta
+						property='og:image'
+						content='https://jannatbooking.com/default_checkout.jpg'
+					/>
+					<link rel='canonical' href='https://jannatbooking.com/checkout' />
+				</Helmet>
+				<EmptyCartWrapper>
+					<Message>No rooms in your cart at the moment.</Message>
+					<Button onClick={() => (window.location.href = "/our-hotels")}>
+						Browse Our Hotels
+					</Button>
+				</EmptyCartWrapper>
+			</>
 		);
 	}
 
 	return (
-		<CheckoutWrapper>
-			<CheckoutContent />
-		</CheckoutWrapper>
+		<>
+			<Helmet>
+				<title>
+					Checkout | Jannat Booking - Complete Your Haj & Omrah Booking
+				</title>
+				<meta
+					name='description'
+					content='Complete your booking for Haj and Omrah hotels at Jannat Booking. Secure your accommodations for a smooth and stress-free pilgrimage experience.'
+				/>
+				<meta
+					name='keywords'
+					content='Jannat Booking, checkout, Haj hotel booking, Omrah hotel reservations, pilgrim accommodations, secure hotel booking'
+				/>
+				<meta property='og:title' content='Checkout | Jannat Booking' />
+				<meta
+					property='og:description'
+					content='Complete your Haj and Omrah hotel booking easily with Jannat Booking. Secure accommodations for your pilgrimage journey.'
+				/>
+				<meta property='og:url' content='https://jannatbooking.com/checkout' />
+				<meta property='og:type' content='website' />
+				<meta
+					property='og:image'
+					content='https://jannatbooking.com/checkout_banner.jpg'
+				/>
+				<link rel='canonical' href='https://jannatbooking.com/checkout' />
+			</Helmet>
+			<CheckoutWrapper>
+				<CheckoutContent />
+			</CheckoutWrapper>
+		</>
 	);
 };
 

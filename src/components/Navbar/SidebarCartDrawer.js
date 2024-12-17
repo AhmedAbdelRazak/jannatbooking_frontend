@@ -6,6 +6,7 @@ import { FaTimes, FaPlus, FaMinus } from "react-icons/fa";
 import { DatePicker, ConfigProvider } from "antd"; // Import Ant Design's RangePicker
 import dayjs from "dayjs";
 import locale from "antd/es/date-picker/locale/en_US"; // Optional locale for DatePicker
+import ReactGA from "react-ga4";
 
 const { RangePicker } = DatePicker;
 
@@ -165,6 +166,11 @@ const SidebarCartDrawer = () => {
 					<CheckoutButton
 						to='/checkout'
 						onClick={() => {
+							ReactGA.event({
+								category: "User Clicked On Checkout",
+								action: "User Clicked On Checkout",
+								label: `User Clicked On Checkout`,
+							});
 							closeSidebar2();
 							window.scrollTo({ top: 50, behavior: "smooth" });
 						}}

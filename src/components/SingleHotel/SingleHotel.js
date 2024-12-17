@@ -14,6 +14,7 @@ import Tabs from "./Tabs";
 import dayjs from "dayjs";
 import StaticRating from "./StaticRating";
 import { FaCar, FaWalking } from "react-icons/fa";
+import ReactGA from "react-ga4";
 
 const { RangePicker } = DatePicker;
 
@@ -591,6 +592,14 @@ const SingleHotel = ({ selectedHotel }) => {
 								</FinalPrice>
 							</PriceSection>
 							<div
+								onClick={() => {
+									ReactGA.event({
+										category:
+											"User Added Reservation To Cart From Single Hotel",
+										action: "User Added Reservation To Cart From Single Hotel",
+										label: `User Added Reservation To Cart From Single Hotel`,
+									});
+								}}
 								style={{
 									display: "flex",
 									flexDirection: "column",

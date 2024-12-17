@@ -6,6 +6,8 @@ import { gettingJannatWebsiteData } from "../apiCore";
 import TermsAndConditionsGuest from "../components/TermsAndConditions/TermsAndConditionsGuest";
 import TermsAndConditionsHotels from "../components/TermsAndConditions/TermsAndConditionsHotels";
 import PrivacyPolicy from "../components/TermsAndConditions/PrivacyPolicy";
+import { Helmet } from "react-helmet";
+import favicon from "../favicon.ico";
 
 const TermsAndConditions = () => {
 	const { chosenLanguage } = useCartContext();
@@ -74,6 +76,43 @@ const TermsAndConditions = () => {
 		setActiveTab(tabIndex);
 	};
 
+	const getTabDetails = (tabIndex) => {
+		switch (tabIndex) {
+			case 1:
+				return {
+					title: "Terms & Conditions for Guests | Jannat Booking",
+					description:
+						"Review the terms and conditions for guests booking Haj and Umrah hotels with Jannat Booking. Understand our policies for a seamless experience.",
+					keywords:
+						"Terms and Conditions, Guest Policies, Jannat Booking, Haj Hotels, Umrah Hotels, Booking Policies, Hotel Rules",
+				};
+			case 2:
+				return {
+					title: "Terms & Conditions for Hotels | Jannat Booking",
+					description:
+						"Explore the terms and conditions for hotels partnering with Jannat Booking for Haj and Umrah reservations. Learn about guidelines and agreements.",
+					keywords:
+						"Hotel Policies, Partner Terms, Jannat Booking, Haj Reservations, Umrah Hotels, Hotel Guidelines, Partner Agreements",
+				};
+			case 3:
+				return {
+					title: "Privacy Policy | Jannat Booking",
+					description:
+						"Understand Jannat Booking's privacy policy. We prioritize your data security and confidentiality during Haj and Umrah hotel bookings.",
+					keywords:
+						"Privacy Policy, Data Protection, Jannat Booking, Personal Information, Secure Bookings, Haj Hotels, Umrah Hotels",
+				};
+			default:
+				return {
+					title: "Terms & Conditions | Jannat Booking",
+					description:
+						"Explore the terms, conditions, and privacy policy for booking Haj and Umrah hotels with Jannat Booking. A reliable and trusted partner for your stay.",
+					keywords:
+						"Terms and Conditions, Privacy Policy, Jannat Booking, Haj Hotels, Umrah Hotels, Booking Guidelines, Secure Reservations",
+				};
+		}
+	};
+
 	// Render content based on the active tab
 	const renderContent = () => {
 		switch (activeTab) {
@@ -97,6 +136,51 @@ const TermsAndConditions = () => {
 			isArabic={chosenLanguage === "Arabic"}
 			dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
 		>
+			<Helmet>
+				<title>{getTabDetails(activeTab).title}</title>
+				<meta
+					name='description'
+					content={getTabDetails(activeTab).description}
+				/>
+				<meta name='keywords' content={getTabDetails(activeTab).keywords} />
+
+				{/* Open Graph for Social Media */}
+				<meta property='og:title' content={getTabDetails(activeTab).title} />
+				<meta
+					property='og:description'
+					content={getTabDetails(activeTab).description}
+				/>
+				<meta
+					property='og:image'
+					content='https://res.cloudinary.com/infiniteapps/image/upload/v1734109751/janat/1734109751072.jpg'
+				/>
+				<meta
+					property='og:url'
+					content='https://jannatbooking.com/terms-conditions'
+				/>
+				<meta property='og:type' content='website' />
+
+				{/* Twitter Card */}
+				<meta name='twitter:card' content='summary_large_image' />
+				<meta name='twitter:title' content={getTabDetails(activeTab).title} />
+				<meta
+					name='twitter:description'
+					content={getTabDetails(activeTab).description}
+				/>
+				<meta
+					name='twitter:image'
+					content='https://res.cloudinary.com/infiniteapps/image/upload/v1734109751/janat/1734109751072.jpg'
+				/>
+
+				{/* Canonical URL */}
+				<link
+					rel='canonical'
+					href={`https://jannatbooking.com/terms-conditions?tab=${activeTab}`}
+				/>
+
+				{/* Favicon */}
+				<link rel='icon' href={favicon} />
+			</Helmet>
 			{window.scrollTo({ top: 10, behavior: "smooth" })}
 			{loading ? (
 				<p>Loading...</p>
