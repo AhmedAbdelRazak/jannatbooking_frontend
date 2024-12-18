@@ -128,7 +128,8 @@ const SidebarCartDrawer = () => {
 											{room.startDate} to {room.endDate}
 										</ItemInfo>
 										<ItemPricePerNight>
-											Price per night: {convertedPricePerNight}{" "}
+											Price per night:{" "}
+											{Number(convertedPricePerNight * room.amount).toFixed(2)}{" "}
 											{selectedCurrency && selectedCurrency.toUpperCase()}
 										</ItemPricePerNight>
 										{/* Room Quantity Controls */}
@@ -142,7 +143,8 @@ const SidebarCartDrawer = () => {
 											/>
 										</QuantityControls>
 										<ItemPrice>
-											Total Amount: {convertedTotalAmount}{" "}
+											Total Amount:{" "}
+											{Number(convertedTotalAmount * room.amount).toFixed(2)}{" "}
 											{selectedCurrency && selectedCurrency.toUpperCase()}
 										</ItemPrice>
 									</ItemDetails>

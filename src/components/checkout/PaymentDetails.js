@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import styled from "styled-components";
 import { Input, Button } from "antd";
 import {
@@ -33,33 +33,52 @@ const PaymentDetails = ({
 	total_price_with_commission,
 	depositAmount,
 }) => {
-	// Handle card number input with formatting
+	const [errors, setErrors] = useState({});
+
+	// Real-time card number formatting and validation
 	const handleCardNumberChange = (e) => {
-		const inputValue = e.target.value.replace(/\D/g, ""); // Remove non-digit characters
-		const formattedValue = inputValue.replace(/(\d{4})(?=\d)/g, "$1 "); // Add space after every 4 digits
+		const inputValue = e.target.value.replace(/\D/g, ""); // Remove non-digits
+		const formattedValue = inputValue.replace(/(\d{4})(?=\d)/g, "$1 ");
 		setCardNumber(formattedValue);
+		if (inputValue.length < 16) {
+			setErrors({ ...errors, cardNumber: "Card number must be 16 digits" });
+		} else {
+			setErrors({ ...errors, cardNumber: "" });
+		}
 	};
 
-	// Handle expiry date input with automatic formatting
 	const handleExpiryDateChange = (e) => {
-		let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
-
-		// Add leading zero for months 1-9
-		if (value.length === 1 && value !== "0" && value !== "1") {
-			value = "0" + value;
-		}
-
-		// Ensure slash remains at the right position
-		if (value.length >= 2) {
-			value = value.slice(0, 2) + "/" + value.slice(2, 6); // Add slash after month and allow 4 digits for year
-		}
-
+		let value = e.target.value.replace(/\D/g, "");
+		if (value.length >= 2) value = value.slice(0, 2) + "/" + value.slice(2, 4);
 		setExpiryDate(value);
+		if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(value)) {
+			setErrors({ ...errors, expiryDate: "Invalid expiry date" });
+		} else {
+			setErrors({ ...errors, expiryDate: "" });
+		}
 	};
 
-	// Prevent auto-fill warning
-	const handleFocus = (e) => {
-		e.target.setAttribute("autocomplete", "off");
+	const handleCvvChange = (e) => {
+		const value = e.target.value.replace(/\D/g, "").slice(0, 3);
+		setCvv(value);
+		if (value.length < 3) {
+			setErrors({ ...errors, cvv: "CVV must be 3 digits" });
+		} else {
+			setErrors({ ...errors, cvv: "" });
+		}
+	};
+
+	const validateForm = () => {
+		const newErrors = {};
+		if (cardNumber.replace(/\s/g, "").length < 16)
+			newErrors.cardNumber = "Invalid card number";
+		if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiryDate))
+			newErrors.expiryDate = "Invalid expiry date";
+		if (cvv.length < 3) newErrors.cvv = "Invalid CVV";
+		if (!cardHolderName) newErrors.cardHolderName = "Name is required";
+		setErrors(newErrors);
+
+		if (Object.keys(newErrors).length === 0) handleReservation();
 	};
 
 	return (
@@ -74,59 +93,72 @@ const PaymentDetails = ({
 				</CardIcons>
 			</TitleWrapper>
 
-			<InputGroup className='my-2'>
+			{/* Card Number */}
+			<InputGroup>
 				<StyledInput
 					prefix={<CreditCardOutlined />}
 					placeholder='1234 5678 1234 5678'
 					value={cardNumber}
 					onChange={handleCardNumberChange}
-					onFocus={handleFocus} // Prevent auto-fill warning
-					maxLength={19} // 16 digits + 3 spaces
+					autoComplete='cc-number'
+					inputMode='numeric'
+					maxLength={19}
 				/>
+				{errors.cardNumber && <ErrorText>{errors.cardNumber}</ErrorText>}
 			</InputGroup>
 
+			{/* Expiry Date and CVV */}
 			<InputRow>
 				<StyledInput
 					prefix={<CalendarOutlined />}
-					placeholder='MM/YYYY'
+					placeholder='MM/YY'
 					value={expiryDate}
 					onChange={handleExpiryDateChange}
-					maxLength={10} // Allow 10 characters (MM/YYYY format with slash and full year)
-					onFocus={handleFocus} // Prevent auto-fill warning
+					autoComplete='cc-exp'
+					inputMode='numeric'
+					maxLength={5}
 				/>
 				<StyledInput
 					prefix={<LockOutlined />}
-					placeholder='CVV e.g. 325'
+					placeholder='CVV'
 					value={cvv}
-					onChange={(e) => setCvv(e.target.value.replace(/\D/g, ""))} // Allow digits only
+					onChange={handleCvvChange}
+					autoComplete='cc-csc'
+					inputMode='numeric'
 					maxLength={3}
-					onFocus={handleFocus} // Prevent auto-fill warning
 				/>
 			</InputRow>
+			{errors.expiryDate && <ErrorText>{errors.expiryDate}</ErrorText>}
+			{errors.cvv && <ErrorText>{errors.cvv}</ErrorText>}
 
-			<InputGroup className='my-2'>
+			{/* Name on Card */}
+			<InputGroup className='mt-3'>
 				<StyledInput
 					prefix={<UserOutlined />}
 					placeholder='Name on Card'
 					value={cardHolderName}
 					onChange={(e) => setCardHolderName(e.target.value)}
-					onFocus={handleFocus} // Prevent auto-fill warning
+					autoComplete='cc-name'
 				/>
+				{errors.cardHolderName && (
+					<ErrorText>{errors.cardHolderName}</ErrorText>
+				)}
 			</InputGroup>
 
-			<InputGroup className='my-2'>
+			{/* Postal Code */}
+			<InputGroup>
 				<StyledInput
 					prefix={<HomeOutlined />}
 					placeholder='Postal Code'
 					value={postalCode}
-					onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, ""))} // Allow digits only
+					onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, ""))}
 					maxLength={6}
-					onFocus={handleFocus} // Prevent auto-fill warning
 				/>
 			</InputGroup>
-			<PriceWrapper>
-				{pricePerNight ? <h4>{pricePerNight} SAR per night</h4> : null}
 
+			{/* Price Section */}
+			<PriceWrapper>
+				{pricePerNight && <h4>{pricePerNight} SAR per night</h4>}
 				{pay10Percent ? (
 					<>
 						<h4>Total Amount: {Number(depositAmount).toFixed(2)} SAR</h4>
@@ -136,16 +168,19 @@ const PaymentDetails = ({
 						</h4>
 					</>
 				) : (
-					<h4>
-						Total Amount: {Number(total_price_with_commission).toFixed(2)} SAR
+					<>
+						<h4>
+							Total Amount: {Number(total_price_with_commission).toFixed(2)} SAR
+						</h4>
 						<h4>
 							Total Amount in USD: $
 							{Number(convertedAmounts.totalUSD).toFixed(2)}
 						</h4>
-					</h4>
+					</>
 				)}
 			</PriceWrapper>
 
+			{/* Submit Button */}
 			<SubmitButton
 				type='primary'
 				onClick={() => {
@@ -154,8 +189,7 @@ const PaymentDetails = ({
 						action: "User Checkedout and Paid",
 						label: `User Checkedout and Paid`,
 					});
-
-					handleReservation();
+					validateForm();
 				}}
 			>
 				Reserve Now
@@ -166,6 +200,7 @@ const PaymentDetails = ({
 
 export default PaymentDetails;
 
+// Styled Components
 // Styled Components
 const PaymentWrapper = styled.div`
 	background: #f9f9f9;
@@ -254,4 +289,10 @@ const SubmitButton = styled(Button)`
 	font-weight: bold;
 	font-size: 1.1rem;
 	cursor: pointer;
+`;
+
+const ErrorText = styled.span`
+	color: red;
+	font-weight: bold;
+	font-size: 0.8rem;
 `;

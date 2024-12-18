@@ -343,7 +343,10 @@ const DesktopCheckout = ({
 											{room.startDate} to {room.endDate}
 										</p>
 									</DateRangeWrapper>
-									<h4>{Number(pricePerNight).toFixed(2)} SAR per night</h4>
+									<h4>
+										{Number(pricePerNight * room.amount).toFixed(2)} SAR per
+										night
+									</h4>
 
 									{/* Room Quantity Controls */}
 									<QuantityControls>

@@ -38,7 +38,10 @@ const calculateDepositDetails = (roomCart) => {
 			total +
 			room.pricingByDayWithCommission?.reduce(
 				(sum, day) =>
-					sum + day.totalPriceWithCommission * (day.commissionRate || 0),
+					sum +
+					day.totalPriceWithCommission *
+						(day.commissionRate || 0.1) *
+						room.amount,
 				0
 			)
 		);
@@ -455,7 +458,10 @@ const CheckoutContent = () => {
 													{room.startDate} to {room.endDate}
 												</p>
 											</DateRangeWrapper>
-											<h4>{Number(pricePerNight).toFixed(2)} SAR per night</h4>
+											<h4>
+												{Number(pricePerNight * room.amount).toFixed(2)} SAR per
+												night
+											</h4>
 
 											{/* Room Quantity Controls */}
 											<QuantityControls>
@@ -538,7 +544,7 @@ const CheckoutContent = () => {
 											total +
 											room.pricingByDayWithCommission.reduce(
 												(subTotal, day) =>
-													subTotal + day.totalPriceWithCommission,
+													subTotal + day.totalPriceWithCommission * room.amount,
 												0
 											),
 										0
