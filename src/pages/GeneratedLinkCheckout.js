@@ -375,6 +375,7 @@ const GeneratedLinkCheckout = () => {
 				passportExpiry,
 				nationality: formData.nationality,
 				password: !user ? password : undefined, // Include password only if user is not logged in
+				postalCode: postalCode ? postalCode : "00000",
 			},
 			paymentDetails,
 			total_rooms: pickedRooms.reduce((total, room) => total + room.count, 0),
@@ -780,6 +781,7 @@ const GeneratedLinkCheckout = () => {
 							}
 							convertedAmounts={convertedAmounts}
 							depositAmount={Number(formData.totalCommission)}
+							nationality={formData.nationality}
 						/>
 					) : null}
 				</LeftSection>

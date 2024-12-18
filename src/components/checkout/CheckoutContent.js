@@ -4,7 +4,8 @@ import { useCartContext } from "../../cart_context";
 import dayjs from "dayjs";
 import { DatePicker, Button, Collapse, Select, message, Checkbox } from "antd";
 import PaymentDetails from "./PaymentDetails";
-import { countryList } from "../../Assets"; // Ensure this file contains an array of countries
+// eslint-disable-next-line
+import { countryList, countryListWithAbbreviations } from "../../Assets"; // Ensure this file contains an array of countries
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { createNewReservationClient, currencyConversion } from "../../apiCore";
 import { FaMinus, FaPlus } from "react-icons/fa";
@@ -86,6 +87,8 @@ const CheckoutContent = () => {
 		passport: "",
 		passportExpiry: "",
 		nationality: "",
+		postalCode: "",
+		state: "",
 	});
 
 	const [convertedAmounts, setConvertedAmounts] = useState({
@@ -324,6 +327,7 @@ const CheckoutContent = () => {
 			customerDetails: {
 				...customerDetails,
 				nationality,
+				postalCode,
 			},
 			paymentDetails,
 			total_rooms,
@@ -696,17 +700,21 @@ const CheckoutContent = () => {
 							filterOption={(input, option) =>
 								option.children.toLowerCase().includes(input.toLowerCase())
 							}
-							value={nationality}
-							onChange={(value) => setNationality(value)}
+							value={nationality} // Display the selected code in the dropdown value
+							onChange={(value) => {
+								setNationality(value);
+								setCustomerDetails({ ...customerDetails, nationality: value });
+							}} // Set the state with the selected code
 							style={{ width: "100%" }}
 						>
-							{countryList.map((country) => (
-								<Option key={country} value={country}>
-									{country}
+							{countryListWithAbbreviations.map((country) => (
+								<Option key={country.code} value={country.code}>
+									{country.name}
 								</Option>
 							))}
 						</Select>
 					</InputGroup>
+
 					<div>
 						<TermsWrapper>
 							<Checkbox
@@ -793,6 +801,9 @@ const CheckoutContent = () => {
 								pay10Percent={pay10Percent}
 								convertedAmounts={convertedAmounts}
 								depositAmount={depositAmount}
+								setCustomerDetails={setCustomerDetails}
+								nationality={nationality}
+								customerDetails={customerDetails}
 							/>
 						) : null}
 					</div>
@@ -819,7 +830,7 @@ const CheckoutContent = () => {
 				user={user}
 				nationality={nationality}
 				setNationality={setNationality}
-				countryList={countryList}
+				countryList={countryListWithAbbreviations}
 				total_price={total_price}
 				handleDateChange={handleDateChange}
 				disabledDate={disabledDate}

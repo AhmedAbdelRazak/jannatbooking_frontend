@@ -195,13 +195,16 @@ const DesktopCheckout = ({
 							filterOption={(input, option) =>
 								option.children.toLowerCase().includes(input.toLowerCase())
 							}
-							value={nationality}
-							onChange={(value) => setNationality(value)}
+							value={nationality} // Display the selected code in the dropdown value
+							onChange={(value) => {
+								setNationality(value);
+								setCustomerDetails({ ...customerDetails, nationality: value });
+							}} // Set the state with the selected code
 							style={{ width: "100%" }}
 						>
 							{countryList.map((country) => (
-								<Option key={country} value={country}>
-									{country}
+								<Option key={country.code} value={country.code}>
+									{country.name}
 								</Option>
 							))}
 						</Select>
@@ -293,6 +296,9 @@ const DesktopCheckout = ({
 								pay10Percent={pay10Percent}
 								convertedAmounts={convertedAmounts}
 								depositAmount={depositAmount}
+								setCustomerDetails={setCustomerDetails}
+								nationality={nationality}
+								customerDetails={customerDetails}
 							/>
 						) : null}
 					</div>

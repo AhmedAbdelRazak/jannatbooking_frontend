@@ -26,6 +26,7 @@ const PaymentDetails = ({
 	postalCode,
 	setPostalCode,
 	handleReservation,
+	nationality,
 	pricePerNight,
 	total,
 	pay10Percent,
@@ -74,6 +75,41 @@ const PaymentDetails = ({
 		}
 	};
 
+	const countriesWithPostalCodes = [
+		"US", // United States
+		"CA", // Canada
+		"UK", // United Kingdom
+		"AU", // Australia
+		"DE", // Germany
+		"IT", // Italy
+		"FR", // France
+		"ES", // Spain
+		"NL", // Netherlands
+		"SE", // Sweden
+		"NO", // Norway
+		"FI", // Finland
+		"CH", // Switzerland
+		"BE", // Belgium
+		"AT", // Austria
+		"DK", // Denmark
+		"IE", // Ireland
+		"PT", // Portugal
+		"GR", // Greece
+		"PL", // Poland
+		"CZ", // Czechia
+		"HU", // Hungary
+		"SK", // Slovakia
+		"HR", // Croatia
+		"SA", // Saudi Arabia
+		"AE", // United Arab Emirates
+		"KW", // Kuwait
+		"OM", // Oman
+		"BH", // Bahrain
+		"QA", // Qatar
+	];
+
+	// Add more as needed
+
 	const validateForm = () => {
 		const newErrors = {};
 
@@ -91,10 +127,19 @@ const PaymentDetails = ({
 		// Cardholder name validation
 		if (!cardHolderName) newErrors.cardHolderName = "Name is required";
 
+		// Postal code validation for countries that require it
+		if (countriesWithPostalCodes.includes(nationality)) {
+			if (!postalCode) {
+				newErrors.postalCode = "Postal code is required for this country.";
+			} else if (postalCode.length < 4) {
+				newErrors.postalCode =
+					"Postal code must be at least 4 characters long.";
+			}
+		}
+
 		setErrors(newErrors);
 
 		// If no errors, proceed to handle reservation
-
 		if (Object.keys(newErrors).length === 0) handleReservation();
 	};
 
@@ -168,9 +213,10 @@ const PaymentDetails = ({
 					prefix={<HomeOutlined />}
 					placeholder='Postal Code'
 					value={postalCode}
-					onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, ""))}
-					maxLength={6}
+					onChange={(e) => setPostalCode(e.target.value)}
+					maxLength={10}
 				/>
+				{errors.postalCode && <ErrorText>{errors.postalCode}</ErrorText>}
 			</InputGroup>
 
 			{/* Price Section */}
