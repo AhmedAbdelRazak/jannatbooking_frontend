@@ -98,7 +98,6 @@ const CheckoutContent = () => {
 		[roomCart]
 	);
 
-	console.log(roomCart, "roomCartroomCart");
 	useEffect(() => {
 		// Fetch conversion for both deposit and total amounts
 		const fetchConversion = async () => {

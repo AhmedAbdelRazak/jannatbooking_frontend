@@ -48,14 +48,20 @@ const PaymentDetails = ({
 	};
 
 	const handleExpiryDateChange = (e) => {
-		let value = e.target.value.replace(/\D/g, "");
-		if (value.length >= 2) value = value.slice(0, 2) + "/" + value.slice(2, 4);
-		setExpiryDate(value);
-		if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(value)) {
-			setErrors({ ...errors, expiryDate: "Invalid expiry date" });
-		} else {
-			setErrors({ ...errors, expiryDate: "" });
+		let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
+
+		// Add leading zero for months 1-9
+		if (value.length === 1 && value !== "0" && value !== "1") {
+			value = "0" + value;
 		}
+
+		// Ensure slash remains at the right position
+		if (value.length >= 2) {
+			value = value.slice(0, 2) + "/" + value.slice(2, 6); // Add slash after month and allow 4 digits for year
+		}
+
+		setExpiryDate(value);
+		console.log(value, "value");
 	};
 
 	const handleCvvChange = (e) => {
@@ -70,13 +76,24 @@ const PaymentDetails = ({
 
 	const validateForm = () => {
 		const newErrors = {};
+
+		// Card number validation (ensure 16 digits)
 		if (cardNumber.replace(/\s/g, "").length < 16)
 			newErrors.cardNumber = "Invalid card number";
-		if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiryDate))
-			newErrors.expiryDate = "Invalid expiry date";
+
+		// Expiry date validation (MM/YYYY)
+		if (!/^(0[1-9]|1[0-2])\/\d{4}$/.test(expiryDate))
+			newErrors.expiryDate = "Invalid expiry date (MM/YYYY)";
+
+		// CVV validation (ensure at least 3 digits)
 		if (cvv.length < 3) newErrors.cvv = "Invalid CVV";
+
+		// Cardholder name validation
 		if (!cardHolderName) newErrors.cardHolderName = "Name is required";
+
 		setErrors(newErrors);
+
+		// If no errors, proceed to handle reservation
 
 		if (Object.keys(newErrors).length === 0) handleReservation();
 	};
@@ -111,12 +128,12 @@ const PaymentDetails = ({
 			<InputRow>
 				<StyledInput
 					prefix={<CalendarOutlined />}
-					placeholder='MM/YY'
+					placeholder='MM/YYYY'
 					value={expiryDate}
 					onChange={handleExpiryDateChange}
 					autoComplete='cc-exp'
 					inputMode='numeric'
-					maxLength={5}
+					maxLength={7} // Updated to allow "MM/YYYY" (7 characters total)
 				/>
 				<StyledInput
 					prefix={<LockOutlined />}
