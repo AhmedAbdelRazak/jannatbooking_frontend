@@ -278,6 +278,10 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 
 		try {
 			const response = await createNewSupportCase(data);
+			ReactGA.event({
+				category: "User Started Chat",
+				action: "User Started Chat",
+			});
 			setCaseId(response._id);
 			setSubmitted(true);
 			setMessages((prev) => [
@@ -322,9 +326,14 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 				caseStatus: "closed",
 				closedBy: customerEmail,
 			});
+			ReactGA.event({
+				category: "User Rated Chat",
+				action: "User Rated Chat",
+			});
 			localStorage.removeItem("currentChat");
 			setIsRatingVisible(false);
 			closeChatWindow();
+
 			message.success("Thank you for your feedback!");
 		} catch (err) {
 			console.error("Error rating support case", err);
@@ -400,10 +409,6 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 						<Button
 							type='primary'
 							onClick={() => {
-								ReactGA.event({
-									category: "User Rated Chat",
-									action: "User Rated Chat",
-								});
 								handleRateService(rating);
 							}}
 						>
@@ -560,14 +565,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 						</Form.Item>
 					)}
 
-					<Form.Item
-						onClick={() => {
-							ReactGA.event({
-								category: "User Started Chat",
-								action: "User Started Chat",
-							});
-						}}
-					>
+					<Form.Item>
 						<Button type='primary' htmlType='submit'>
 							Start Chat
 						</Button>

@@ -12,7 +12,6 @@ import AmericanExpress from "../../GeneralImages/AmericanExpress.png";
 import MasterCard from "../../GeneralImages/MasterCard.png";
 import VisaCard from "../../GeneralImages/VisaImage.png";
 import CreditCard from "../../GeneralImages/CreditCard.png";
-import ReactGA from "react-ga4";
 
 const PaymentDetails = ({
 	cardNumber,
@@ -247,11 +246,6 @@ const PaymentDetails = ({
 			<SubmitButton
 				type='primary'
 				onClick={() => {
-					ReactGA.event({
-						category: "User Checkedout and Paid",
-						action: "User Checkedout and Paid",
-						label: `User Checkedout and Paid`,
-					});
 					validateForm();
 				}}
 			>

@@ -356,6 +356,11 @@ const CheckoutContent = () => {
 			const response = await createNewReservationClient(reservationData);
 			if (response && response.message === "Reservation created successfully") {
 				message.success("Reservation created successfully");
+				ReactGA.event({
+					category: "User Checkedout and Paid Successfully",
+					action: "User Checkedout and Paid Successfully",
+					label: `User Checkedout and Paid Successfully`,
+				});
 
 				// Construct query params
 				const queryParams = new URLSearchParams();
@@ -679,16 +684,23 @@ const CheckoutContent = () => {
 					</InputGroup>
 					<InputGroup>
 						<label>Passport Expiry</label>
-						<input
-							type='date'
-							name='passportExpiry'
-							value={customerDetails.passportExpiry}
-							onChange={(e) =>
+						<DatePicker
+							format='YYYY-MM-DD' // Ensures consistency in the date format
+							disabledDate={(current) =>
+								current && current < dayjs().endOf("day")
+							} // Disable past dates
+							value={
+								customerDetails.passportExpiry
+									? dayjs(customerDetails.passportExpiry)
+									: null
+							} // Set initial value
+							onChange={(date, dateString) => {
 								setCustomerDetails({
 									...customerDetails,
-									passportExpiry: e.target.value,
-								})
-							}
+									passportExpiry: dateString, // Update state with the selected date
+								});
+							}}
+							style={{ width: "100%" }} // Full-width styling for consistency
 						/>
 					</InputGroup>
 					<InputGroup>
