@@ -584,11 +584,11 @@ const SingleHotel = ({ selectedHotel }) => {
 										{selectedCurrency.toUpperCase()} / Night
 									</span>
 									<div className='nights'>{numberOfNights} nights</div>
-									<div className='finalTotal'>
+									{/* <div className='finalTotal'>
 										Total (incl. Commission):{" "}
 										{convertCurrency(totalPriceAfterCommission)}{" "}
 										{selectedCurrency.toUpperCase()}
-									</div>
+									</div> */}
 								</FinalPrice>
 							</PriceSection>
 							<div
