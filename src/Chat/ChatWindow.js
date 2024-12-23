@@ -17,7 +17,7 @@ import ReactGA from "react-ga4";
 
 const { Option } = Select;
 
-const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
+const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	const [activeHotels, setActiveHotels] = useState([]);
 	const [customerName, setCustomerName] = useState("");
 	const [customerEmail, setCustomerEmail] = useState("");
@@ -214,8 +214,18 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 		}
 
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		if (!customerEmail || !emailRegex.test(customerEmail)) {
-			message.error("Please enter a valid email address.");
+		const phoneRegex = /^[0-9]{10,15}$/;
+
+		// Validate either email or phone number
+		if (
+			!customerEmail ||
+			(!emailRegex.test(customerEmail) && !phoneRegex.test(customerEmail))
+		) {
+			message.error(
+				chosenLanguage === "Arabic"
+					? "يرجى إدخال بريد إلكتروني أو رقم هاتف صالح."
+					: "Please enter a valid email address or phone number."
+			);
 			return;
 		}
 
@@ -384,9 +394,14 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 	};
 
 	return (
-		<ChatWindowWrapper isMinimized={isMinimized}>
+		<ChatWindowWrapper
+			isMinimized={isMinimized}
+			dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+		>
 			<ChatWindowHeader>
-				<h3>Customer Support</h3>
+				<h3>
+					{chosenLanguage === "Arabic" ? "دعم العملاء" : "Customer Support"}
+				</h3>
 				<Button
 					type='text'
 					icon={<CloseOutlined />}
@@ -395,7 +410,9 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 			</ChatWindowHeader>
 			{isRatingVisible ? (
 				<RatingSection>
-					<h4>Rate Our Service</h4>
+					<h4>
+						{chosenLanguage === "Arabic" ? "قيم خدمتنا" : "Rate Our Service"}
+					</h4>
 					<StarRatings
 						rating={rating}
 						starRatedColor='var(--secondary-color)'
@@ -412,9 +429,11 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 								handleRateService(rating);
 							}}
 						>
-							Submit Rating
+							{chosenLanguage === "Arabic" ? "إرسال التقييم" : "Submit Rating"}
 						</Button>
-						<Button onClick={handleSkipRating}>Skip</Button>
+						<Button onClick={handleSkipRating}>
+							{chosenLanguage === "Arabic" ? "تخطي" : "Skip"}
+						</Button>
 					</RatingButtons>
 				</RatingSection>
 			) : submitted && !isMinimized ? (
@@ -434,7 +453,11 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 					<Form.Item>
 						<ChatInputContainer>
 							<Input
-								placeholder='Type your message...'
+								placeholder={
+									chosenLanguage === "Arabic"
+										? "اكتب رسالتك..."
+										: "Type your message..."
+								}
 								value={newMessage}
 								onChange={handleInputChange}
 								onBlur={handleInputBlur}
@@ -462,42 +485,91 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 							</Upload>
 						</ChatInputContainer>
 						<SendButton type='primary' onClick={handleSendMessage}>
-							Send
+							{chosenLanguage === "Arabic" ? "إرسال" : "Send"}
 						</SendButton>
 						<CloseButton type='danger' onClick={handleCloseChat}>
-							<CloseOutlined /> Close Chat
+							<CloseOutlined />{" "}
+							{chosenLanguage === "Arabic" ? "إغلاق المحادثة" : "Close Chat"}
 						</CloseButton>
 					</Form.Item>
 				</div>
 			) : !isMinimized ? (
 				<Form layout='vertical' onFinish={handleSubmit}>
-					<Form.Item label='Full Name' required>
+					<Form.Item
+						label={chosenLanguage === "Arabic" ? "الاسم الكامل" : "Full Name"}
+						required
+					>
 						<Input
 							value={customerName}
-							placeholder='FirstName LastName'
+							placeholder={
+								chosenLanguage === "Arabic"
+									? "الاسم الأول الاسم الأخير"
+									: "FirstName LastName"
+							}
 							onChange={(e) => setCustomerName(e.target.value)}
 							disabled={isAuthenticated()}
 						/>
 					</Form.Item>
-					<Form.Item label='Email' required>
+					<Form.Item
+						label={
+							chosenLanguage === "Arabic"
+								? "البريد الإلكتروني أو رقم الهاتف"
+								: "Email or Phone Number"
+						}
+						required
+						rules={[
+							{
+								required: true,
+								message:
+									chosenLanguage === "Arabic"
+										? "يرجى إدخال بريد إلكتروني أو رقم هاتف صحيح"
+										: "Please enter a valid email or phone number",
+								validator: (_, value) => {
+									if (!value) {
+										return Promise.reject();
+									}
+									// Regex for validating email
+									const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+									// Regex for validating phone number
+									const phoneRegex = /^[0-9]{10,15}$/;
+									if (emailRegex.test(value) || phoneRegex.test(value)) {
+										return Promise.resolve();
+									}
+									return Promise.reject();
+								},
+							},
+						]}
+					>
 						<Input
 							value={customerEmail}
-							placeholder='e.g. client@gmail.com'
+							placeholder={
+								chosenLanguage === "Arabic"
+									? "على سبيل المثال client@gmail.com أو 1234567890"
+									: "e.g. client@gmail.com or 1234567890"
+							}
 							onChange={(e) => setCustomerEmail(e.target.value)}
 							disabled={isAuthenticated()}
 						/>
 					</Form.Item>
-					<Form.Item label='Select Hotel' required>
+					<Form.Item
+						label={chosenLanguage === "Arabic" ? "اختر الفندق" : "Select Hotel"}
+						required
+					>
 						<Select
 							showSearch
-							placeholder='Select a hotel'
+							placeholder={
+								chosenLanguage === "Arabic" ? "اختر فندقًا" : "Select a hotel"
+							}
 							optionFilterProp='children'
-							value={hotelId || undefined} // Set the current value based on state
+							value={hotelId || undefined}
 							onChange={handleHotelChange}
 							filterOption={(input, option) =>
 								option.children.toLowerCase().includes(input.toLowerCase())
 							}
-							style={{ textTransform: "capitalize" }}
+							style={{
+								textTransform: "capitalize",
+								textAlign: chosenLanguage === "Arabic" ? "right" : "",
+							}}
 						>
 							<Option
 								key='674cf8997e3780f1f838d458'
@@ -508,7 +580,9 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 									color: "darkred",
 								}}
 							>
-								Speak With Jannat Booking
+								{chosenLanguage === "Arabic"
+									? "التحدث مع إدارة جنات"
+									: "Speak With Jannat Booking"}
 							</Option>
 							{activeHotels &&
 								activeHotels.map((hotel) => (
@@ -522,8 +596,17 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 								))}
 						</Select>
 					</Form.Item>
-					<Form.Item label='Inquiry About' required>
-						<Select value={inquiryAbout} onChange={handleInquiryChange}>
+					<Form.Item
+						label={
+							chosenLanguage === "Arabic" ? "الاستفسار عن" : "Inquiry About"
+						}
+						required
+					>
+						<Select
+							value={inquiryAbout}
+							onChange={handleInquiryChange}
+							style={{ textAlign: chosenLanguage === "Arabic" ? "right" : "" }}
+						>
 							{(selectedHotel && selectedHotel.hotelName) ||
 							hotelName ||
 							hotelId ? null : (
@@ -535,20 +618,43 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 										color: "darkred",
 									}}
 								>
-									Speak With Jannat Booking
+									{chosenLanguage === "Arabic"
+										? "التحدث مع حجز جنات"
+										: "Speak With Jannat Booking"}
 								</Option>
 							)}
 
-							<Option value='reserve_room'>Reserve A Room</Option>
-							<Option value='reserve_bed'>Reserve A Bed</Option>
-							<Option value='payment_inquiry'>Payment Inquiry</Option>
-							<Option value='reservation'>Reservation Inquiry</Option>
-							<Option value='others'>Others</Option>
+							<Option value='reserve_room'>
+								{chosenLanguage === "Arabic" ? "حجز غرفة" : "Reserve A Room"}
+							</Option>
+							<Option value='reserve_bed'>
+								{chosenLanguage === "Arabic" ? "حجز سرير" : "Reserve A Bed"}
+							</Option>
+							<Option value='payment_inquiry'>
+								{chosenLanguage === "Arabic"
+									? "استفسار عن الدفع"
+									: "Payment Inquiry"}
+							</Option>
+							<Option value='reservation'>
+								{chosenLanguage === "Arabic"
+									? "استفسار عن الحجز"
+									: "Reservation Inquiry"}
+							</Option>
+							<Option value='others'>
+								{chosenLanguage === "Arabic" ? "أخرى" : "Others"}
+							</Option>
 						</Select>
 					</Form.Item>
 
 					{inquiryAbout === "others" && (
-						<Form.Item label='Please specify your inquiry' required>
+						<Form.Item
+							label={
+								chosenLanguage === "Arabic"
+									? "يرجى تحديد استفسارك"
+									: "Please specify your inquiry"
+							}
+							required
+						>
 							<Input
 								value={otherInquiry}
 								onChange={(e) => setOtherInquiry(e.target.value)}
@@ -557,7 +663,14 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 					)}
 
 					{inquiryAbout === "reservation" && (
-						<Form.Item label='Reservation Confirmation Number' required>
+						<Form.Item
+							label={
+								chosenLanguage === "Arabic"
+									? "رقم تأكيد الحجز"
+									: "Reservation Confirmation Number"
+							}
+							required
+						>
 							<Input
 								value={reservationNumber}
 								onChange={(e) => setReservationNumber(e.target.value)}
@@ -567,7 +680,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel }) => {
 
 					<Form.Item>
 						<Button type='primary' htmlType='submit'>
-							Start Chat
+							{chosenLanguage === "Arabic" ? "بدء المحادثة" : "Start Chat"}
 						</Button>
 					</Form.Item>
 				</Form>
@@ -663,6 +776,7 @@ const SendButton = styled(Button)`
 	color: var(--button-font-color);
 	width: 100%;
 	margin-top: 10px;
+	font-weight: bold;
 `;
 
 const CloseButton = styled(Button)`
@@ -670,6 +784,7 @@ const CloseButton = styled(Button)`
 	color: var(--button-font-color);
 	width: 100%;
 	margin-top: 10px;
+	font-weight: bold;
 `;
 
 const RatingSection = styled.div`

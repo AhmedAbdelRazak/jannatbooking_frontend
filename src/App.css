@@ -133,3 +133,15 @@ body {
 		width: 100% !important;
 	}
 }
+
+@keyframes blink {
+	0% {
+		opacity: 1; /* Fully visible at the start */
+	}
+	50% {
+		opacity: 0; /* Completely invisible at halfway */
+	}
+	100% {
+		opacity: 1; /* Fully visible at the end */
+	}
+}

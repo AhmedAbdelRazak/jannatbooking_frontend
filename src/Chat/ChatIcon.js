@@ -10,6 +10,7 @@ import {
 import notificationSound from "./Notification.wav"; // Import the notification sound
 import socket from "./socket"; // Ensure this is correctly imported
 import ReactGA from "react-ga4";
+import { useCartContext } from "../cart_context";
 
 const ChatIconWrapper = styled.div`
 	position: fixed;
@@ -45,17 +46,20 @@ const ChatMessage = styled.div`
 	}
 
 	.chat-status {
-		font-size: 12px;
-		font-weight: normal;
-		color: white;
+		font-size: 12px; /* Adjust font size for the status text */
+		font-weight: normal; /* Normal font weight for the text */
+		color: white; /* White color for the text */
 
 		.status-dot {
-			width: 8px;
-			height: 8px;
-			background-color: #00ff00;
-			border-radius: 50%;
-			display: inline-block;
-			margin-right: 5px;
+			width: 8px; /* Set the width of the dot */
+			height: 8px; /* Set the height of the dot */
+			background-color: #00ff00; /* Green color for the dot */
+			border-radius: 50%; /* Make the dot circular */
+			display: inline-block; /* Inline block for inline positioning */
+			margin-right: 5px; /* Add space between the dot and text */
+
+			/* Animation for blinking effect */
+			animation: blink 3s infinite; /* Apply the 'blink' animation, repeating infinitely */
 		}
 	}
 
@@ -92,6 +96,7 @@ const ChatIcon = () => {
 	const [unseenCount, setUnseenCount] = useState(0);
 	const [hasInteracted, setHasInteracted] = useState(false); // Track user interaction
 	const [selectedHotel, setSelectedHotel] = useState(null); // Track selected hotel
+	const { chosenLanguage } = useCartContext();
 
 	// Extract the hotelNameSlug from window.location.pathname
 	useEffect(() => {
@@ -228,6 +233,7 @@ const ChatIcon = () => {
 				<ChatWindow
 					closeChatWindow={toggleChatWindow}
 					selectedHotel={selectedHotel}
+					chosenLanguage={chosenLanguage}
 				/>
 			)}
 		</ChatIconWrapper>
