@@ -150,7 +150,7 @@ const ListProperty = () => {
 	return (
 		<ListPropertyWrapper>
 			<Helmet>
-				<title>List Your Property | Jannat Booking - Haj & Omrah Hotels</title>
+				<title>List Your Property | Jannat Booking - Haj & Umrah Hotels</title>
 				<meta
 					name='description'
 					content='List your property with Jannat Booking to offer the best Haj and Omrah accommodations. Join now and connect with thousands of travelers worldwide.'
@@ -167,7 +167,7 @@ const ListProperty = () => {
 				/>
 				<meta
 					property='og:description'
-					content='Offer your property for Haj and Omrah pilgrims. List with Jannat Booking and help travelers find their perfect stay.'
+					content='Offer your property for Haj and Umrah pilgrims. List with Jannat Booking and help travelers find their perfect stay.'
 				/>
 				<meta
 					property='og:url'
@@ -187,7 +187,7 @@ const ListProperty = () => {
 				/>
 				<meta
 					name='twitter:description'
-					content='Join Jannat Booking and list your property for Haj and Omrah travelers. Reach a wide audience and grow your business.'
+					content='Join Jannat Booking and list your property for Haj and Umrah travelers. Reach a wide audience and grow your business.'
 				/>
 				<meta
 					name='twitter:image'

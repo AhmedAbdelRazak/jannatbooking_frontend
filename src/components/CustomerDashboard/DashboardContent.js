@@ -124,11 +124,13 @@ const ReservationSummary = ({ reservations }) => {
 									>
 										<PricingList>
 											{room.pricingByDay && room.pricingByDay.length > 0 ? (
-												room.pricingByDay.map(({ date, price }, dayIndex) => (
-													<li key={dayIndex}>
-														{date}: {price} SAR
-													</li>
-												))
+												room.pricingByDay.map(
+													({ date, totalPriceWithCommission }, dayIndex) => (
+														<li key={dayIndex}>
+															{date}: {totalPriceWithCommission} SAR
+														</li>
+													)
+												)
 											) : (
 												<li>No price breakdown available</li>
 											)}

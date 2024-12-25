@@ -11,6 +11,9 @@ import dayjs from "dayjs";
 import PaymentDetails from "../components/checkout/PaymentDetails";
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { authenticate, isAuthenticated, signin } from "../auth";
+import { Helmet } from "react-helmet";
+import favicon from "../favicon.ico";
+import ReactGA from "react-ga4";
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
@@ -70,8 +73,8 @@ const GeneratedLinkCheckout = () => {
 		children: 0,
 		nationality: "",
 		phone: user ? user.phone : "",
-		passport: "",
-		passportExpiry: "",
+		passport: "Not Provided",
+		passportExpiry: "2029-12-20",
 		pickedRooms: [], // Array to hold multiple room selections
 	});
 	const [password, setPassword] = useState("");
@@ -278,6 +281,8 @@ const GeneratedLinkCheckout = () => {
 			numberOfNights,
 		} = formData;
 
+		console.log(phone, "phone");
+
 		// Validate Terms & Conditions
 		if (!guestAgreedOnTermsAndConditions) {
 			message.error(
@@ -401,7 +406,11 @@ const GeneratedLinkCheckout = () => {
 			const response = await createNewReservationClient(reservationData);
 			if (response?.message === "Reservation created successfully") {
 				message.success("Reservation created successfully");
-
+				ReactGA.event({
+					category: "User Checkedout and Paid Successfully",
+					action: "User Checkedout and Paid Successfully",
+					label: `User Checkedout and Paid Successfully`,
+				});
 				// Automatically sign in the user if the account was just created
 				if (!user) {
 					const signInResponse = await signin({
@@ -467,6 +476,48 @@ const GeneratedLinkCheckout = () => {
 
 	return (
 		<GeneratedLinkCheckoutWrapper>
+			<Helmet>
+				<title>Generated Link By Customer Service | Jannat Booking</title>
+				<meta
+					name='description'
+					content='Generated Link For Booking Confirmation'
+				/>
+				<meta
+					name='keywords'
+					content='Jannat Booking, Contact Us, Haj hotel support, Umrah hotel inquiries, pilgrimage support, hotel booking assistance, customer service'
+				/>
+
+				{/* Open Graph Tags */}
+				<meta property='og:title' content='Contact Us | Jannat Booking' />
+				<meta
+					property='og:description'
+					content='Get in touch with Jannat Booking for Haj and Umrah hotel bookings. Our support team is here to help you with all your inquiries and reservations.'
+				/>
+				<meta
+					property='og:url'
+					content='https://jannatbooking.com/generated-link'
+				/>
+				<meta property='og:type' content='website' />
+				<meta
+					property='og:image'
+					content='https://jannatbooking.com/contact_banner.jpg'
+				/>
+				<meta property='og:locale' content='en_US' />
+
+				{/* Twitter Card */}
+				<meta name='twitter:card' content='summary_large_image' />
+				<meta name='twitter:title' content='Contact Us | Jannat Booking' />
+				<meta
+					name='twitter:description'
+					content="Reach out to Jannat Booking for assistance with Haj and Umrah hotel reservations. We're happy to help with your inquiries."
+				/>
+
+				{/* Canonical URL */}
+				<link rel='canonical' href='https://jannatbooking.com/generated-link' />
+
+				{/* Favicon */}
+				<link rel='icon' href={favicon} />
+			</Helmet>
 			<MobileAccordion
 				onChange={() => setMobileExpanded(!mobileExpanded)}
 				activeKey={mobileExpanded ? "1" : null}
@@ -618,8 +669,8 @@ const GeneratedLinkCheckout = () => {
 							<input
 								type='text'
 								value={formData.phone}
-								onChange={(e) =>
-									setFormData({ ...formData, phone: e.target.value })
+								onChange={
+									(e) => setFormData({ ...formData, phone: e.target.value }) // Corrected to use e.target.value
 								}
 								readOnly={!!user}
 							/>
@@ -676,7 +727,19 @@ const GeneratedLinkCheckout = () => {
 								</div>
 							</div>
 						)}
+
 						<InputGroup>
+							<label>Phone</label>
+							<input
+								type='text'
+								value={formData.phone}
+								onChange={
+									(e) => setFormData({ ...formData, phone: e.target.value }) // Corrected to use e.target.value
+								}
+								readOnly={!!user}
+							/>
+						</InputGroup>
+						{/* <InputGroup>
 							<label>Passport Number</label>
 							<input
 								type='text'
@@ -695,7 +758,7 @@ const GeneratedLinkCheckout = () => {
 									setFormData({ ...formData, passportExpiry: e.target.value })
 								}
 							/>
-						</InputGroup>
+						</InputGroup> */}
 						<InputGroup>
 							<label>Nationality</label>
 							<input type='text' value={formData.nationality} disabled />
@@ -705,9 +768,14 @@ const GeneratedLinkCheckout = () => {
 					<TermsWrapper>
 						<Checkbox
 							checked={guestAgreedOnTermsAndConditions}
-							onChange={(e) =>
-								setGuestAgreedOnTermsAndConditions(e.target.checked)
-							}
+							onChange={(e) => {
+								ReactGA.event({
+									category: "User Accepted Terms And Cond (Link Generated)",
+									action: "User Accepted Terms And Cond (Link Generated)",
+									label: `User Accepted Terms And Cond (Link Generated)`,
+								});
+								setGuestAgreedOnTermsAndConditions(e.target.checked);
+							}}
 						>
 							Accept Terms & Conditions
 						</Checkbox>
@@ -718,6 +786,11 @@ const GeneratedLinkCheckout = () => {
 							checked={pay10Percent}
 							onChange={(e) => {
 								setPayWholeAmount(false);
+								ReactGA.event({
+									category: "User Checked On Paying Deposit (Link Generated)",
+									action: "User Checked On Paying Deposit (Link Generated)",
+									label: `User Checked On Paying Deposit (Link Generated)`,
+								});
 								setPay10Percent(e.target.checked);
 							}}
 						>
@@ -740,6 +813,13 @@ const GeneratedLinkCheckout = () => {
 							onChange={(e) => {
 								setPay10Percent(false);
 								setPayWholeAmount(e.target.checked);
+								ReactGA.event({
+									category:
+										"User Checked On Paying Whole Amount (Link Generated)",
+									action:
+										"User Checked On Paying Whole Amount (Link Generated)",
+									label: `User Checked On Paying Whole Amount (Link Generated)`,
+								});
 							}}
 						>
 							Pay the whole Total Amount{" "}

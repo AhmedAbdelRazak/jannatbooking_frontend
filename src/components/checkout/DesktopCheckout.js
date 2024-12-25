@@ -158,35 +158,6 @@ const DesktopCheckout = ({
 					) : null}
 
 					<InputGroup>
-						<label>Passport</label>
-						<input
-							type='text'
-							name='passport'
-							placeholder='Passport Number'
-							value={customerDetails.passport}
-							onChange={(e) =>
-								setCustomerDetails({
-									...customerDetails,
-									passport: e.target.value,
-								})
-							}
-						/>
-					</InputGroup>
-					<InputGroup>
-						<label>Passport Expiry</label>
-						<input
-							type='date'
-							name='passportExpiry'
-							value={customerDetails.passportExpiry}
-							onChange={(e) =>
-								setCustomerDetails({
-									...customerDetails,
-									passportExpiry: e.target.value,
-								})
-							}
-						/>
-					</InputGroup>
-					<InputGroup>
 						<label>Nationality</label>
 						<Select
 							showSearch

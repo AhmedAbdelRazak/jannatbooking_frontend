@@ -90,10 +90,10 @@ const Home = () => {
 	return (
 		<>
 			<Helmet>
-				<title>Jannat Booking | Book Haj & Omrah Hotels with Ease</title>
+				<title>Jannat Booking | Book Haj & Umrah Hotels with Ease</title>
 				<meta
 					name='description'
-					content={`Explore the most popular hotels for Haj and Omrah with Jannat Booking. Top hotels include ${generateHotelNames(
+					content={`Explore the most popular hotels for Haj and Umrah with Jannat Booking. Top hotels include ${generateHotelNames(
 						activeHotels
 					)}. Enjoy amenities like ${generateAmenitiesList(
 						activeHotels
@@ -101,7 +101,7 @@ const Home = () => {
 				/>
 				<meta
 					name='keywords'
-					content={`Jannat Booking, Haj hotels, Omrah hotels, popular hotels, ${generateHotelNames(
+					content={`Jannat Booking, Haj hotels, Omrah hotels, Umrah, popular hotels, ${generateHotelNames(
 						activeHotels
 					)}, ${generateAmenitiesList(activeHotels)}, Standard Rooms, Luxury Suites, best accommodations`}
 				/>
@@ -109,11 +109,11 @@ const Home = () => {
 				{/* Open Graph Tags */}
 				<meta
 					property='og:title'
-					content='Jannat Booking | Find Haj & Omrah Hotels'
+					content='Jannat Booking | Find Haj & Umrah Hotels'
 				/>
 				<meta
 					property='og:description'
-					content={`Explore the best Haj and Omrah hotels: ${generateHotelNames(
+					content={`Explore the best Haj and Umrah hotels: ${generateHotelNames(
 						activeHotels
 					)}. Top amenities include ${generateAmenitiesList(
 						activeHotels
@@ -131,7 +131,7 @@ const Home = () => {
 				<meta name='twitter:card' content='summary_large_image' />
 				<meta
 					name='twitter:title'
-					content='Jannat Booking | Best Haj & Omrah Hotels'
+					content='Jannat Booking | Best Haj & Umrah Hotels'
 				/>
 				<meta
 					name='twitter:description'

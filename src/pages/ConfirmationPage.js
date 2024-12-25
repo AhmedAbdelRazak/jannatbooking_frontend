@@ -17,38 +17,71 @@ const ConfirmationPage = () => {
 	}, []); // Empty dependency array to run on mount
 
 	// Extracting general reservation details
-	const name = searchParams.get("name");
-	const totalPrice = searchParams.get("total_price");
-	const totalRooms =
-		searchParams.get("total_rooms") ||
-		parseInt(searchParams.get("total_rooms"), 10);
+	const name = searchParams.get("name") || "Guest";
+	const totalPrice = parseFloat(searchParams.get("total_price")) || 0.0;
+	const totalRooms = parseInt(searchParams.get("total_rooms"), 10) || 0;
 	const hotelName =
-		searchParams.get("hotel_name_0") || searchParams.get("hotel_name"); // Hotel name for the first room
+		searchParams.get("hotel_name") ||
+		searchParams.get("hotel_name_0") ||
+		"Unknown Hotel";
 	const checkinDate =
-		searchParams.get("checkin_date_0") || searchParams.get("checkin_date"); // Check-in date for the first room
+		searchParams.get("checkin_date") ||
+		searchParams.get("checkin_date_0") ||
+		"Unknown Date";
 	const checkoutDate =
-		searchParams.get("checkout_date_0") || searchParams.get("checkout_date"); // Check-out date for the first room
+		searchParams.get("checkout_date") ||
+		searchParams.get("checkout_date_0") ||
+		"Unknown Date";
 	const nights =
-		searchParams.get("nights_0") ||
-		searchParams.get("nights") ||
-		searchParams.get("total_nights"); // Nights for the first room
+		parseInt(searchParams.get("nights"), 10) ||
+		parseInt(searchParams.get("nights_0"), 10) ||
+		1;
 
-	// Extract room details for multiple rooms
+	// Extract room details for multiple rooms (supporting both parameter formats)
 	const rooms = [];
-	for (let i = 0; i < totalRooms; i++) {
+	for (let i = 1; i <= totalRooms; i++) {
 		const room = {
 			roomType:
 				searchParams.get(`room_type${i}`) ||
-				searchParams.get(`room_type_${i}`) ||
-				"No Type Specified",
+				searchParams.get(`room_type_${i - 1}`) ||
+				"Unknown Type",
 			roomDisplayName:
 				searchParams.get(`room_display_name${i}`) ||
-				searchParams.get(`room_display_name_${i}`) ||
+				searchParams.get(`room_display_name_${i - 1}`) ||
 				"No Name Specified",
-			pricePerNight: searchParams.get(`price_per_night${i}`),
-			roomCount: searchParams.get(`room_count${i}`),
+			pricePerNight:
+				parseFloat(
+					searchParams.get(`price_per_night${i}`) ||
+						searchParams.get(`price_per_night_${i - 1}`)
+				) ||
+				parseFloat((totalPrice / nights / totalRooms).toFixed(2)) || // Fallback calculation
+				0.0,
+			roomCount:
+				parseInt(searchParams.get(`room_count${i}`), 10) ||
+				parseInt(searchParams.get(`room_count_${i - 1}`), 10) ||
+				1,
 		};
 		rooms.push(room);
+	}
+
+	// Handle cases where total_rooms might be 1 but no incremented room details are present
+	if (totalRooms === 1 && rooms.length === 0) {
+		const singleRoom = {
+			roomType:
+				searchParams.get("room_type") ||
+				searchParams.get("room_type_0") ||
+				"Unknown Type",
+			roomDisplayName:
+				searchParams.get("room_display_name") ||
+				searchParams.get("room_display_name_0") ||
+				"No Name Specified",
+			pricePerNight:
+				parseFloat(searchParams.get("price_per_night")) ||
+				parseFloat((totalPrice / nights).toFixed(2)) || // Fallback calculation
+				0.0,
+			roomCount: parseInt(searchParams.get("room_count"), 10) || 1,
+		};
+		rooms.push(singleRoom);
 	}
 
 	return (
@@ -129,6 +162,16 @@ const ConfirmationPage = () => {
 										<strong>Room Name:</strong> {room.roomDisplayName}
 									</p>
 								</div>
+								<div className='grid-item'>
+									<p>
+										<strong>Price per Night:</strong> {room.pricePerNight} SAR
+									</p>
+								</div>
+								<div className='grid-item'>
+									<p>
+										<strong>Room Count:</strong> {room.roomCount}
+									</p>
+								</div>
 							</div>
 						</RoomDetails>
 					))}
@@ -141,7 +184,7 @@ const ConfirmationPage = () => {
 						</div>
 						<div className='grid-item total-price'>
 							<p>
-								<strong>Total Price:</strong> {totalPrice} SAR
+								<strong>Total Price:</strong> {totalPrice.toFixed(2)} SAR
 							</p>
 						</div>
 					</div>

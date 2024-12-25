@@ -84,8 +84,8 @@ const CheckoutContent = () => {
 		name: user ? user.name : "",
 		phone: user ? user.phone : "",
 		email: user ? user.email : "",
-		passport: "",
-		passportExpiry: "",
+		passport: "Not Provided",
+		passportExpiry: "2029-12-20",
 		nationality: "",
 		postalCode: "",
 		state: "",
@@ -667,42 +667,6 @@ const CheckoutContent = () => {
 						</div>
 					) : null}
 
-					<InputGroup>
-						<label>Passport</label>
-						<input
-							type='text'
-							name='passport'
-							placeholder='Passport Number'
-							value={customerDetails.passport}
-							onChange={(e) =>
-								setCustomerDetails({
-									...customerDetails,
-									passport: e.target.value,
-								})
-							}
-						/>
-					</InputGroup>
-					<InputGroup>
-						<label>Passport Expiry</label>
-						<DatePicker
-							format='YYYY-MM-DD' // Ensures consistency in the date format
-							disabledDate={(current) =>
-								current && current < dayjs().endOf("day")
-							} // Disable past dates
-							value={
-								customerDetails.passportExpiry
-									? dayjs(customerDetails.passportExpiry)
-									: null
-							} // Set initial value
-							onChange={(date, dateString) => {
-								setCustomerDetails({
-									...customerDetails,
-									passportExpiry: dateString, // Update state with the selected date
-								});
-							}}
-							style={{ width: "100%" }} // Full-width styling for consistency
-						/>
-					</InputGroup>
 					<InputGroup>
 						<label>Nationality</label>
 						<Select
