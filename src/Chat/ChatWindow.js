@@ -14,6 +14,7 @@ import socket from "./socket";
 import EmojiPicker from "emoji-picker-react";
 import StarRatings from "react-star-ratings";
 import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const { Option } = Select;
 
@@ -292,6 +293,12 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 				category: "User Started Chat",
 				action: "User Started Chat",
 			});
+
+			ReactPixel.track("User Started Chat", {
+				action: "User Started Chat",
+				page: "Home Page",
+			});
+
 			setCaseId(response._id);
 			setSubmitted(true);
 			setMessages((prev) => [
