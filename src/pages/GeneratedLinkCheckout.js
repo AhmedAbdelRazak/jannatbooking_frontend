@@ -14,6 +14,7 @@ import { authenticate, isAuthenticated, signin } from "../auth";
 import { Helmet } from "react-helmet";
 import favicon from "../favicon.ico";
 import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
@@ -411,6 +412,12 @@ const GeneratedLinkCheckout = () => {
 					action: "User Checkedout and Paid Successfully",
 					label: `User Checkedout and Paid Successfully`,
 				});
+
+				ReactPixel.track("Successfully Paid And Checkedout", {
+					action: "Successfully Paid And Checkedout",
+					page: "checkout",
+				});
+
 				// Automatically sign in the user if the account was just created
 				if (!user) {
 					const signInResponse = await signin({
@@ -774,6 +781,16 @@ const GeneratedLinkCheckout = () => {
 									action: "User Accepted Terms And Cond (Link Generated)",
 									label: `User Accepted Terms And Cond (Link Generated)`,
 								});
+
+								ReactPixel.track(
+									"Terms And Conditions Accepted (Line Generated)",
+									{
+										action:
+											"User Accepted Terms And Conditions Accepted (Line Generated)",
+										page: "Link Generated",
+									}
+								);
+
 								setGuestAgreedOnTermsAndConditions(e.target.checked);
 							}}
 						>
@@ -791,6 +808,12 @@ const GeneratedLinkCheckout = () => {
 									action: "User Checked On Paying Deposit (Link Generated)",
 									label: `User Checked On Paying Deposit (Link Generated)`,
 								});
+
+								ReactPixel.track("Checked On Paying Deposit (Link Generated)", {
+									action: "User Checked On Paying Deposit (Link Generated)",
+									page: "Link Generated",
+								});
+
 								setPay10Percent(e.target.checked);
 							}}
 						>
@@ -820,6 +843,15 @@ const GeneratedLinkCheckout = () => {
 										"User Checked On Paying Whole Amount (Link Generated)",
 									label: `User Checked On Paying Whole Amount (Link Generated)`,
 								});
+
+								ReactPixel.track(
+									"Checked On Paying Whole Amount (Link Generated)",
+									{
+										action:
+											"User Checked On Paying Whole Amount (Link Generated)",
+										page: "Link Generated",
+									}
+								);
 							}}
 						>
 							Pay the whole Total Amount{" "}

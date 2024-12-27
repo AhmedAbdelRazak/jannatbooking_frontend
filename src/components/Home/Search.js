@@ -10,6 +10,7 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -185,6 +186,11 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 
 			<SearchButtonWrapper
 				onClick={() => {
+					ReactPixel.track("SearchClicked_Home", {
+						action: "User searched for a room",
+						page: "Home Page",
+					});
+
 					ReactGA.event({
 						category: "User Searched For A Room From Home Page",
 						action: "User Searched For A Room From Home Page",

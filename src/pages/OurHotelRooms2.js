@@ -18,6 +18,7 @@ import dayjs from "dayjs";
 import { FaCar, FaWalking } from "react-icons/fa";
 import SortDropdown from "../components/OurHotels/SortDropdown";
 import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 // Helper to generate date range
 const generateDateRange = (startDate, endDate) => {
@@ -523,6 +524,18 @@ const RoomCard = ({
 
 	const handleChatClick = () => {
 		const hotelNameSlug = hotelName.replace(/\s+/g, "-").toLowerCase();
+
+		ReactGA.event({
+			category: "Chat Window Opened From Room Card",
+			action: "Chat Window Opened From Room Card",
+			label: `Chat Window Opened From Room Card`,
+		});
+
+		ReactPixel.track("Chat Window Opened_RoomPage", {
+			action: "User Opened Chat Window From Room Card",
+			page: "Rooms Page",
+		});
+
 		const params = new URLSearchParams(window.location.search);
 		params.set("hotelNameSlug", hotelNameSlug);
 		const newUrl = `${window.location.pathname}?${params.toString()}`;

@@ -3,11 +3,25 @@ import styled from "styled-components";
 import { useHistory } from "react-router-dom";
 import MakkahPhoto from "../../GeneralImages/Meccah.png";
 import MadinahPhoto from "../../GeneralImages/Madenah.png";
+import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const Section2 = () => {
 	const history = useHistory();
 
 	const handleImageClick = (destination) => {
+		ReactGA.event({
+			category: `User Clicked on ${destination} From Home Page`,
+			action: `User Clicked on ${destination} From Home Page`,
+			label: `User Clicked on ${destination} From Home Page`,
+		});
+
+		ReactPixel.track("DestinationClick", {
+			destination: destination, // Makkah or Madinah
+			action: "User clicked on destination",
+			page: "Home Page",
+		});
+
 		const queryParams = new URLSearchParams({
 			destination,
 			startDate: new Date().toISOString().split("T")[0], // Today's date as default

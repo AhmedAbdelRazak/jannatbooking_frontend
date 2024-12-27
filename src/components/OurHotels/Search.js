@@ -9,6 +9,8 @@ import {
 	TeamOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -191,7 +193,20 @@ const Search = ({
 				</AdultsChildrenWrapper>
 			</InputsWrapper>
 
-			<SearchButtonWrapper>
+			<SearchButtonWrapper
+				onClick={() => {
+					ReactPixel.track("SearchClicked_OurHotels", {
+						action: "User searched for a room",
+						page: "Our Hotels",
+					});
+
+					ReactGA.event({
+						category: "User Searched For A Room From Our Hotels Page",
+						action: "User Searched For A Room From Our Hotels Page",
+						label: `User Searched For A Room From Our Hotels Page`,
+					});
+				}}
+			>
 				<Button className='search-button' onClick={handleSubmit}>
 					Search
 				</Button>

@@ -7,6 +7,7 @@ import { DatePicker, ConfigProvider } from "antd"; // Import Ant Design's RangeP
 import dayjs from "dayjs";
 import locale from "antd/es/date-picker/locale/en_US"; // Optional locale for DatePicker
 import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const { RangePicker } = DatePicker;
 
@@ -173,6 +174,12 @@ const SidebarCartDrawer = () => {
 								action: "User Clicked On Checkout",
 								label: `User Clicked On Checkout`,
 							});
+
+							ReactPixel.track("User Proceeded To Checkout", {
+								action: "User Proceeded To Checkout",
+								page: "Checkout",
+							});
+
 							closeSidebar2();
 							window.scrollTo({ top: 50, behavior: "smooth" });
 						}}

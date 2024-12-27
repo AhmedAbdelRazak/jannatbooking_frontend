@@ -13,6 +13,7 @@ import { authenticate, isAuthenticated, signin } from "../../auth";
 import { useHistory } from "react-router-dom";
 import DesktopCheckout from "./DesktopCheckout";
 import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
@@ -362,6 +363,11 @@ const CheckoutContent = () => {
 					label: `User Checkedout and Paid Successfully`,
 				});
 
+				ReactPixel.track("Successfully Paid And Checkedout", {
+					action: "Successfully Paid And Checkedout",
+					page: "checkout",
+				});
+
 				// Construct query params
 				const queryParams = new URLSearchParams();
 				queryParams.append("name", customerDetails.name);
@@ -702,6 +708,11 @@ const CheckoutContent = () => {
 										action: "User Accepted Terms And Cond",
 										label: `User Accepted Terms And Cond`,
 									});
+
+									ReactPixel.track("Terms And Conditions Accepted", {
+										action: "User Accepted Terms And Conditions Accepted",
+										page: "checkout",
+									});
 								}}
 							>
 								Accept Terms & Conditions
@@ -722,6 +733,11 @@ const CheckoutContent = () => {
 										category: "User Checked On Paying Deposit",
 										action: "User Checked On Paying Deposit",
 										label: `User Checked On Paying Deposit`,
+									});
+
+									ReactPixel.track("Checked On Paying Deposit", {
+										action: "User Checked On Paying Deposit",
+										page: "checkout",
 									});
 								}}
 							>
@@ -745,6 +761,11 @@ const CheckoutContent = () => {
 										category: "User Checked On Paying Whole Amount",
 										action: "User Checked On Paying Whole Amount",
 										label: `User Checked On Paying Whole Amount`,
+									});
+
+									ReactPixel.track("Checked On Paying Whole Amount", {
+										action: "User Checked On Paying Whole Amount",
+										page: "checkout",
 									});
 								}}
 							>

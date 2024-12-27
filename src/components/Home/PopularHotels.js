@@ -8,6 +8,7 @@ import "slick-carousel/slick/slick-theme.css";
 import StarRatings from "react-star-ratings";
 import { amenitiesList } from "../../Assets"; // Assuming amenitiesList is imported here
 import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const PopularHotels = ({ activeHotels }) => {
 	const settings = {
@@ -87,6 +88,12 @@ const PopularHotels = ({ activeHotels }) => {
 									action: "User Navigated To A Hotel From Home",
 									label: `User Navigated To A Hotel From Home`,
 								});
+
+								ReactPixel.track("User Navigated To A Hotel From Home", {
+									action: "User Navigated To A Hotel From Home",
+									page: "Home Page",
+								});
+
 								window.location.href = `/single-hotel/${hotel.hotelName
 									.replace(/\s+/g, "-")
 									.toLowerCase()}`;

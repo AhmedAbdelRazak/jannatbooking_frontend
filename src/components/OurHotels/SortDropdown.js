@@ -2,6 +2,8 @@ import React from "react";
 import styled from "styled-components";
 import { Select } from "antd";
 import { SortAscendingOutlined } from "@ant-design/icons";
+import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const { Option } = Select;
 
@@ -11,6 +13,16 @@ const SortDropdown = ({ sortOption, setSortOption, currency, setCurrency }) => {
 	};
 
 	const handleCurrencyChange = (value) => {
+		ReactPixel.track("CurrencyChanged_OurHotels", {
+			action: "User Changed Currency",
+			page: "Our Hotels",
+		});
+
+		ReactGA.event({
+			category: "User Changed Currency From Our Hotels Page",
+			action: "User Changed Currency From Our Hotels Page",
+			label: `User Changed Currency From Our Hotels Page`,
+		});
 		setCurrency(value); // Update the selected currency option in parent component
 		localStorage.setItem("selectedCurrency", value); // Save the selected currency to localStorage
 	};

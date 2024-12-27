@@ -11,6 +11,7 @@ import notificationSound from "./Notification.wav"; // Import the notification s
 import socket from "./socket"; // Ensure this is correctly imported
 import ReactGA from "react-ga4";
 import { useCartContext } from "../cart_context";
+import ReactPixel from "react-facebook-pixel";
 
 const ChatIconWrapper = styled.div`
 	position: fixed;
@@ -149,6 +150,11 @@ const ChatIcon = () => {
 			category: "User Opened Chat Window",
 			action: "User Opened Chat Window",
 			label: `User Opened Chat Window`,
+		});
+
+		ReactPixel.track("Chat Window Opened_Main", {
+			action: "User Opened Chat Window Main Icon",
+			page: "Home Page",
 		});
 		setIsOpen(!isOpen);
 		if (isOpen) {

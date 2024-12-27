@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import "./App.css";
-import { Route, Switch, BrowserRouter } from "react-router-dom";
+import { Route, Switch, BrowserRouter, useLocation } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "react-quill/dist/quill.snow.css";
@@ -27,6 +27,7 @@ import TermsAndConditions from "./pages/TermsAndConditions";
 import ContactUs from "./pages/ContactUs";
 import OurHotelRooms2 from "./pages/OurHotelRooms2";
 import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const App = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
@@ -71,8 +72,29 @@ const App = () => {
 		fetchCurrencyRates();
 	}, []);
 
+	const PixelRouteTracker = () => {
+		const location = useLocation();
+
+		useEffect(() => {
+			// Trigger PageView event on route change
+			ReactPixel.pageView(); // Logs the page view
+			ReactPixel.track("PageView", { path: location.pathname }); // Optionally add path as a parameter
+		}, [location]);
+
+		return null;
+	};
+
+	useEffect(() => {
+		// Initialize Facebook Pixel with ID from .env
+		ReactPixel.init(process.env.REACT_APP_FACEBOOK_PIXEL_ID);
+
+		// Trigger the initial page view when the app loads
+		ReactPixel.pageView();
+	}, []);
+
 	return (
 		<BrowserRouter>
+			<PixelRouteTracker />
 			<Navbar />
 			<>
 				<ToastContainer

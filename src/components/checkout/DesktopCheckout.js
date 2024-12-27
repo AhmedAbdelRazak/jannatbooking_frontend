@@ -6,6 +6,7 @@ import PaymentDetails from "./PaymentDetails";
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { FaMinus, FaPlus } from "react-icons/fa";
 import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
@@ -192,6 +193,10 @@ const DesktopCheckout = ({
 										action: "User Accepted Terms And Cond",
 										label: `User Accepted Terms And Cond`,
 									});
+									ReactPixel.track("Terms And Conditions Accepted", {
+										action: "User Accepted Terms And Conditions Accepted",
+										page: "checkout",
+									});
 								}}
 							>
 								Accept Terms & Conditions
@@ -212,6 +217,10 @@ const DesktopCheckout = ({
 										category: "User Checked On Paying Deposit",
 										action: "User Checked On Paying Deposit",
 										label: `User Checked On Paying Deposit`,
+									});
+									ReactPixel.track("Checked On Paying Deposit", {
+										action: "User Checked On Paying Deposit",
+										page: "checkout",
 									});
 								}}
 							>
@@ -235,6 +244,11 @@ const DesktopCheckout = ({
 										category: "User Checked On Paying Whole Amount",
 										action: "User Checked On Paying Whole Amount",
 										label: `User Checked On Paying Whole Amount`,
+									});
+
+									ReactPixel.track("Checked On Paying Whole Amount", {
+										action: "User Checked On Paying Whole Amount",
+										page: "checkout",
 									});
 								}}
 							>

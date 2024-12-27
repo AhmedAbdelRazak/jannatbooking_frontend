@@ -15,6 +15,7 @@ import dayjs from "dayjs";
 import StaticRating from "./StaticRating";
 import { FaCar, FaWalking } from "react-icons/fa";
 import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const { RangePicker } = DatePicker;
 
@@ -598,6 +599,10 @@ const SingleHotel = ({ selectedHotel }) => {
 											"User Added Reservation To Cart From Single Hotel",
 										action: "User Added Reservation To Cart From Single Hotel",
 										label: `User Added Reservation To Cart From Single Hotel`,
+									});
+									ReactPixel.track("Add_To_Reservation", {
+										action: "User Added A Room To The Cart",
+										page: "Single Hotel Page",
 									});
 								}}
 								style={{

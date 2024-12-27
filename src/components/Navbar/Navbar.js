@@ -17,6 +17,7 @@ import HeaderTopbar from "./HeaderTopbar";
 import { gettingJannatWebsiteData } from "../../apiCore";
 import { isAuthenticated, signout } from "../../auth";
 import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const Navbar = () => {
 	const { languageToggle, chosenLanguage, total_rooms, openSidebar2 } =
@@ -188,6 +189,12 @@ const Navbar = () => {
 										action: "User Changed Lang Into English",
 										label: `User Changed Lang Into English`,
 									});
+
+									ReactPixel.track("LanguageChange_English", {
+										action: "User Changed Language Into English",
+										page: "Home Page",
+									});
+
 									languageToggle("English");
 								}}
 							>
@@ -200,6 +207,11 @@ const Navbar = () => {
 										category: "User Changed Lang Into Arabic",
 										action: "User Changed Lang Into Arabic",
 										label: `User Changed Lang Into Arabic`,
+									});
+
+									ReactPixel.track("LanguageChange_Arabic", {
+										action: "User Changed Language Into Arabic",
+										page: "Home Page",
 									});
 									languageToggle("Arabic");
 								}}
@@ -412,6 +424,11 @@ const Navbar = () => {
 										label: `User Changed Lang Into English`,
 									});
 
+									ReactPixel.track("LanguageChange_English", {
+										action: "User Changed Language Into English",
+										page: "Home Page",
+									});
+
 									languageToggle("English");
 								}}
 							>
@@ -425,6 +442,12 @@ const Navbar = () => {
 										action: "User Changed Lang Into Arabic",
 										label: `User Changed Lang Into Arabic`,
 									});
+
+									ReactPixel.track("LanguageChange_Arabic", {
+										action: "User Changed Language Into Arabic",
+										page: "Home Page",
+									});
+
 									languageToggle("Arabic");
 								}}
 							>

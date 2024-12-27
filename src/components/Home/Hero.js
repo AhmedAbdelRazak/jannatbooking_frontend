@@ -8,6 +8,7 @@ import "swiper/css/autoplay";
 import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
 import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const Hero = ({ homePage }) => {
 	const { chosenLanguage } = useCartContext();
@@ -106,6 +107,15 @@ const Hero = ({ homePage }) => {
 														action: "User Navigated To Hotels From Banner",
 														label: `User Navigated To Hotels From Banner`,
 													});
+
+													ReactPixel.track(
+														"User Navigated To Hotels From Banner",
+														{
+															action: "User Navigated To Hotels From Banner",
+															page: "Home Page",
+														}
+													);
+
 													window.location.href = item.pageRedirectURL;
 												}}
 											>

@@ -10,6 +10,7 @@ import { amenitiesList, viewsList, extraAmenitiesList } from "../../Assets";
 // eslint-disable-next-line
 import { FaCar, FaWalking } from "react-icons/fa";
 import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 // Helper function to format the address
 const formatAddress = (address) => {
@@ -80,6 +81,17 @@ const HotelCard = ({ hotel, currency }) => {
 	const handleChatClick = () => {
 		const hotelNameSlug = hotel.hotelName.replace(/\s+/g, "-").toLowerCase();
 
+		ReactGA.event({
+			category: "Chat Window Opened From Hotel Card",
+			action: "Chat Window Opened From Hotel Card",
+			label: `Chat Window Opened From Hotel Card`,
+		});
+
+		ReactPixel.track("Chat Window Opened_OurHotels", {
+			action: "User Opened Chat Window From Hotel Card",
+			page: "Our Hotels",
+		});
+
 		// Use URLSearchParams to update the search query without refreshing
 		const params = new URLSearchParams(window.location.search);
 		params.set("hotelNameSlug", hotelNameSlug);
@@ -144,6 +156,10 @@ const HotelCard = ({ hotel, currency }) => {
 										category: "User Nav To A HOTEL from Our Hotels Page",
 										action: "User Nav To A HOTEL from Our Hotels Page",
 										label: `User Nav To A HOTEL from Our Hotels Page`,
+									});
+									ReactPixel.track("User Clicked On A Hotel", {
+										action: "Single Hotel Page Clicked",
+										page: "Our Hotels",
 									});
 
 									window.location.href = `/single-hotel/${hotel.hotelName
