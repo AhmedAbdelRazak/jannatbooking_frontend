@@ -23,8 +23,6 @@ const SidebarCartDrawer = () => {
 		total_price_with_commission,
 	} = useCartContext();
 
-	console.log(roomCart, "roomCartroomCart");
-
 	const [selectedCurrency, setSelectedCurrency] = useState("SAR");
 	const [currencyRates, setCurrencyRates] = useState({});
 
