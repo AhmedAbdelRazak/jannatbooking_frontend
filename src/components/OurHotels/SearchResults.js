@@ -33,7 +33,7 @@ const SearchResultsWrapper = styled.div`
 	justify-content: center;
 	margin: 20px 0;
 	gap: 5px; /* Add spacing between lines */
-	margin-top: -80px;
+	margin-top: -110px;
 	margin-bottom: 55px;
 
 	.header {
