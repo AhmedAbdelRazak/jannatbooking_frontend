@@ -40,7 +40,7 @@ const OurHotels = () => {
 	}, [storedCurrency]);
 
 	useEffect(() => {
-		window.scrollTo({ top: 30, behavior: "smooth" });
+		window.scrollTo({ top: 50, behavior: "smooth" });
 		const fetchDistinctRoomTypes = async () => {
 			const data3 = await gettingDistinctRoomTypes();
 			const distinctRoomTypesArray = [

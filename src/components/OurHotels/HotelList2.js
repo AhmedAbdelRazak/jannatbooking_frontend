@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { Swiper, SwiperSlide } from "swiper/react";
+// eslint-disable-next-line
 import { Pagination, Autoplay, Thumbs } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/pagination";
@@ -70,11 +71,11 @@ const HotelCard = ({ hotel, currency }) => {
 		};
 
 		if (currency === "usd") {
-			setConvertedPrice((basePrice * rates.SAR_USD).toFixed(2));
+			setConvertedPrice((basePrice * rates.SAR_USD).toFixed(0));
 		} else if (currency === "eur") {
-			setConvertedPrice((basePrice * rates.SAR_EUR).toFixed(2));
+			setConvertedPrice((basePrice * rates.SAR_EUR).toFixed(0));
 		} else {
-			setConvertedPrice(basePrice.toFixed(2)); // Default to SAR
+			setConvertedPrice(basePrice.toFixed(0)); // Default to SAR
 		}
 	}, [hotel, currency]);
 
@@ -133,7 +134,7 @@ const HotelCard = ({ hotel, currency }) => {
 			{/* Image section with Swiper */}
 			<HotelImageWrapper>
 				<Swiper
-					modules={[Pagination, Autoplay, Thumbs]}
+					modules={[Pagination, Thumbs]}
 					spaceBetween={10}
 					slidesPerView={1}
 					pagination={{ clickable: true }}
@@ -220,9 +221,13 @@ const HotelCard = ({ hotel, currency }) => {
 						style={{ display: "flex", alignItems: "center", gap: "2px" }}
 					>
 						<span
-							style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}
+							style={{
+								fontSize: "10px",
+								fontWeight: "bold",
+								color: "#555",
+							}}
 						>
-							Hotel Rating
+							Hotel Rating:
 						</span>
 						<StarRatings
 							className='p-0 m-0'
@@ -240,7 +245,7 @@ const HotelCard = ({ hotel, currency }) => {
 							style={{
 								fontWeight: "bolder",
 								// textDecoration: "underline",
-								fontSize: "1.5rem",
+								fontSize: "1.3rem",
 								color: "black",
 							}}
 						>
@@ -249,7 +254,7 @@ const HotelCard = ({ hotel, currency }) => {
 								"SAR"}{" "}
 							{Number(
 								convertedPrice * process.env.REACT_APP_COMMISSIONRATE
-							).toFixed(2)}
+							).toFixed(0)}
 						</span>{" "}
 						<span style={{ fontSize: "0.85rem" }}>/ NIGHT</span>
 					</PriceWrapper>
@@ -295,17 +300,18 @@ const HotelCard = ({ hotel, currency }) => {
 			</PriceSection>
 			<div>
 				<ReceptionChat className='float-right mr-3' onClick={handleChatClick}>
-					Reception
+					Reception Chat
 					<div className='row'>
-						<div className='col-3'>Chat</div>
+						<div className='col-3'></div>
 						<div className='col-9'>
 							<span style={{ fontSize: "7.5px", marginLeft: "10px" }}>
 								<span
-									className='mx-1'
+									className='mx-1 status-dot'
 									style={{
 										backgroundColor: "#00ff00",
 										padding: "0px 5px",
 										borderRadius: "50%",
+										animation: "blink 2.5s infinite",
 									}}
 								></span>{" "}
 								Available
@@ -387,6 +393,7 @@ const HotelListWrapper = styled.div`
 	}
 
 	@media (max-width: 800px) {
+		padding: 10px;
 		.habal {
 			display: none;
 		}
@@ -466,25 +473,28 @@ const ThumbnailImage = styled.img`
 const HotelName = styled.p`
 	font-size: 1rem;
 	color: #555;
-	margin-bottom: 0px;
+	margin-bottom: 5px;
 	text-transform: capitalize;
 	font-weight: bold;
 
 	@media (max-width: 700px) {
 		font-size: 1.1rem;
+		margin-bottom: 0px;
 	}
 `;
 
 const Distances = styled.div`
 	font-size: 1rem;
-	color: #555;
+	color: #006ed9;
 	margin-bottom: 2px;
 	text-transform: capitalize;
 	font-weight: bold;
+	line-height: 1.1;
 
 	@media (max-width: 700px) {
 		font-size: 0.85rem;
-		font-weight: bold;
+		margin-bottom: 0px;
+		font-weight: normal;
 
 		span {
 			display: none;
@@ -492,31 +502,37 @@ const Distances = styled.div`
 	}
 `;
 
-const Location = styled.p`
-	color: var(--text-color-secondary);
-	font-size: 1rem;
-	margin-bottom: 0px;
+const Location = styled.h3`
+	font-size: 1.25rem;
+	color: #333;
+	margin-bottom: 5px;
 	text-transform: capitalize;
 
-	@media (max-width: 700px) {
+	@media (max-width: 750px) {
 		font-size: 0.7rem;
+		margin-bottom: 0px;
+		white-space: nowrap; /* Prevent wrapping */
+		overflow: hidden; /* Hide overflowing text */
+		text-overflow: ellipsis; /* Add ellipses (...) to truncated text */
 	}
 `;
 
 const PriceWrapper = styled.p`
 	font-size: 1rem;
-	color: var(--text-color-primary);
+	font-weight: bold;
+	color: #444;
+	margin-top: 10px;
+	line-height: 1;
 
 	span {
 		font-weight: bold;
-		color: var(--secondary-color);
+		/* color: #1e90ff; */
 	}
 
-	@media (max-width: 700px) {
+	@media (max-width: 800px) {
+		margin: 0px;
+		padding: 0px;
 		font-size: 0.9rem;
-		font-weight: bold;
-		margin: 0px !important;
-		padding: 0px !important;
 	}
 `;
 
@@ -592,6 +608,7 @@ const AmenitiesWrapper = styled.div`
 	grid-template-columns: repeat(3, 1fr);
 	grid-gap: 10px;
 	margin-top: 15px;
+	line-height: 1.1;
 
 	@media (max-width: 768px) {
 		grid-template-columns: repeat(2, 1fr);

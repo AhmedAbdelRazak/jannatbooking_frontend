@@ -4,6 +4,7 @@ import { Button, Spin } from "antd";
 import { useLocation } from "react-router-dom";
 import { getRoomQuery, gettingDistinctRoomTypes } from "../apiCore";
 import { Swiper, SwiperSlide } from "swiper/react";
+// eslint-disable-next-line
 import { Pagination, Autoplay, Thumbs } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/pagination";
@@ -20,6 +21,11 @@ import SortDropdown from "../components/OurHotels/SortDropdown";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import SearchResults from "../components/OurHotels/SearchResults";
+
+//Rooms to our hotels
+//Sliders shouldn't be auto.
+//Search no unavailable rooms.
+//No shared rooms to show, it should be a different page.
 
 // Helper to generate date range
 const generateDateRange = (startDate, endDate) => {
@@ -211,7 +217,7 @@ const OurHotelRooms2 = () => {
 	);
 
 	useEffect(() => {
-		window.scrollTo({ top: 20, behavior: "smooth" });
+		window.scrollTo({ top: 50, behavior: "smooth" });
 		const fetchRoomData = async () => {
 			const query = [
 				encodeURIComponent(queryParams.startDate),
@@ -567,156 +573,192 @@ const RoomCard = ({
 		? uniqueFeatures
 		: uniqueFeatures.slice(0, 2);
 
-	return (
-		<RoomCardWrapper>
-			<RoomImageWrapper>
-				<Swiper
-					modules={[Pagination, Autoplay, Thumbs]}
-					spaceBetween={10}
-					slidesPerView={1}
-					pagination={{ clickable: true }}
-					autoplay={{ delay: 4000, disableOnInteraction: false }}
-					thumbs={{ swiper: thumbsSwiper }}
-					loop={true}
-					className='main-swiper'
-				>
-					{room.photos.map((photo, idx) => (
-						<SwiperSlide
-							key={idx}
-							onClick={() => {
-								ReactGA.event({
-									category: "User Navigated To A Hotel From Rooms Page",
-									action: "User Navigated To A Hotel From Rooms Page",
-									label: `User Navigated To A Hotel From Rooms Page`,
-								});
-								window.location.href = `/single-hotel/${hotelName
-									.replace(/\s+/g, "-")
-									.toLowerCase()}`;
-							}}
-						>
-							<img
-								src={photo.url}
-								alt={room.displayName}
-								className='room-image'
-							/>
-						</SwiperSlide>
-					))}
-				</Swiper>
-			</RoomImageWrapper>
+	// console.log(room, "roomroomroomroom");
 
-			<RoomDetails>
-				<HotelName>{hotelName}</HotelName>
-				<RoomDisplayName>
-					{chosenLanguage === "Arabic"
-						? room.displayName_OtherLanguage || room.displayName
-						: room.displayName}
-				</RoomDisplayName>
-				<div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-					<span style={{ fontSize: "14px", fontWeight: "bold", color: "#555" }}>
-						Rate:
-					</span>
-					<StarRatings
-						rating={hotelRating || 0}
-						starRatedColor='orange'
-						numberOfStars={5}
-						name='rating'
-						starDimension='15px'
-						starSpacing='1px'
-					/>
-				</div>
-				<PriceWrapper>
-					<span
-						style={{
-							fontWeight: "bolder",
-							fontSize: "1.3rem",
-							color: "black",
-						}}
-					>
-						{currency && currency.toUpperCase()} {convertedPricePerNight}
-					</span>{" "}
-					<span style={{ fontSize: "0.82rem", color: "black" }}>/ NIGHT</span>
-					{nights > 0 && (
+	return (
+		<>
+			{!isRoomAvailable ||
+			room.roomType === "individualBed" ||
+			room.roomType === "individualBeds" ? null : (
+				<>
+					<RoomCardWrapper>
+						<RoomImageWrapper>
+							<Swiper
+								modules={[Pagination, Thumbs]}
+								spaceBetween={10}
+								slidesPerView={1}
+								pagination={{ clickable: true }}
+								autoplay={{ delay: 4000, disableOnInteraction: false }}
+								thumbs={{ swiper: thumbsSwiper }}
+								loop={true}
+								className='main-swiper'
+							>
+								{room.photos.map((photo, idx) => (
+									<SwiperSlide
+										key={idx}
+										onClick={() => {
+											ReactGA.event({
+												category: "User Navigated To A Hotel From Rooms Page",
+												action: "User Navigated To A Hotel From Rooms Page",
+												label: `User Navigated To A Hotel From Rooms Page`,
+											});
+
+											ReactPixel.track("Single Hotel From Rooms Page", {
+												action:
+													"User Navigated to Single Hotel From Rooms Page",
+												page: "Rooms Page",
+											});
+
+											window.location.href = `/single-hotel/${hotelName
+												.replace(/\s+/g, "-")
+												.toLowerCase()}`;
+										}}
+									>
+										<img
+											src={photo.url}
+											alt={room.displayName}
+											className='room-image'
+										/>
+									</SwiperSlide>
+								))}
+							</Swiper>
+						</RoomImageWrapper>
+
+						<RoomDetails>
+							<HotelName>{hotelName}</HotelName>
+							<RoomDisplayName>
+								{chosenLanguage === "Arabic"
+									? room.displayName_OtherLanguage || room.displayName
+									: room.displayName}
+							</RoomDisplayName>
+							<div
+								style={{ display: "flex", alignItems: "center", gap: "5px" }}
+							>
+								<span
+									style={{
+										fontSize: "14px",
+										fontWeight: "bold",
+										color: "#555",
+									}}
+								>
+									Hotel Rating:
+								</span>
+								<StarRatings
+									rating={hotelRating || 0}
+									starRatedColor='orange'
+									numberOfStars={5}
+									name='rating'
+									starDimension='15px'
+									starSpacing='1px'
+								/>
+							</div>
+							<PriceWrapper>
+								<span
+									style={{
+										fontWeight: "bolder",
+										fontSize: "1.3rem",
+										color: "black",
+									}}
+								>
+									{currency && currency.toUpperCase()} {convertedPricePerNight}
+								</span>{" "}
+								<span style={{ fontSize: "0.82rem", color: "black" }}>
+									/ NIGHT
+								</span>
+								{nights > 0 && (
+									<div
+										style={{
+											fontSize: "0.7rem",
+											color: "var(--darkGrey)",
+											fontWeight: "bold",
+										}}
+									>
+										Total {nights} nights:{" "}
+										<strong>
+											{currency && currency.toUpperCase()} {convertedTotalPrice}
+										</strong>
+									</div>
+								)}
+							</PriceWrapper>
+							<AmenitiesWrapper className='p-0 m-0'>
+								{visibleFeatures.map((feature, index) => (
+									<AmenityItem key={index}>
+										{getIcon(feature)} <span>{feature}</span>
+									</AmenityItem>
+								))}
+							</AmenitiesWrapper>
+							{uniqueFeatures.length > 4 && (
+								<ShowMoreText onClick={toggleShowAmenities}>
+									{showAllAmenities ? "Show less..." : "Show more..."}
+								</ShowMoreText>
+							)}
+							<Distances className='mt-1'>
+								<FaCar /> {distanceToElHaramDriving} <span>Driving</span> to El
+								Haram
+							</Distances>
+						</RoomDetails>
+						<div className='habal'></div>
+
 						<div
 							style={{
-								fontSize: "0.7rem",
-								color: "var(--darkGrey)",
-								fontWeight: "bold",
+								display: "flex",
+								flexDirection: "column",
+								alignItems: "center",
+							}}
+							onClick={() => {
+								ReactGA.event({
+									category: "User Added To The Cart From Rooms Page",
+									action: "User Added To The Cart From Rooms Page",
+									label: `User Added To The Cart From Rooms Page`,
+								});
 							}}
 						>
-							Total {nights} nights:{" "}
-							<strong>
-								{currency && currency.toUpperCase()} {convertedTotalPrice}
-							</strong>
+							<StyledButton
+								className='mb-2 mt-1'
+								disabled={!isRoomAvailable}
+								style={{
+									backgroundColor: !isRoomAvailable
+										? "#ccc"
+										: "var(--primaryBlue)",
+									cursor: !isRoomAvailable ? "not-allowed" : "pointer",
+								}}
+								onClick={isRoomAvailable ? handleAddToCart : null}
+							>
+								Add to Reservation
+							</StyledButton>
+							{!isRoomAvailable && (
+								<UnavailableBadge>Not Available</UnavailableBadge>
+							)}
 						</div>
-					)}
-				</PriceWrapper>
-				<AmenitiesWrapper className='p-0 m-0'>
-					{visibleFeatures.map((feature, index) => (
-						<AmenityItem key={index}>
-							{getIcon(feature)} <span>{feature}</span>
-						</AmenityItem>
-					))}
-				</AmenitiesWrapper>
-				{uniqueFeatures.length > 4 && (
-					<ShowMoreText onClick={toggleShowAmenities}>
-						{showAllAmenities ? "Show less..." : "Show more..."}
-					</ShowMoreText>
-				)}
-				<Distances className='mt-1'>
-					<FaCar /> {distanceToElHaramDriving} <span>Driving</span> to El Haram
-				</Distances>
-			</RoomDetails>
-			<div className='habal'></div>
-
-			<div
-				style={{
-					display: "flex",
-					flexDirection: "column",
-					alignItems: "center",
-				}}
-				onClick={() => {
-					ReactGA.event({
-						category: "User Added To The Cart From Rooms Page",
-						action: "User Added To The Cart From Rooms Page",
-						label: `User Added To The Cart From Rooms Page`,
-					});
-				}}
-			>
-				<StyledButton
-					className='mb-2 mt-1'
-					disabled={!isRoomAvailable}
-					style={{
-						backgroundColor: !isRoomAvailable ? "#ccc" : "var(--primaryBlue)",
-						cursor: !isRoomAvailable ? "not-allowed" : "pointer",
-					}}
-					onClick={isRoomAvailable ? handleAddToCart : null}
-				>
-					Add to Reservation
-				</StyledButton>
-				{!isRoomAvailable && <UnavailableBadge>Not Available</UnavailableBadge>}
-			</div>
-			<div>
-				<ReceptionChat className='float-right mr-2' onClick={handleChatClick}>
-					Reception Chat
-					<div className='row'>
-						<div className='col-3'></div>
-						<div className='col-9'>
-							<span style={{ fontSize: "8px", marginLeft: "10px" }}>
-								<span
-									className='mx-1'
-									style={{
-										backgroundColor: "#00ff00",
-										padding: "0px 5px",
-										borderRadius: "50%",
-									}}
-								></span>{" "}
-								Available
-							</span>
+						<div>
+							<ReceptionChat
+								className='float-right mr-2'
+								onClick={handleChatClick}
+							>
+								Reception Chat
+								<div className='row'>
+									<div className='col-3'></div>
+									<div className='col-9'>
+										<span style={{ fontSize: "8px", marginLeft: "10px" }}>
+											<span
+												className='mx-1'
+												style={{
+													backgroundColor: "#00ff00",
+													padding: "0px 5px",
+													borderRadius: "50%",
+													animation: "blink 2.5s infinite",
+												}}
+											></span>{" "}
+											Available
+										</span>
+									</div>
+								</div>
+							</ReceptionChat>
 						</div>
-					</div>
-				</ReceptionChat>
-			</div>
-		</RoomCardWrapper>
+					</RoomCardWrapper>
+				</>
+			)}
+		</>
 	);
 };
 
