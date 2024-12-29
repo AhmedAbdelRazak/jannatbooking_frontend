@@ -270,6 +270,7 @@ const DestinationWrapper = styled.div`
 		height: auto !important;
 		display: flex;
 		align-items: center;
+		border: 1px solid #7d7d7d !important;
 	}
 `;
 
@@ -332,6 +333,7 @@ const StyledRangePickerContainer = styled.div`
 const RangeDatePicker = styled(RangePicker)`
 	width: 100%;
 	${(props) => props.invalid && highlightBorder};
+	border: 1px #7d7d7d solid !important;
 
 	// Center input text and add padding for height consistency
 	.ant-picker-input {
@@ -347,6 +349,8 @@ const RangeDatePicker = styled(RangePicker)`
 const InputNumberWrapper = styled.div`
 	width: 100%;
 	${(props) => props.invalid && highlightBorder};
+	border: 1px #7d7d7d solid !important;
+	border-radius: 5px;
 
 	.ant-input-number {
 		width: 100%;
@@ -368,6 +372,7 @@ const SelectWrapper = styled.div`
 		height: auto !important;
 		display: flex;
 		align-items: center;
+		border: 1px #7d7d7d solid !important;
 	}
 `;
 

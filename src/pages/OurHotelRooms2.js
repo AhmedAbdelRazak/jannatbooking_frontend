@@ -19,6 +19,7 @@ import { FaCar, FaWalking } from "react-icons/fa";
 import SortDropdown from "../components/OurHotels/SortDropdown";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
+import SearchResults from "../components/OurHotels/SearchResults";
 
 // Helper to generate date range
 const generateDateRange = (startDate, endDate) => {
@@ -365,7 +366,18 @@ const OurHotelRooms2 = () => {
 							}}
 						/>
 					</SearchSection>
-
+					<SearchResults
+						initialSearchParams={{
+							dates: [
+								dayjs(queryParams.startDate, "YYYY-MM-DD"),
+								dayjs(queryParams.endDate, "YYYY-MM-DD"),
+							],
+							destination: queryParams.destination || "", // Include destination
+							roomType: queryParams.roomType || "",
+							adults: queryParams.adults || "",
+							children: queryParams.children || "",
+						}}
+					/>
 					<SortDropdownSection>
 						<SortDropdown
 							sortOption={sortOption}
@@ -482,9 +494,9 @@ const RoomCard = ({
 	// Currency Conversion
 	// Convert prices based on selected currency
 	const calculateConvertedPrice = (price) => {
-		if (currency === "usd") return (price * rates.SAR_USD).toFixed(2);
-		if (currency === "eur") return (price * rates.SAR_EUR).toFixed(2);
-		return Number(price).toFixed(2); // Default to SAR
+		if (currency === "usd") return (price * rates.SAR_USD).toFixed(0);
+		if (currency === "eur") return (price * rates.SAR_EUR).toFixed(0);
+		return Number(price).toFixed(0); // Default to SAR
 	};
 
 	const convertedPricePerNight = calculateConvertedPrice(
@@ -593,25 +605,30 @@ const RoomCard = ({
 			</RoomImageWrapper>
 
 			<RoomDetails>
+				<HotelName>{hotelName}</HotelName>
 				<RoomDisplayName>
 					{chosenLanguage === "Arabic"
 						? room.displayName_OtherLanguage || room.displayName
 						: room.displayName}
 				</RoomDisplayName>
-				<HotelName>{hotelName}</HotelName>
-				<StarRatings
-					rating={hotelRating || 0}
-					starRatedColor='orange'
-					numberOfStars={5}
-					name='rating'
-					starDimension='15px'
-					starSpacing='1px'
-				/>
+				<div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+					<span style={{ fontSize: "14px", fontWeight: "bold", color: "#555" }}>
+						Rate:
+					</span>
+					<StarRatings
+						rating={hotelRating || 0}
+						starRatedColor='orange'
+						numberOfStars={5}
+						name='rating'
+						starDimension='15px'
+						starSpacing='1px'
+					/>
+				</div>
 				<PriceWrapper>
 					<span
 						style={{
 							fontWeight: "bolder",
-							fontSize: "1.5rem",
+							fontSize: "1.3rem",
 							color: "black",
 						}}
 					>
@@ -680,9 +697,9 @@ const RoomCard = ({
 			</div>
 			<div>
 				<ReceptionChat className='float-right mr-2' onClick={handleChatClick}>
-					Reception
+					Reception Chat
 					<div className='row'>
-						<div className='col-3'>Chat</div>
+						<div className='col-3'></div>
 						<div className='col-9'>
 							<span style={{ fontSize: "8px", marginLeft: "10px" }}>
 								<span
@@ -854,6 +871,9 @@ const RoomDisplayName = styled.h3`
 		font-size: 0.8rem;
 		/* font-weight: bold; */
 		margin-bottom: 0px;
+		white-space: nowrap; /* Prevent wrapping */
+		overflow: hidden; /* Hide overflowing text */
+		text-overflow: ellipsis; /* Add ellipses (...) to truncated text */
 	}
 `;
 
@@ -867,12 +887,13 @@ const HotelName = styled.p`
 	@media (max-width: 700px) {
 		font-size: 1.1rem;
 		margin-bottom: 0px;
+		line-height: 1.1;
 	}
 `;
 
 const Distances = styled.div`
 	font-size: 1rem;
-	color: #555;
+	color: #006ed9;
 	margin-bottom: 2px;
 	text-transform: capitalize;
 	font-weight: bold;
@@ -880,7 +901,7 @@ const Distances = styled.div`
 	@media (max-width: 700px) {
 		font-size: 0.85rem;
 		margin-bottom: 0px;
-		font-weight: bold;
+		font-weight: normal;
 
 		span {
 			display: none;
@@ -995,9 +1016,11 @@ const StyledButton = styled(Button)`
 	}
 
 	@media (max-width: 800px) {
-		font-size: 0.65rem;
+		font-size: 0.57rem;
 		font-weight: bolder;
 		width: 90% !important;
+		text-transform: capitalize;
+		padding: 1.15rem 1rem; /* Adjusted padding for better vertical centering */
 	}
 `;
 
@@ -1014,6 +1037,7 @@ const ReceptionChat = styled.div`
 
 	@media (max-width: 800px) {
 		width: 60% !important;
+		margin-top: 4px !important;
 	}
 `;
 

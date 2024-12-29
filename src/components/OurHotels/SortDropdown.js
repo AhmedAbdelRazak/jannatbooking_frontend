@@ -37,8 +37,12 @@ const SortDropdown = ({ sortOption, setSortOption, currency, setCurrency }) => {
 					suffixIcon={<SortAscendingOutlined />}
 					placeholder='Sort by'
 				>
-					<Option value='closest'>Closest To El Haram</Option>
-					<Option value='price'>Price (Cheapest To Expensive)</Option>
+					<Option value='closest' style={{ fontSize: "0.75rem" }}>
+						Closest To El Haram
+					</Option>
+					<Option value='price' style={{ fontSize: "0.75rem" }}>
+						Cheapest To Expensive
+					</Option>
 				</StyledSelect>
 			</SortWrapper>
 
@@ -65,10 +69,9 @@ const DropdownRow = styled.div`
 	display: flex;
 	justify-content: flex-end;
 	gap: 20px; /* Adjust gap between dropdowns */
-	margin-bottom: 20px;
+	margin-bottom: 10px;
 
 	@media (max-width: 768px) {
-		flex-direction: column;
 		align-items: flex-start;
 		gap: 10px; /* Smaller gap for mobile */
 		margin-left: 10px;
@@ -93,7 +96,7 @@ const CurrencyWrapper = styled.div`
 
 const StyledSelect = styled(Select)`
 	width: 250px; /* Increased width to fit longer text */
-
+	font-size: 0.85rem !important;
 	.ant-select-selector {
 		display: flex;
 		align-items: center;
@@ -107,5 +110,14 @@ const StyledSelect = styled(Select)`
 
 	.ant-select-dropdown {
 		min-width: 250px; /* Ensure the dropdown menu is wide enough */
+	}
+
+	@media (max-width: 750px) {
+		width: 170px; /* Increased width to fit longer text */
+		font-size: 0.85rem !important;
+
+		.ant-select-selector > span {
+			font-size: 0.85rem !important;
+		}
 	}
 `;

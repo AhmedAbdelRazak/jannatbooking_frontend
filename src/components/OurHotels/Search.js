@@ -124,7 +124,9 @@ const Search = ({
 		<SearchWrapper>
 			<DestinationWrapper invalid={invalidFields.destination}>
 				<Select
-					style={{ width: "100%" }}
+					style={{
+						width: "100%",
+					}}
 					placeholder='Where would you like to go?'
 					onChange={(value) => handleSelectChange(value, "destination")}
 					value={searchParams.destination}
@@ -253,6 +255,7 @@ const SearchWrapper = styled.div`
 	@media (max-width: 768px) {
 		width: 95%;
 		top: 36%;
+		padding: 15px !important;
 	}
 `;
 
@@ -267,6 +270,7 @@ const DestinationWrapper = styled.div`
 		height: auto !important;
 		display: flex;
 		align-items: center;
+		border: 1px solid #7d7d7d !important;
 	}
 `;
 
@@ -322,6 +326,7 @@ const StyledRangePickerContainer = styled.div`
 const RangeDatePicker = styled(RangePicker)`
 	width: 100%;
 	${(props) => props.invalid && highlightBorder};
+	border: 1px #7d7d7d solid !important;
 
 	.ant-picker-input {
 		display: flex;
@@ -335,6 +340,8 @@ const RangeDatePicker = styled(RangePicker)`
 const InputNumberWrapper = styled.div`
 	width: 100%;
 	${(props) => props.invalid && highlightBorder};
+	border: 1px #7d7d7d solid !important;
+	border-radius: 5px;
 
 	.ant-input-number {
 		width: 100%;
@@ -356,6 +363,7 @@ const SelectWrapper = styled.div`
 		height: auto !important;
 		display: flex;
 		align-items: center;
+		border: 1px #7d7d7d solid !important;
 	}
 `;
 
