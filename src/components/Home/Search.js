@@ -11,11 +11,13 @@ import {
 import dayjs from "dayjs";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
+import { useCartContext } from "../../cart_context";
+import { roomTypesWithTranslations } from "../../Assets";
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
-const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
+const Search = () => {
 	const [searchParams, setSearchParams] = useState({
 		destination: "",
 		dates: [],
@@ -27,6 +29,7 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 	const [calendarStartDate, setCalendarStartDate] = useState(
 		dayjs().add(1, "day")
 	);
+	const { chosenLanguage } = useCartContext(); // Access chosenLanguage
 	const history = useHistory();
 
 	useEffect(() => {
@@ -80,16 +83,20 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 
 	const handleSubmit = () => {
 		if (!validateFields()) {
-			toast.error("Please fill in all required fields");
+			toast.error(
+				chosenLanguage === "Arabic"
+					? "يرجى تعبئة جميع بيانات المطلوبة"
+					: "Please fill in all required fields"
+			);
 			return;
 		}
 
-		const selectedRoomType = roomTypesMapping.find(
-			(type) => type.label === searchParams.roomType
+		const selectedRoomType = roomTypesWithTranslations.find(
+			(type) => type.roomType === searchParams.roomType
 		);
 
 		const roomTypeValue = selectedRoomType
-			? selectedRoomType.value
+			? selectedRoomType.roomType
 			: searchParams.roomType;
 
 		const queryParams = new URLSearchParams({
@@ -100,6 +107,17 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 			adults: searchParams.adults,
 			children: searchParams.children,
 		}).toString();
+
+		// Track events with ReactGA and ReactPixel
+		ReactGA.event({
+			category: "Search",
+			action: "User submitted a search",
+			label: `Search - ${searchParams.destination}`,
+		});
+		ReactPixel.track("Search Submitted", {
+			action: "User searched for rooms",
+			destination: searchParams.destination,
+		});
 
 		history.push(`/our-hotels-rooms?${queryParams}`);
 	};
@@ -113,17 +131,51 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 	);
 
 	return (
-		<SearchWrapper>
+		<SearchWrapper
+			dir={chosenLanguage === "Arabic" ? "rtl" : ""}
+			style={{ textAlign: chosenLanguage === "Arabic" ? "right" : "" }}
+		>
 			<DestinationWrapper invalid={invalidFields.destination}>
 				<Select
-					style={{ width: "100%" }}
-					placeholder='Where would you like to go?'
+					style={{
+						width: "100%",
+						fontSize: chosenLanguage === "Arabic" ? "16px" : "14px",
+						textAlign: chosenLanguage === "Arabic" ? "right" : "",
+					}}
+					placeholder={
+						chosenLanguage === "Arabic"
+							? "إلى أين ترغب في الذهاب؟"
+							: "Where would you like to go?"
+					}
 					onChange={(value) => handleSelectChange(value, "destination")}
 					value={searchParams.destination}
 				>
-					<Option value=''>Where would you like to go?</Option>
-					<Option value='Makkah'>Makkah</Option>
-					<Option value='Madinah'>Madinah</Option>
+					<Option
+						value=''
+						style={{
+							textAlign: chosenLanguage === "Arabic" ? "right" : "",
+						}}
+					>
+						{chosenLanguage === "Arabic"
+							? "إلى أين ترغب في الذهاب؟"
+							: "Where would you like to go?"}
+					</Option>
+					<Option
+						value='Makkah'
+						style={{
+							textAlign: chosenLanguage === "Arabic" ? "right" : "",
+						}}
+					>
+						{chosenLanguage === "Arabic" ? "مكة" : "Makkah"}
+					</Option>
+					<Option
+						value='Madinah'
+						style={{
+							textAlign: chosenLanguage === "Arabic" ? "right" : "",
+						}}
+					>
+						{chosenLanguage === "Arabic" ? "المدينة المنورة" : "Madinah"}
+					</Option>
 				</Select>
 			</DestinationWrapper>
 
@@ -138,22 +190,44 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 					panelRender={panelRender}
 					invalid={invalidFields.dates}
 					inputReadOnly
+					style={{
+						fontSize: chosenLanguage === "Arabic" ? "16px" : "14px",
+					}}
 				/>
 
 				<SelectWrapper invalid={invalidFields.roomType}>
 					<Select
-						style={{ width: "100%" }}
+						style={{
+							width: "100%",
+							fontSize: chosenLanguage === "Arabic" ? "16px" : "14px",
+						}}
 						suffixIcon={<CalendarOutlined />}
-						placeholder='Select room type'
+						placeholder={
+							chosenLanguage === "Arabic"
+								? "اختر نوع الغرفة"
+								: "Select room type"
+						}
 						className='mb-3'
 						onChange={(value) => handleSelectChange(value, "roomType")}
 						value={searchParams.roomType}
 					>
-						<Option value=''>Room Type</Option>
-						<Option value='all'>All Rooms</Option>
-						{distinctRoomTypes.map((roomType) => (
-							<Option key={roomType} value={roomType}>
-								{roomType}
+						<Option
+							value=''
+							style={{
+								textAlign: chosenLanguage === "Arabic" ? "right" : "",
+							}}
+						>
+							{chosenLanguage === "Arabic" ? "نوع الغرفة" : "Room Type"}
+						</Option>
+						{roomTypesWithTranslations.map(({ roomType, roomTypeArabic }) => (
+							<Option
+								key={roomType}
+								value={roomType}
+								style={{
+									textAlign: chosenLanguage === "Arabic" ? "right" : "",
+								}}
+							>
+								{chosenLanguage === "Arabic" ? roomTypeArabic : roomType}
 							</Option>
 						))}
 					</Select>
@@ -165,9 +239,14 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 							prefix={<UserOutlined />}
 							min={1}
 							max={10}
-							placeholder='Adults'
+							placeholder={
+								chosenLanguage === "Arabic" ? "عدد البالغين" : "Adults"
+							}
 							onChange={(value) => handleSelectChange(value, "adults")}
 							value={searchParams.adults}
+							style={{
+								fontSize: chosenLanguage === "Arabic" ? "16px" : "14px",
+							}}
 						/>
 					</InputNumberWrapper>
 					<InputNumberWrapper>
@@ -176,30 +255,26 @@ const Search = ({ distinctRoomTypes, roomTypesMapping }) => {
 							prefix={<TeamOutlined />}
 							min={0}
 							max={10}
-							placeholder='Children'
+							placeholder={chosenLanguage === "Arabic" ? "الأطفال" : "Children"}
 							onChange={(value) => handleSelectChange(value, "children")}
 							value={searchParams.children}
+							style={{
+								fontSize: chosenLanguage === "Arabic" ? "16px" : "14px",
+							}}
 						/>
 					</InputNumberWrapper>
 				</AdultsChildrenWrapper>
 			</InputsWrapper>
 
-			<SearchButtonWrapper
-				onClick={() => {
-					ReactPixel.track("SearchClicked_Home", {
-						action: "User searched for a room",
-						page: "Home Page",
-					});
-
-					ReactGA.event({
-						category: "User Searched For A Room From Home Page",
-						action: "User Searched For A Room From Home Page",
-						label: `User Searched For A Room From Home Page`,
-					});
-				}}
-			>
-				<Button className='search-button' onClick={handleSubmit}>
-					Search
+			<SearchButtonWrapper isArabic={chosenLanguage === "Arabic"}>
+				<Button
+					className='search-button'
+					onClick={handleSubmit}
+					style={{
+						fontSize: chosenLanguage === "Arabic" ? "16px" : "14px",
+					}}
+				>
+					{chosenLanguage === "Arabic" ? "بحث" : "Search"}
 				</Button>
 			</SearchButtonWrapper>
 		</SearchWrapper>
@@ -308,6 +383,7 @@ const SearchButtonWrapper = styled.div`
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		font-size: ${({ isArabic }) => (isArabic ? "1.3rem" : "")};
 
 		@media (max-width: 768px) {
 			width: 100%; // Full width on mobile screens

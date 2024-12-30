@@ -36,12 +36,43 @@ const getIcon = (item) => {
 	return null;
 };
 
+const translations = {
+	English: {
+		hotelRating: "Hotel Rating:",
+		pricePerNight: "/ NIGHT",
+		freeCancellation: "+ FREE CANCELLATION",
+		drivingToHaram: "Driving to El Haram",
+		showMore: "Show more...",
+		showLess: "Show less...",
+		receptionChat: "Reception Chat",
+		available: "Available",
+		SAR: "SAR",
+		USD: "USD",
+		EUR: "EUR",
+	},
+	Arabic: {
+		hotelRating: "تقييم الفندق:",
+		pricePerNight: "لليلة",
+		freeCancellation: "+ إلغاء مجاني",
+		drivingToHaram: "بالسيارة إلى الحرم",
+		showMore: "عرض المزيد...",
+		showLess: "عرض أقل...",
+		receptionChat: "تحدث مباشرة مع الاستقبال",
+		available: "متاح",
+		SAR: "ريال",
+		USD: "دولار",
+		EUR: "يورو",
+	},
+};
+
 // HotelCard component for individual hotels
 const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 	const [thumbsSwiper, setThumbsSwiper] = useState(null); // Each hotel has its own thumbsSwiper
 	const [mainSwiper, setMainSwiper] = useState(null); // Main swiper reference to control autoplay
 	const [showAllAmenities, setShowAllAmenities] = useState(false); // State to show/hide all amenities
 	const [convertedPrice, setConvertedPrice] = useState(null);
+
+	const t = translations[chosenLanguage] || translations.English; // Get translations based on language
 
 	useEffect(() => {
 		const handleResize = () => {
@@ -210,7 +241,10 @@ const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 			{/* Hotel details section */}
 			<HotelDetails>
 				<div>
-					<HotelName className='p-0 m-0'>
+					<HotelName
+						className='p-0 m-0'
+						style={{ textAlign: chosenLanguage === "Arabic" ? "center" : "" }}
+					>
 						{chosenLanguage === "Arabic" && hotel.hotelName_OtherLanguage
 							? hotel.hotelName_OtherLanguage
 							: hotel.hotelName}
@@ -233,7 +267,7 @@ const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 								color: "#555",
 							}}
 						>
-							Hotel Rating:
+							{t.hotelRating}
 						</span>
 						<StarRatings
 							className='p-0 m-0'
@@ -245,24 +279,15 @@ const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 							starSpacing='1px'
 						/>
 					</div>
-					<PriceWrapper className='mb-2'>
-						{/* Starting From:{" "} */}
-						<span
-							style={{
-								fontWeight: "bolder",
-								// textDecoration: "underline",
-								fontSize: "1.3rem",
-								color: "black",
-							}}
-						>
-							{(localStorage.getItem("selectedCurrency") &&
-								localStorage.getItem("selectedCurrency").toUpperCase()) ||
-								"SAR"}{" "}
-							{Number(
-								convertedPrice * process.env.REACT_APP_COMMISSIONRATE
-							).toFixed(0)}
-						</span>{" "}
-						<span style={{ fontSize: "0.85rem" }}>/ NIGHT</span>
+					<PriceWrapper
+						className='my-2'
+						isArabic={chosenLanguage === "Arabic"}
+						dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+					>
+						{Number(
+							convertedPrice * process.env.REACT_APP_COMMISSIONRATE
+						).toFixed(0)}{" "}
+						{t[currency.toUpperCase()]} {t.pricePerNight}{" "}
 					</PriceWrapper>
 					{/* Display unique amenities, views, and extra amenities */}
 					<AmenitiesWrapper className='p-0 mt-1'>
@@ -277,7 +302,7 @@ const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 						<ShowMoreText
 							onClick={() => setShowAllAmenities(!showAllAmenities)}
 						>
-							{showAllAmenities ? "Show less..." : "Show more..."}
+							{showAllAmenities ? t.showLess : t.showMore}
 						</ShowMoreText>
 					)}
 					<Distances className='mt-1'>
@@ -302,15 +327,27 @@ const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 						{hotel.roomCountDetails[0]?.price.basePrice} SAR
 					</span>
 				</FinalPrice> */}
-				<FreeCancellation>+ FREE CANCELLATION</FreeCancellation>
+				<FreeCancellation isArabic={chosenLanguage === "Arabic"}>
+					{t.freeCancellation}
+				</FreeCancellation>
 			</PriceSection>
 			<div>
-				<ReceptionChat className='float-right mr-3' onClick={handleChatClick}>
-					Reception Chat
+				<ReceptionChat
+					isArabic={chosenLanguage === "Arabic"}
+					className='float-right mr-3'
+					onClick={handleChatClick}
+				>
+					{t.receptionChat}
 					<div className='row'>
 						<div className='col-3'></div>
 						<div className='col-9'>
-							<span style={{ fontSize: "7.5px", marginLeft: "10px" }}>
+							<span
+								style={{
+									fontSize: chosenLanguage === "Arabic" ? "7px" : "7.5px",
+									marginLeft: chosenLanguage === "Arabic" ? "" : "10px",
+									marginRight: chosenLanguage === "Arabic" ? "10px" : "",
+								}}
+							>
 								<span
 									className='mx-1 status-dot'
 									style={{
@@ -318,9 +355,10 @@ const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 										padding: "0px 5px",
 										borderRadius: "50%",
 										animation: "blink 2.5s infinite",
+										marginLeft: chosenLanguage === "Arabic" ? "12px" : "",
 									}}
 								></span>{" "}
-								Available
+								{chosenLanguage === "Arabic" ? null : t.available}
 							</span>
 						</div>
 					</div>
@@ -527,11 +565,10 @@ const Location = styled.h3`
 `;
 
 const PriceWrapper = styled.p`
-	font-size: 1rem;
 	font-weight: bold;
 	color: #444;
-	margin-top: 10px;
 	line-height: 1;
+	font-size: ${({ isArabic }) => (isArabic ? "1.4rem" : "1rem")};
 
 	span {
 		font-weight: bold;
@@ -542,6 +579,7 @@ const PriceWrapper = styled.p`
 		margin: 0px;
 		padding: 0px;
 		font-size: 0.9rem;
+		font-size: ${({ isArabic }) => (isArabic ? "1.4rem" : "0.9rem")};
 	}
 `;
 
@@ -603,12 +641,14 @@ const FreeCancellation = styled.p`
 	text-align: right;
 	margin-top: 12px;
 	color: #34679b;
+	font-size: ${({ isArabic }) => (isArabic ? "1.1rem" : "0.9rem")};
 
 	@media (max-width: 768px) {
 		text-align: center;
 		/* margin-top: 10px !important; */
 		padding-top: 0px !important;
 		font-size: 0.65rem;
+		font-size: ${({ isArabic }) => (isArabic ? "0.85rem" : "0.65rem")};
 	}
 `;
 
@@ -650,6 +690,6 @@ const ReceptionChat = styled.div`
 	@media (max-width: 800px) {
 		width: 63% !important;
 		margin-bottom: 10px;
-		font-size: 10px;
+		font-size: ${({ isArabic }) => (isArabic ? "12px" : "10px")};
 	}
 `;

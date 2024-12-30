@@ -11,6 +11,8 @@ import {
 import dayjs from "dayjs";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
+import { roomTypesWithTranslations } from "../../Assets";
+import { useCartContext } from "../../cart_context";
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -30,6 +32,8 @@ const Search = ({
 	const [calendarStartDate, setCalendarStartDate] = useState(
 		initialSearchParams.dates?.[0] || dayjs().add(1, "day")
 	);
+
+	const { chosenLanguage } = useCartContext();
 
 	const [invalidFields, setInvalidFields] = useState({});
 
@@ -121,19 +125,51 @@ const Search = ({
 	);
 
 	return (
-		<SearchWrapper>
+		<SearchWrapper
+			dir={chosenLanguage === "Arabic" ? "rtl" : ""}
+			style={{ textAlign: chosenLanguage === "Arabic" ? "right" : "" }}
+		>
 			<DestinationWrapper invalid={invalidFields.destination}>
 				<Select
 					style={{
 						width: "100%",
+						fontSize: chosenLanguage === "Arabic" ? "16px" : "14px",
+						textAlign: chosenLanguage === "Arabic" ? "right" : "",
 					}}
-					placeholder='Where would you like to go?'
+					placeholder={
+						chosenLanguage === "Arabic"
+							? "إلى أين ترغب في الذهاب؟"
+							: "Where would you like to go?"
+					}
 					onChange={(value) => handleSelectChange(value, "destination")}
 					value={searchParams.destination}
 				>
-					<Option value=''>Where would you like to go?</Option>
-					<Option value='Makkah'>Makkah</Option>
-					<Option value='Madinah'>Madinah</Option>
+					<Option
+						value=''
+						style={{
+							textAlign: chosenLanguage === "Arabic" ? "right" : "",
+						}}
+					>
+						{chosenLanguage === "Arabic"
+							? "إلى أين ترغب في الذهاب؟"
+							: "Where would you like to go?"}
+					</Option>
+					<Option
+						value='Makkah'
+						style={{
+							textAlign: chosenLanguage === "Arabic" ? "right" : "",
+						}}
+					>
+						{chosenLanguage === "Arabic" ? "مكة" : "Makkah"}
+					</Option>
+					<Option
+						value='Madinah'
+						style={{
+							textAlign: chosenLanguage === "Arabic" ? "right" : "",
+						}}
+					>
+						{chosenLanguage === "Arabic" ? "المدينة المنورة" : "Madinah"}
+					</Option>
 				</Select>
 			</DestinationWrapper>
 
@@ -148,27 +184,48 @@ const Search = ({
 					panelRender={panelRender}
 					invalid={invalidFields.dates}
 					inputReadOnly
+					style={{
+						fontSize: chosenLanguage === "Arabic" ? "16px" : "14px",
+					}}
 				/>
 
 				<SelectWrapper invalid={invalidFields.roomType}>
 					<Select
-						style={{ width: "100%" }}
+						style={{
+							width: "100%",
+							fontSize: chosenLanguage === "Arabic" ? "16px" : "14px",
+						}}
 						suffixIcon={<CalendarOutlined />}
-						placeholder='Select room type'
+						placeholder={
+							chosenLanguage === "Arabic"
+								? "اختر نوع الغرفة"
+								: "Select room type"
+						}
 						className='mb-3'
 						onChange={(value) => handleSelectChange(value, "roomType")}
 						value={searchParams.roomType}
 					>
-						<Option value=''>Room Type</Option>
-						<Option value='all'>All Rooms</Option>
-						{distinctRoomTypes.map((roomType) => (
-							<Option key={roomType} value={roomType}>
-								{roomType}
+						<Option
+							value=''
+							style={{
+								textAlign: chosenLanguage === "Arabic" ? "right" : "",
+							}}
+						>
+							{chosenLanguage === "Arabic" ? "نوع الغرفة" : "Room Type"}
+						</Option>
+						{roomTypesWithTranslations.map(({ roomType, roomTypeArabic }) => (
+							<Option
+								key={roomType}
+								value={roomType}
+								style={{
+									textAlign: chosenLanguage === "Arabic" ? "right" : "",
+								}}
+							>
+								{chosenLanguage === "Arabic" ? roomTypeArabic : roomType}
 							</Option>
 						))}
 					</Select>
 				</SelectWrapper>
-
 				<AdultsChildrenWrapper>
 					<InputNumberWrapper invalid={invalidFields.adults}>
 						<InputNumber
@@ -176,9 +233,14 @@ const Search = ({
 							prefix={<UserOutlined />}
 							min={1}
 							max={10}
-							placeholder='Adults'
+							placeholder={
+								chosenLanguage === "Arabic" ? "عدد البالغين" : "Adults"
+							}
 							onChange={(value) => handleSelectChange(value, "adults")}
 							value={searchParams.adults}
+							style={{
+								fontSize: chosenLanguage === "Arabic" ? "16px" : "14px",
+							}}
 						/>
 					</InputNumberWrapper>
 					<InputNumberWrapper>
@@ -187,15 +249,19 @@ const Search = ({
 							prefix={<TeamOutlined />}
 							min={0}
 							max={10}
-							placeholder='Children'
+							placeholder={chosenLanguage === "Arabic" ? "الأطفال" : "Children"}
 							onChange={(value) => handleSelectChange(value, "children")}
 							value={searchParams.children}
+							style={{
+								fontSize: chosenLanguage === "Arabic" ? "16px" : "14px",
+							}}
 						/>
 					</InputNumberWrapper>
 				</AdultsChildrenWrapper>
 			</InputsWrapper>
 
 			<SearchButtonWrapper
+				isArabic={chosenLanguage === "Arabic"}
 				onClick={() => {
 					ReactPixel.track("SearchClicked_OurHotels", {
 						action: "User searched for a room",
@@ -210,7 +276,7 @@ const Search = ({
 				}}
 			>
 				<Button className='search-button' onClick={handleSubmit}>
-					Search
+					{chosenLanguage === "Arabic" ? "بحث" : "Search"}
 				</Button>
 			</SearchButtonWrapper>
 		</SearchWrapper>
@@ -303,6 +369,7 @@ const SearchButtonWrapper = styled.div`
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		font-size: ${({ isArabic }) => (isArabic ? "1.3rem" : "")};
 
 		@media (max-width: 768px) {
 			width: 100%;

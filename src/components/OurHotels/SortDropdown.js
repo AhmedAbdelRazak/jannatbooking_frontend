@@ -7,7 +7,13 @@ import ReactPixel from "react-facebook-pixel";
 
 const { Option } = Select;
 
-const SortDropdown = ({ sortOption, setSortOption, currency, setCurrency }) => {
+const SortDropdown = ({
+	sortOption,
+	setSortOption,
+	currency,
+	setCurrency,
+	chosenLanguage,
+}) => {
 	const handleSortChange = (value) => {
 		setSortOption(value); // Update the selected sort option in parent component
 	};
@@ -27,35 +33,93 @@ const SortDropdown = ({ sortOption, setSortOption, currency, setCurrency }) => {
 		localStorage.setItem("selectedCurrency", value); // Save the selected currency to localStorage
 	};
 
+	// Translations
+	const translations = {
+		English: {
+			sortBy: "Sort by",
+			closest: "Closest To El Haram",
+			cheapest: "Cheapest To Expensive",
+			currency: "Currency",
+			sar: "SAR",
+			usd: "US Dollars",
+			eur: "Euro",
+		},
+		Arabic: {
+			sortBy: "ترتيب حسب",
+			closest: "الأقرب إلى الحرم",
+			cheapest: "من الأرخص إلى الأغلى",
+			currency: "العملة",
+			sar: "ريال",
+			usd: "الدولار الأمريكي",
+			eur: "اليورو",
+		},
+	};
+
+	const t = translations[chosenLanguage] || translations.English;
+
 	return (
-		<DropdownRow>
+		<DropdownRow
+			style={{
+				marginRight: chosenLanguage === "Arabic" ? "10px" : "",
+			}}
+		>
 			{/* Sort Dropdown */}
 			<SortWrapper>
 				<StyledSelect
 					value={sortOption}
 					onChange={handleSortChange}
 					suffixIcon={<SortAscendingOutlined />}
-					placeholder='Sort by'
+					placeholder={t.sortBy}
+					style={{
+						direction: chosenLanguage === "Arabic" ? "rtl" : "ltr",
+						textAlign: chosenLanguage === "Arabic" ? "right" : "left",
+						marginRight: chosenLanguage === "Arabic" ? "10px" : "",
+					}}
 				>
 					<Option value='closest' style={{ fontSize: "0.75rem" }}>
-						Closest To El Haram
+						{t.closest}
 					</Option>
 					<Option value='price' style={{ fontSize: "0.75rem" }}>
-						Cheapest To Expensive
+						{t.cheapest}
 					</Option>
 				</StyledSelect>
 			</SortWrapper>
 
 			{/* Currency Dropdown */}
-			<CurrencyWrapper>
+			<CurrencyWrapper
+				style={{
+					textAlign: chosenLanguage === "Arabic" ? "right" : "",
+				}}
+			>
 				<StyledSelect
 					value={currency}
 					onChange={handleCurrencyChange}
-					placeholder='Currency'
+					placeholder={t.currency}
 				>
-					<Option value='sar'>SAR</Option>
-					<Option value='usd'>US Dollars</Option>
-					<Option value='eur'>Euro</Option>
+					<Option
+						style={{
+							textAlign: chosenLanguage === "Arabic" ? "right" : "",
+						}}
+						value='sar'
+					>
+						{t.sar}
+					</Option>
+					<Option
+						style={{
+							textAlign: chosenLanguage === "Arabic" ? "right" : "",
+						}}
+						value='usd'
+					>
+						{t.usd}
+					</Option>
+					<Option
+						style={{
+							textAlign: chosenLanguage === "Arabic" ? "right" : "",
+						}}
+						value='eur'
+					>
+						{t.eur}
+					</Option>
 				</StyledSelect>
 			</CurrencyWrapper>
 		</DropdownRow>
@@ -113,7 +177,7 @@ const StyledSelect = styled(Select)`
 	}
 
 	@media (max-width: 750px) {
-		width: 170px; /* Increased width to fit longer text */
+		width: 170px; /* Adjusted width for smaller screens */
 		font-size: 0.85rem !important;
 
 		.ant-select-selector > span {

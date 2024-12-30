@@ -5,9 +5,11 @@ import MakkahPhoto from "../../GeneralImages/Meccah.png";
 import MadinahPhoto from "../../GeneralImages/Madenah.png";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
+import { useCartContext } from "../../cart_context";
 
 const Section2 = () => {
 	const history = useHistory();
+	const { chosenLanguage } = useCartContext();
 
 	const handleImageClick = (destination) => {
 		ReactGA.event({
@@ -37,17 +39,30 @@ const Section2 = () => {
 	};
 
 	return (
-		<Section2Container>
+		<Section2Container dir={chosenLanguage === "Arabic" ? "rtl" : ""}>
 			<Section2Wrapper>
-				<Title>Top Destinations</Title>
+				<Title
+					style={{
+						textAlign: chosenLanguage === "Arabic" ? "right" : "left",
+						fontSize: chosenLanguage === "Arabic" ? "1.7rem" : "1.5rem",
+					}}
+				>
+					{chosenLanguage === "Arabic" ? "أفضل الوجهات" : "Top Destinations"}
+				</Title>
 				<Content>
 					<Destination onClick={() => handleImageClick("Makkah")}>
 						<ImageWrapper>
 							<img src={MakkahPhoto} alt='Makkah' />
 						</ImageWrapper>
 						<Info>
-							<h3>Makkah</h3>
-							{/* <p>362339 properties</p> */}
+							<h3
+								style={{
+									textAlign: chosenLanguage === "Arabic" ? "right" : "center",
+									fontSize: chosenLanguage === "Arabic" ? "1.2rem" : "1rem",
+								}}
+							>
+								{chosenLanguage === "Arabic" ? "مكة" : "Makkah"}
+							</h3>
 						</Info>
 					</Destination>
 					<Destination onClick={() => handleImageClick("Madinah")}>
@@ -55,8 +70,14 @@ const Section2 = () => {
 							<img src={MadinahPhoto} alt='Madinah' />
 						</ImageWrapper>
 						<Info>
-							<h3>Madinah</h3>
-							{/* <p>224506 properties</p> */}
+							<h3
+								style={{
+									textAlign: chosenLanguage === "Arabic" ? "right" : "center",
+									fontSize: chosenLanguage === "Arabic" ? "1.2rem" : "1rem",
+								}}
+							>
+								{chosenLanguage === "Arabic" ? "المدينة المنورة" : "Madinah"}
+							</h3>
 						</Info>
 					</Destination>
 				</Content>
@@ -73,7 +94,6 @@ const Section2Container = styled.div`
 	display: flex;
 	justify-content: center;
 	width: 100%;
-	/* background-color: var(--background-color, #f9f9f9); */
 	padding: 30px 0;
 `;
 

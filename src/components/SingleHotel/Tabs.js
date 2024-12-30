@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 
-const Tabs = ({ sections, onTabClick }) => {
+const Tabs = ({ sections, onTabClick, chosenLanguage }) => {
 	const [activeTab, setActiveTab] = useState("overview");
 
 	// Observe sections and update the active tab based on scroll position
@@ -28,9 +28,10 @@ const Tabs = ({ sections, onTabClick }) => {
 	}, [sections]);
 
 	return (
-		<TabsWrapper>
+		<TabsWrapper isArabic={chosenLanguage === "Arabic"}>
 			{sections.map((section) => (
 				<TabItem
+					isArabic={chosenLanguage === "Arabic"}
 					key={section.id}
 					active={activeTab === section.id}
 					onClick={() => onTabClick(section.id)}
@@ -77,5 +78,6 @@ const TabItem = styled.div`
 	@media (max-width: 700px) {
 		font-size: 0.85rem;
 		padding: 10px 12px;
+		font-size: ${(props) => (props.isArabic ? "0.9rem" : "0.85rem")};
 	}
 `;

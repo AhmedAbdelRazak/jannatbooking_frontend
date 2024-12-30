@@ -11,6 +11,44 @@ import ReactPixel from "react-facebook-pixel";
 
 const { RangePicker } = DatePicker;
 
+// Define translations
+const translations = {
+	English: {
+		yourReservation: "Your Reservation",
+		pricePerNight: "Price per night:",
+		totalAmount: "Total Amount:",
+		totalRooms: "Total Rooms:",
+		totalPrice: "Total Price:",
+		noReservations: "No reservations yet.",
+		remove: "Remove",
+		proceedToCheckout: "Proceed to Checkout",
+		roomDetails: "room(s) for",
+		nights: "night(s)",
+		from: "from",
+		to: "to",
+		SAR: "SAR",
+		USD: "USD",
+		EUR: "EUR",
+	},
+	Arabic: {
+		yourReservation: "ملخص الحجز الخاص بك",
+		pricePerNight: "سعر الليلة الواحدة:",
+		totalAmount: "المبلغ الإجمالي:",
+		totalRooms: "إجمالي الغرف:",
+		totalPrice: "السعر الإجمالي:",
+		noReservations: "لا توجد حجوزات بعد.",
+		remove: "إزالة",
+		proceedToCheckout: "المتابعة لتأكيد الحجز",
+		roomDetails: "غرفة لمدة",
+		nights: "ليلة/ليالٍ",
+		from: "من",
+		to: "إلى",
+		SAR: "ريال",
+		USD: "دولار",
+		EUR: "يورو",
+	},
+};
+
 const SidebarCartDrawer = () => {
 	const {
 		roomCart,
@@ -21,6 +59,7 @@ const SidebarCartDrawer = () => {
 		closeSidebar2,
 		isSidebarOpen2,
 		total_price_with_commission,
+		chosenLanguage,
 	} = useCartContext();
 
 	const [selectedCurrency, setSelectedCurrency] = useState("SAR");
@@ -67,12 +106,23 @@ const SidebarCartDrawer = () => {
 		<StyledRangePickerContainer>{panelNode}</StyledRangePickerContainer>
 	);
 
+	// Get translations for the chosen language
+	const t = translations[chosenLanguage] || translations.English;
+
 	return (
-		<>
+		<div>
 			<Overlay isOpen={isSidebarOpen2} onClick={closeSidebar2} />
 			<DrawerWrapper isOpen={isSidebarOpen2}>
 				<CloseIcon onClick={closeSidebar2} />
-				<DrawerHeader>Your Reservations</DrawerHeader>
+				<DrawerHeader
+					dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+					style={{
+						textAlign: chosenLanguage === "Arabic" ? "right" : "left",
+						marginRight: chosenLanguage === "Arabic" ? "6%" : "left",
+					}}
+				>
+					{t.yourReservation}
+				</DrawerHeader>
 
 				{/* Ant Design Date Range Picker - Displayed only once */}
 				<DateRangePickerWrapper>
@@ -120,16 +170,22 @@ const SidebarCartDrawer = () => {
 										src={room.photos[0] && room.photos[0].url}
 										alt={room.name}
 									/>
-									<ItemDetails>
-										<ItemName>{room.name}</ItemName>
+									<ItemDetails
+										dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+									>
+										<ItemName>
+											{chosenLanguage === "Arabic"
+												? room.nameOtherLanguage
+												: room.name}
+										</ItemName>
 										<ItemInfo>
-											{room.amount} room(s) for {room.nights} night(s) from{" "}
-											{room.startDate} to {room.endDate}
+											{room.amount} {t.roomDetails} {room.nights} {t.nights}{" "}
+											{t.from} {room.startDate} {t.to} {room.endDate}
 										</ItemInfo>
 										<ItemPricePerNight>
-											Price per night:{" "}
+											{t.pricePerNight}{" "}
 											{Number(convertedPricePerNight * room.amount).toFixed(2)}{" "}
-											{selectedCurrency && selectedCurrency.toUpperCase()}
+											{t[selectedCurrency.toUpperCase()]}
 										</ItemPricePerNight>
 										{/* Room Quantity Controls */}
 										<QuantityControls>
@@ -142,27 +198,29 @@ const SidebarCartDrawer = () => {
 											/>
 										</QuantityControls>
 										<ItemPrice>
-											Total Amount:{" "}
+											{t.totalAmount}{" "}
 											{Number(convertedTotalAmount * room.amount).toFixed(2)}{" "}
-											{selectedCurrency && selectedCurrency.toUpperCase()}
+											{t[selectedCurrency.toUpperCase()]}
 										</ItemPrice>
 									</ItemDetails>
 									<RemoveButton onClick={() => removeRoomItem(room.id)}>
-										Remove
+										{t.remove}
 									</RemoveButton>
 								</CartItem>
 							);
 						})
 					) : (
-						<EmptyMessage>No reservations yet.</EmptyMessage>
+						<EmptyMessage>{t.noReservations}</EmptyMessage>
 					)}
 				</DrawerContent>
 
 				<TotalsWrapper>
-					<TotalRooms>Total Rooms: {total_rooms}</TotalRooms>
+					<TotalRooms>
+						{t.totalRooms} {total_rooms}
+					</TotalRooms>
 					<TotalPrice>
-						Total Price: {convertCurrency(total_price_with_commission)}{" "}
-						{selectedCurrency && selectedCurrency.toUpperCase()}
+						{t.totalPrice} {convertCurrency(total_price_with_commission)}{" "}
+						{t[selectedCurrency.toUpperCase()]}
 					</TotalPrice>
 					<CheckoutButton
 						to='/checkout'
@@ -182,11 +240,11 @@ const SidebarCartDrawer = () => {
 							window.scrollTo({ top: 50, behavior: "smooth" });
 						}}
 					>
-						Proceed to Checkout
+						{t.proceedToCheckout}
 					</CheckoutButton>
 				</TotalsWrapper>
 			</DrawerWrapper>
-		</>
+		</div>
 	);
 };
 

@@ -33,7 +33,7 @@ const ReviewLink = styled.a`
 	}
 `;
 
-const StaticRating = ({ selectedHotel }) => {
+const StaticRating = ({ selectedHotel, chosenLanguage }) => {
 	// Calculate the rating
 	const rating =
 		selectedHotel && selectedHotel.hotelRating
@@ -52,7 +52,7 @@ const StaticRating = ({ selectedHotel }) => {
 
 	return (
 		<>
-			<ReviewContainer>
+			<ReviewContainer dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
 				<ScoreBox>{rating}</ScoreBox>
 				<div>
 					<Text strong style={{ fontSize: "1rem" }}>
@@ -61,7 +61,10 @@ const StaticRating = ({ selectedHotel }) => {
 				</div>
 				<br />
 			</ReviewContainer>
-			<ReviewLink href='#reviews'>
+			<ReviewLink
+				href='#reviews'
+				dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+			>
 				See all 1,000 reviews <ArrowRightOutlined />
 			</ReviewLink>
 		</>

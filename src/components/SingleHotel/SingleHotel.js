@@ -84,6 +84,57 @@ const calculatePricingByDay = (
 	});
 };
 
+const translations = {
+	English: {
+		overview: "Overview",
+		about: "About",
+		rooms: "Choose Your Room",
+		policies: "Policies",
+		comparisons: "Comparisons",
+		amenities: "Amenities",
+		showMore: "Show more...",
+		showLess: "Show less...",
+		hide: "Hide",
+		addRoom: "Add Room To Reservation",
+		notAvailable: "Not Available",
+		available: "Available",
+		nights: "nights",
+		drivingToHaram: "Driving to El Haram",
+		walkingToHaram: "Walking to El Haram",
+		perNight: "/ Night",
+		addToReservation: "Add to Reservation",
+		currentPrice: "Current Price",
+		freeCancellation: "Free Cancellation",
+		SAR: "SAR",
+		USD: "USD",
+		EUR: "EUR",
+	},
+	Arabic: {
+		overview: "نظرة عامة",
+		about: "حول الفندق",
+		rooms: "اختر غرفتك",
+		policies: "السياسات",
+		comparisons: "مقارنات",
+		amenities: "وسائل الراحة",
+		showMore: "عرض المزيد...",
+		showLess: "عرض أقل...",
+		hide: "إخفاء",
+		addRoom: "إضافة غرفة إلى الحجز",
+		notAvailable: "غير متوفر",
+		available: "متاح",
+		nights: "ليالٍ",
+		drivingToHaram: "بالسيارة إلى الحرم",
+		walkingToHaram: "مشياً إلى الحرم",
+		perNight: "لكل ليلة",
+		addToReservation: "إضافة إلى الحجز",
+		currentPrice: "السعر الحالي",
+		freeCancellation: "إلغاء مجاني",
+		SAR: "ريال",
+		USD: "دولار",
+		EUR: "يورو",
+	},
+};
+
 // Main SingleHotel component
 const SingleHotel = ({ selectedHotel }) => {
 	// eslint-disable-next-line
@@ -102,7 +153,9 @@ const SingleHotel = ({ selectedHotel }) => {
 	const [selectedCurrency, setSelectedCurrency] = useState("SAR");
 	const [currencyRates, setCurrencyRates] = useState({});
 
-	console.log(selectedHotel, "selectedHotel");
+	const { addRoomToCart, openSidebar2, chosenLanguage } = useCartContext();
+
+	const t = translations[chosenLanguage] || translations.English;
 
 	useEffect(() => {
 		const currency = localStorage.getItem("selectedCurrency") || "SAR";
@@ -132,7 +185,6 @@ const SingleHotel = ({ selectedHotel }) => {
 		? combinedFeatures
 		: combinedFeatures.slice(0, 4);
 
-	const { addRoomToCart, openSidebar2, chosenLanguage } = useCartContext();
 	const tabRefs = useRef({});
 
 	// Section references for tabs
@@ -228,6 +280,9 @@ const SingleHotel = ({ selectedHotel }) => {
 		const roomDetails = {
 			id: room._id,
 			name: room.displayName,
+			nameOtherLanguage: room.displayName_OtherLanguage
+				? room.displayName_OtherLanguage
+				: room.displayName,
 			roomType: room.roomType,
 			price: pricePerNightWithCommission.toFixed(2), // Average nightly price with commission
 			defaultCost: room.defaultCost || room.price.basePrice, // Fallback cost
@@ -281,7 +336,7 @@ const SingleHotel = ({ selectedHotel }) => {
 	};
 
 	return (
-		<SingleHotelWrapper dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
+		<SingleHotelWrapper>
 			{/* Hero Section */}
 
 			<HeroSection dir='ltr'>
@@ -334,13 +389,50 @@ const SingleHotel = ({ selectedHotel }) => {
 					))}
 				</Swiper> */}
 			</HeroSection>
-			<div>
-				<Tabs sections={sections} onTabClick={handleTabClick} />
+			<div dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
+				<Tabs
+					sections={[
+						{
+							id: "overview",
+							label: chosenLanguage === "Arabic" ? "نظرة عامة" : "Overview",
+						},
+						{
+							id: "about",
+							label: chosenLanguage === "Arabic" ? "حول الفندق" : "About",
+						},
+						{
+							id: "rooms",
+							label: chosenLanguage === "Arabic" ? "اختر غرفتك" : "Rooms",
+						},
+						{
+							id: "policies",
+							label: chosenLanguage === "Arabic" ? "السياسات" : "Policies",
+						},
+						{
+							id: "comparisons",
+							label: chosenLanguage === "Arabic" ? "مقارنات" : "Comparisons",
+						},
+					]}
+					onTabClick={handleTabClick}
+					chosenLanguage={chosenLanguage}
+				/>
 			</div>
 
 			{/* Hotel Overview */}
-			<HotelInfo ref={overviewRef} id='overview'>
-				<h1>{selectedHotel.hotelName}</h1>
+			<HotelInfo
+				ref={overviewRef}
+				id='overview'
+				dir='ltr'
+				style={{
+					textAlign: chosenLanguage === "Arabic" ? "right" : "left",
+					marginRight: chosenLanguage === "Arabic" ? "10px" : "",
+				}}
+			>
+				<h1>
+					{chosenLanguage === "Arabic"
+						? selectedHotel.hotelName_OtherLanguage || selectedHotel.hotelName
+						: selectedHotel.hotelName}
+				</h1>
 				<p>
 					{formatAddress(selectedHotel.hotelAddress)
 						.split(",")
@@ -348,12 +440,16 @@ const SingleHotel = ({ selectedHotel }) => {
 						.join(", ")}
 				</p>
 				<Distances>
-					<FaCar /> {selectedHotel.distances?.drivingToElHaram} Driving to El
-					Haram
+					<FaCar />
+					{` ${selectedHotel.distances?.drivingToElHaram} ${
+						chosenLanguage === "Arabic" ? t.drivingToHaram : t.drivingToHaram
+					}`}
 				</Distances>
 				<Distances>
-					<FaWalking /> {selectedHotel.distances?.walkingToElHaram} Walking to
-					El Haram
+					<FaWalking />
+					{` ${selectedHotel.distances?.walkingToElHaram} ${
+						chosenLanguage === "Arabic" ? t.walkingToHaram : t.walkingToHaram
+					}`}
 				</Distances>
 				<StarRatings
 					rating={selectedHotel.hotelRating || 0}
@@ -363,18 +459,31 @@ const SingleHotel = ({ selectedHotel }) => {
 					starDimension='15px'
 					starSpacing='1px'
 				/>
-				<StaticRating selectedHotel={selectedHotel} />
-				{/* <p>Phone: {selectedHotel.phone}</p> */}
+				<div>
+					<StaticRating
+						selectedHotel={selectedHotel}
+						chosenLanguage={chosenLanguage}
+					/>
+				</div>
 			</HotelInfo>
 
 			{/* Hotel About */}
 
-			<HotelOverview ref={aboutRef} id='about'>
-				<h2>About</h2>
+			<HotelOverview
+				ref={aboutRef}
+				id='about'
+				style={{
+					textAlign: chosenLanguage === "Arabic" ? "right" : "",
+					marginRight: chosenLanguage === "Arabic" ? "10px" : "",
+				}}
+				dir='rtl'
+			>
+				<h2>{chosenLanguage === "Arabic" ? "حول الفندق" : "About"}</h2>
 				<p>
-					{selectedHotel && selectedHotel.aboutHotel
-						? selectedHotel.aboutHotel
-						: "About Hotel"}
+					{selectedHotel &&
+						(chosenLanguage === "Arabic"
+							? selectedHotel.aboutHotelArabic || selectedHotel.aboutHotel
+							: selectedHotel.aboutHotel || "About Hotel")}
 				</p>
 
 				<AmenitiesWrapper>
@@ -387,7 +496,13 @@ const SingleHotel = ({ selectedHotel }) => {
 
 				{combinedFeatures.length > 4 && (
 					<ToggleText onClick={handleAmenitiesToggle}>
-						{showAllAmenities ? "Hide..." : "Show More..."}
+						{showAllAmenities
+							? chosenLanguage === "Arabic"
+								? "إخفاء..."
+								: "Hide..."
+							: chosenLanguage === "Arabic"
+								? "عرض المزيد..."
+								: "Show More..."}
 					</ToggleText>
 				)}
 
@@ -418,7 +533,9 @@ const SingleHotel = ({ selectedHotel }) => {
 
 			{/* Rooms Section */}
 			<RoomsSection ref={roomsRef} id='rooms'>
-				<h2>Choose Your Room</h2>
+				<h2 style={{ textAlign: chosenLanguage === "Arabic" ? "center" : "" }}>
+					{chosenLanguage === "Arabic" ? "اختر غرفتك" : "Choose Your Room"}
+				</h2>
 				{/* Date Range Picker */}
 				<DateRangeWrapper>
 					<ResponsiveRangePicker
@@ -460,7 +577,6 @@ const SingleHotel = ({ selectedHotel }) => {
 						room.roomCommission || selectedHotel.commission
 					);
 
-					console.log(pricingByDay, "pricingByDaypricingByDay");
 					const numberOfNights = pricingByDay.length;
 
 					// Check if any date in the range has a price of 0
@@ -470,11 +586,7 @@ const SingleHotel = ({ selectedHotel }) => {
 						(total, day) => {
 							const dailyTotal =
 								day.price + (day.rootPrice * day.commissionRate || 0);
-							// console.log(`Date: ${day.date}, Price: ${day.price}, RootPrice: ${day.rootPrice}, CommissionRate: ${day.commissionRate}, Daily Total: ${dailyTotal}`);
-							// console.log(`Running Total (before adding dailyTotal): ${total}`);
-							const updatedTotal = total + dailyTotal;
-							// console.log(`Running Total (after adding dailyTotal): ${updatedTotal}`);
-							return updatedTotal;
+							return total + dailyTotal;
 						},
 						0
 					);
@@ -512,8 +624,17 @@ const SingleHotel = ({ selectedHotel }) => {
 							</RoomImageWrapper>
 
 							{/* Room Details */}
-							<RoomDetails dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
-								<h3>
+							<RoomDetails
+								dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+								style={{
+									textAlign: chosenLanguage === "Arabic" ? "right" : "",
+								}}
+							>
+								<h3
+									style={{
+										textAlign: chosenLanguage === "Arabic" ? "right" : "",
+									}}
+								>
 									{chosenLanguage === "Arabic"
 										? room.displayName_OtherLanguage || room.displayName
 										: room.displayName}
@@ -561,7 +682,11 @@ const SingleHotel = ({ selectedHotel }) => {
 								)}
 
 								<AmenitiesWrapper>
-									<h4>Amenities:</h4>
+									<h4>
+										{chosenLanguage === "Arabic"
+											? "وسائل الراحة:"
+											: "Amenities:"}
+									</h4>
 									{visibleAmenities.map((feature, idx) => (
 										<AmenityItem key={idx}>
 											{getIcon(feature)} <span>{feature}</span>
@@ -571,25 +696,30 @@ const SingleHotel = ({ selectedHotel }) => {
 										<ToggleText
 											onClick={() => setShowAllAmenities2(!showAllAmenities2)}
 										>
-											{showAllAmenities2 ? "Hide" : "Show More..."}
+											{showAllAmenities2
+												? chosenLanguage === "Arabic"
+													? "إخفاء"
+													: "Hide"
+												: chosenLanguage === "Arabic"
+													? "عرض المزيد..."
+													: "Show More..."}
 										</ToggleText>
 									)}
 								</AmenitiesWrapper>
 							</RoomDetails>
 
 							{/* Updated Price Section */}
-							<PriceSection>
+							<PriceSection dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
 								<FinalPrice>
 									<span className='current-price'>
 										{convertCurrency(pricePerNightAfterCommission)}{" "}
-										{selectedCurrency.toUpperCase()} / Night
+										{t[selectedCurrency.toUpperCase()]}{" "}
+										{chosenLanguage === "Arabic" ? "لكل ليلة" : "/ Night"}
 									</span>
-									<div className='nights'>{numberOfNights} nights</div>
-									{/* <div className='finalTotal'>
-										Total (incl. Commission):{" "}
-										{convertCurrency(totalPriceAfterCommission)}{" "}
-										{selectedCurrency.toUpperCase()}
-									</div> */}
+									<div className='nights'>
+										{numberOfNights}{" "}
+										{chosenLanguage === "Arabic" ? "ليالٍ" : "nights"}
+									</div>
 								</FinalPrice>
 							</PriceSection>
 							<div
@@ -621,12 +751,18 @@ const SingleHotel = ({ selectedHotel }) => {
 									}}
 									onClick={() => isRoomAvailable && handleAddRoomToCart(room)}
 								>
-									Add Room To Reservation
+									{chosenLanguage === "Arabic"
+										? "إضافة الغرفة إلى الحجز"
+										: "Add Room To Reservation"}
 								</StyledButton>
 
 								{/* Unavailable Badge */}
 								{!isRoomAvailable && (
-									<UnavailableBadge>Not Available</UnavailableBadge>
+									<UnavailableBadge>
+										{chosenLanguage === "Arabic"
+											? "غير متوفر"
+											: "Not Available"}
+									</UnavailableBadge>
 								)}
 							</div>
 						</RoomCardWrapper>

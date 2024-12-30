@@ -4,7 +4,6 @@ import { useParams } from "react-router-dom"; // to get the hotelNameSlug from t
 import SingleHotel from "../components/SingleHotel/SingleHotel";
 import { gettingSingleHotel } from "../apiCore";
 import { Spin } from "antd"; // Import Spin component from Ant Design
-import { useCartContext } from "../cart_context";
 import { Helmet } from "react-helmet";
 import favicon from "../favicon.ico"; // Import your favicon
 
@@ -12,7 +11,6 @@ const SingleHotelMain = () => {
 	const { hotelNameSlug } = useParams(); // Get hotelNameSlug from URL
 	const [selectedHotel, setSelectedHotel] = useState(null); // State for selected hotel
 	const [loading, setLoading] = useState(true); // State for loading
-	const { chosenLanguage } = useCartContext();
 	// Fetch hotel details on component mount
 	useEffect(() => {
 		window.scrollTo({ top: 10, behavior: "smooth" });
@@ -56,7 +54,7 @@ const SingleHotelMain = () => {
 	};
 
 	return (
-		<SingleHotelMainWrapper dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
+		<SingleHotelMainWrapper>
 			<Helmet>
 				{/* Dynamic Title */}
 				<title>

@@ -7,6 +7,7 @@ import HotelList2 from "../components/OurHotels/HotelList2";
 import SortDropdown from "../components/OurHotels/SortDropdown";
 import { Helmet } from "react-helmet";
 import favicon from "../favicon.ico";
+import { useCartContext } from "../cart_context";
 
 const roomTypesMapping = [
 	{ value: "standardRooms", label: "Standard Rooms" },
@@ -30,7 +31,7 @@ const OurHotels = () => {
 	const [distinctRoomTypes, setDistinctRoomTypes] = useState([]);
 	const [sortOption, setSortOption] = useState(null);
 	const [currency, setCurrency] = useState(null);
-
+	const { chosenLanguage } = useCartContext();
 	// Fetch currency from localStorage
 	const storedCurrency = localStorage.getItem("selectedCurrency");
 
@@ -182,6 +183,7 @@ const OurHotels = () => {
 					setSortOption={setSortOption}
 					currency={currency}
 					setCurrency={setCurrency}
+					chosenLanguage={chosenLanguage}
 				/>
 			</SortDropdownSection>
 

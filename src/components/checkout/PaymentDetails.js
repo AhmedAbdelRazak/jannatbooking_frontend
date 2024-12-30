@@ -12,6 +12,30 @@ import AmericanExpress from "../../GeneralImages/AmericanExpress.png";
 import MasterCard from "../../GeneralImages/MasterCard.png";
 import VisaCard from "../../GeneralImages/VisaImage.png";
 import CreditCard from "../../GeneralImages/CreditCard.png";
+import { useCartContext } from "../../cart_context";
+
+const translations = {
+	English: {
+		cardNumberError: "Card number must be 16 digits",
+		invalidCardNumber: "Invalid card number",
+		expiryDateError: "Invalid expiry date (MM/YYYY)",
+		cvvError: "CVV must be 3 digits",
+		cardHolderNameError: "Name is required",
+		postalCodeRequired: "Postal code is required for this country.",
+		postalCodeLengthError: "Postal code must be at least 4 characters long.",
+	},
+	Arabic: {
+		cardNumberError: "رقم البطاقة يجب أن يكون 16 رقما",
+		invalidCardNumber: "رقم البطاقة غير صالح",
+		expiryDateError: "تاريخ الانتهاء غير صالح (MM/YYYY)",
+		cvvError: "يجب أن يتكون CVV من 3 أرقام",
+		cardHolderNameError: "الاسم مطلوب",
+		postalCodeRequired: "الرمز البريدي مطلوب لهذه الدولة.",
+		postalCodeLengthError:
+			"يجب أن يكون الرمز البريدي مكونًا من 4 أحرف على الأقل.",
+	},
+	// Add more languages as needed
+};
 
 const PaymentDetails = ({
 	cardNumber,
@@ -34,6 +58,7 @@ const PaymentDetails = ({
 	depositAmount,
 }) => {
 	const [errors, setErrors] = useState({});
+	const { chosenLanguage } = useCartContext();
 
 	// Real-time card number formatting and validation
 	const handleCardNumberChange = (e) => {
@@ -112,27 +137,28 @@ const PaymentDetails = ({
 	const validateForm = () => {
 		const newErrors = {};
 
+		const t = translations[chosenLanguage] || translations.English;
+
 		// Card number validation (ensure 16 digits)
 		if (cardNumber.replace(/\s/g, "").length < 16)
-			newErrors.cardNumber = "Invalid card number";
+			newErrors.cardNumber = t.cardNumberError;
 
 		// Expiry date validation (MM/YYYY)
 		if (!/^(0[1-9]|1[0-2])\/\d{4}$/.test(expiryDate))
-			newErrors.expiryDate = "Invalid expiry date (MM/YYYY)";
+			newErrors.expiryDate = t.expiryDateError;
 
 		// CVV validation (ensure at least 3 digits)
-		if (cvv.length < 3) newErrors.cvv = "Invalid CVV";
+		if (cvv.length < 3) newErrors.cvv = t.cvvError;
 
 		// Cardholder name validation
-		if (!cardHolderName) newErrors.cardHolderName = "Name is required";
+		if (!cardHolderName) newErrors.cardHolderName = t.cardHolderNameError;
 
 		// Postal code validation for countries that require it
 		if (countriesWithPostalCodes.includes(nationality)) {
 			if (!postalCode) {
-				newErrors.postalCode = "Postal code is required for this country.";
+				newErrors.postalCode = t.postalCodeRequired;
 			} else if (postalCode.length < 4) {
-				newErrors.postalCode =
-					"Postal code must be at least 4 characters long.";
+				newErrors.postalCode = t.postalCodeLengthError;
 			}
 		}
 
@@ -143,8 +169,8 @@ const PaymentDetails = ({
 	};
 
 	return (
-		<PaymentWrapper>
-			<TitleWrapper>
+		<PaymentWrapper dir='ltr'>
+			<TitleWrapper className='my-2'>
 				<h3>Payment Details</h3>
 				<CardIcons>
 					<img src={VisaCard} alt='Visa' />
@@ -223,7 +249,7 @@ const PaymentDetails = ({
 				{pricePerNight && <h4>{pricePerNight} SAR per night</h4>}
 				{pay10Percent ? (
 					<>
-						<h4>Total Amount: {Number(depositAmount).toFixed(2)} SAR</h4>
+						{/* <h4>Total Amount: {Number(depositAmount).toFixed(2)} SAR</h4> */}
 						<h4>
 							Total Amount in USD: $
 							{Number(convertedAmounts.depositUSD).toFixed(2)}
@@ -232,7 +258,7 @@ const PaymentDetails = ({
 				) : (
 					<>
 						<h4>
-							Total Amount: {Number(total_price_with_commission).toFixed(2)} SAR
+							{/* Total Amount: {Number(total_price_with_commission).toFixed(2)} SAR */}
 						</h4>
 						<h4>
 							Total Amount in USD: $
@@ -249,7 +275,7 @@ const PaymentDetails = ({
 					validateForm();
 				}}
 			>
-				Reserve Now
+				{chosenLanguage === "Arabic" ? "اضغط هنا لتأكيد الحجز" : "Reserve Now"}
 			</SubmitButton>
 		</PaymentWrapper>
 	);

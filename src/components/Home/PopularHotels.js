@@ -9,8 +9,11 @@ import StarRatings from "react-star-ratings";
 import { amenitiesList } from "../../Assets"; // Assuming amenitiesList is imported here
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
+import { useCartContext } from "../../cart_context";
 
 const PopularHotels = ({ activeHotels }) => {
+	const { chosenLanguage } = useCartContext();
+
 	const settings = {
 		dots: true,
 		infinite: true,
@@ -75,8 +78,15 @@ const PopularHotels = ({ activeHotels }) => {
 	};
 
 	return (
-		<PopularHotelsContainer>
-			<SectionTitle>OUR MOST POPULAR HOTELS!</SectionTitle>
+		<PopularHotelsContainer dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
+			<SectionTitle
+				style={{ textAlign: chosenLanguage === "Arabic" ? "center" : "" }}
+			>
+				{" "}
+				{chosenLanguage === "Arabic"
+					? "الفنادق الأكثر زيارة!"
+					: "OUR MOST POPULAR HOTELS!"}{" "}
+			</SectionTitle>
 			<Slider {...settings}>
 				{activeHotels.map((hotel) => (
 					<div key={hotel._id} className='slide'>
@@ -105,8 +115,17 @@ const PopularHotels = ({ activeHotels }) => {
 								/>
 							}
 						>
-							<HotelInfo>
-								<h3>{hotel.hotelName}</h3>
+							<HotelInfo
+								style={{
+									marginRight: chosenLanguage === "Arabic" ? "10px" : "",
+									textAlign: chosenLanguage === "Arabic" ? "right" : "",
+								}}
+							>
+								<h3>
+									{chosenLanguage === "Arabic" && hotel.hotelName_OtherLanguage
+										? hotel.hotelName_OtherLanguage
+										: hotel.hotelName}
+								</h3>
 								<p>{formatAddress(hotel.hotelAddress)}</p>
 								<StarRatings
 									rating={hotel.hotelRating || 4.6} // Replace with actual rating if available

@@ -153,6 +153,47 @@ const calculateTotalPrice = (averagePrice, startDate, endDate) => {
 	return (averagePrice * nights).toFixed(2);
 };
 
+const translations = {
+	English: {
+		loadingMessage: "Loading room data...",
+		noDataFound: "No data found.",
+		hotelRating: "Hotel Rating:",
+		perNight: "/ NIGHT",
+		totalNights: "Total",
+		nights: "nights",
+		addToReservation: "Add to Reservation",
+		notAvailable: "Not Available",
+		receptionChat: "Reception Chat",
+		available: "Available",
+		drivingToHaram: "Driving to El Haram",
+		showMore: "Show more...",
+		showLess: "Show less...",
+		pricePerNight: "/ NIGHT",
+		SAR: "SAR",
+		USD: "USD",
+		EUR: "EUR",
+	},
+	Arabic: {
+		loadingMessage: "جاري تحميل بيانات الغرف...",
+		noDataFound: "لا توجد بيانات.",
+		hotelRating: "تقييم الفندق:",
+		perNight: "لليلة",
+		totalNights: "المجموع",
+		nights: "ليالٍ",
+		addToReservation: "إضافة إلى الحجز",
+		notAvailable: "غير متوفر",
+		receptionChat: "تحدث مع الاستقبال",
+		available: "متاح",
+		drivingToHaram: "بالسيارة إلى الحرم",
+		showMore: "عرض المزيد...",
+		showLess: "عرض أقل...",
+		pricePerNight: "لليلة",
+		SAR: "ريال",
+		USD: "دولار",
+		EUR: "يورو",
+	},
+};
+
 const OurHotelRooms2 = () => {
 	const { chosenLanguage, addRoomToCart, openSidebar2 } = useCartContext();
 
@@ -348,11 +389,13 @@ const OurHotelRooms2 = () => {
 		return sortedHotels;
 	}, [roomData, sortOption, currency, queryParams]);
 
+	const t = translations[chosenLanguage] || translations.English;
+
 	return (
 		<OurHotelRooms2Wrapper>
 			{loading ? (
 				<LoadingOverlay>
-					<Spin size='large' tip='Loading room data...' />
+					<Spin size='large' tip={t.loadingMessage} />
 				</LoadingOverlay>
 			) : roomData ? (
 				<RoomListWrapper>
@@ -431,6 +474,7 @@ const OurHotelRooms2 = () => {
 											SAR_EUR: 0.25,
 										}
 									}
+									t={t}
 								/>
 							))
 						)}
@@ -468,6 +512,7 @@ const RoomCard = ({
 	toggleShowAmenities, // Handler to toggle state
 	currency, // New prop for currency
 	rates, // New prop for conversion rates
+	t,
 }) => {
 	// eslint-disable-next-line
 	const [thumbsSwiper, setThumbsSwiper] = useState(null);
@@ -521,6 +566,9 @@ const RoomCard = ({
 			{
 				id: room._id,
 				name: room.displayName,
+				nameOtherLanguage: room.displayName_OtherLanguage
+					? room.displayName_OtherLanguage
+					: room.displayName,
 				roomType: room.roomType,
 				price: pricePerNightWithCommission.toFixed(2),
 				defaultCost: room.defaultCost || room.price.basePrice,
@@ -658,7 +706,10 @@ const RoomCard = ({
 									starSpacing='1px'
 								/>
 							</div>
-							<PriceWrapper>
+							<PriceWrapper
+								isArabic={chosenLanguage === "Arabic"}
+								dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+							>
 								<span
 									style={{
 										fontWeight: "bolder",
@@ -666,10 +717,11 @@ const RoomCard = ({
 										color: "black",
 									}}
 								>
-									{currency && currency.toUpperCase()} {convertedPricePerNight}
+									{convertedPricePerNight}{" "}
+									{currency && t[currency.toUpperCase()]}{" "}
 								</span>{" "}
 								<span style={{ fontSize: "0.82rem", color: "black" }}>
-									/ NIGHT
+									{t.pricePerNight}
 								</span>
 								{nights > 0 && (
 									<div
@@ -679,10 +731,22 @@ const RoomCard = ({
 											fontWeight: "bold",
 										}}
 									>
-										Total {nights} nights:{" "}
-										<strong>
-											{currency && currency.toUpperCase()} {convertedTotalPrice}
-										</strong>
+										{/* Check the chosenLanguage and render the text accordingly */}
+										{chosenLanguage === "Arabic" ? (
+											<>
+												{t.totalNights} {nights} {t.nights}:{" "}
+												<strong>
+													{convertedTotalPrice} {t[currency.toUpperCase()]}
+												</strong>
+											</>
+										) : (
+											<>
+												{t.totalNights} {nights} {t.nights}:{" "}
+												<strong>
+													{t[currency.toUpperCase()]} {convertedTotalPrice}
+												</strong>
+											</>
+										)}
 									</div>
 								)}
 							</PriceWrapper>
@@ -720,6 +784,7 @@ const RoomCard = ({
 							}}
 						>
 							<StyledButton
+								isArabic={chosenLanguage === "Arabic"}
 								className='mb-2 mt-1'
 								disabled={!isRoomAvailable}
 								style={{
@@ -730,7 +795,9 @@ const RoomCard = ({
 								}}
 								onClick={isRoomAvailable ? handleAddToCart : null}
 							>
-								Add to Reservation
+								{chosenLanguage === "Arabic"
+									? t.addToReservation
+									: t.addToReservation}
 							</StyledButton>
 							{!isRoomAvailable && (
 								<UnavailableBadge>Not Available</UnavailableBadge>
@@ -1064,7 +1131,7 @@ const StyledButton = styled(Button)`
 	}
 
 	@media (max-width: 800px) {
-		font-size: 0.57rem;
+		font-size: ${({ isArabic }) => (isArabic ? "0.9rem" : "0.57rem")};
 		font-weight: bolder;
 		width: 90% !important;
 		text-transform: capitalize;

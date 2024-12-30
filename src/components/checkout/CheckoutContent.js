@@ -4,8 +4,12 @@ import { useCartContext } from "../../cart_context";
 import dayjs from "dayjs";
 import { DatePicker, Button, Collapse, Select, message, Checkbox } from "antd";
 import PaymentDetails from "./PaymentDetails";
-// eslint-disable-next-line
-import { countryList, countryListWithAbbreviations } from "../../Assets"; // Ensure this file contains an array of countries
+import {
+	// eslint-disable-next-line
+	countryList,
+	countryListWithAbbreviations,
+	translations,
+} from "../../Assets"; // Ensure this file contains an array of countries
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { createNewReservationClient, currencyConversion } from "../../apiCore";
 import { FaMinus, FaPlus } from "react-icons/fa";
@@ -65,9 +69,11 @@ const CheckoutContent = () => {
 		clearRoomCart,
 		toggleRoomAmount,
 		total_price_with_commission,
+		chosenLanguage,
 	} = useCartContext();
 	const { user } = isAuthenticated();
 	const history = useHistory();
+	const t = translations[chosenLanguage] || translations.English;
 
 	const [expanded, setExpanded] = useState({});
 	const [mobileExpanded, setMobileExpanded] = useState(false); // Mobile collapse
@@ -91,6 +97,8 @@ const CheckoutContent = () => {
 		postalCode: "",
 		state: "",
 	});
+	const [selectedCurrency, setSelectedCurrency] = useState("SAR");
+	const [currencyRates, setCurrencyRates] = useState({});
 
 	const [convertedAmounts, setConvertedAmounts] = useState({
 		depositUSD: null,
@@ -101,6 +109,18 @@ const CheckoutContent = () => {
 		() => calculateDepositDetails(roomCart),
 		[roomCart]
 	);
+
+	useEffect(() => {
+		// Fetch currency and rates from localStorage
+		const currency = localStorage.getItem("selectedCurrency") || "SAR";
+		const rates = JSON.parse(localStorage.getItem("rates")) || {
+			SAR_USD: 0.27,
+			SAR_EUR: 0.25,
+		};
+
+		setSelectedCurrency(currency);
+		setCurrencyRates(rates);
+	}, []);
 
 	useEffect(() => {
 		// Fetch conversion for both deposit and total amounts
@@ -414,21 +434,41 @@ const CheckoutContent = () => {
 		}
 	};
 
+	const convertCurrency = (amount) => {
+		if (!amount || isNaN(amount)) return "0.00"; // Default to "0.00" if amount is invalid
+
+		if (selectedCurrency === "usd")
+			return (amount * (currencyRates.SAR_USD || 1)).toFixed(2);
+		if (selectedCurrency === "eur")
+			return (amount * (currencyRates.SAR_EUR || 1)).toFixed(2);
+		return amount.toFixed(2); // Default to SAR
+	};
+
 	const redirectToSignin = () => {
 		const currentUrl = window.location.pathname + window.location.search;
 		history.push(`/signin?returnUrl=${encodeURIComponent(currentUrl)}`);
 	};
 
 	return (
-		<CheckoutContentWrapper>
+		<CheckoutContentWrapper
+			dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+			style={{ textAlign: chosenLanguage === "Arabic" ? "right" : "" }}
+		>
 			{/* Mobile Accordion for Reservation Summary */}
 			<MobileAccordion
 				onChange={() => setMobileExpanded(!mobileExpanded)}
 				activeKey={mobileExpanded ? "1" : null}
 			>
-				<Panel header='Your Reservation Summary' key='1'>
+				<Panel
+					header={
+						chosenLanguage === "Arabic"
+							? "ملخص الحجز الخاص بك"
+							: "Your Reservation Summary"
+					}
+					key='1'
+				>
 					<RightSection>
-						<h2>Your Reservation</h2>
+						<h2>{t.yourReservation}</h2>
 
 						{/* Ant Design Date Range Picker */}
 						<DateRangePickerWrapper>
@@ -464,17 +504,31 @@ const CheckoutContent = () => {
 										<RoomImage src={room.photos[0]?.url} alt={room.name} />
 
 										<RoomDetails>
-											<h3>{room.name}</h3>
-											<p>{room.amount} room(s)</p>
+											<h3>
+												{chosenLanguage === "Arabic"
+													? room.nameOtherLanguage
+													: room.name}
+											</h3>
+											<p>
+												{room.amount}{" "}
+												{chosenLanguage === "Arabic" ? "غرفة" : "room(s)"}
+											</p>
 											<DateRangeWrapper>
-												<label>Dates:</label>
+												<label>
+													{chosenLanguage === "Arabic"
+														? "تواريخ الدخول والخروج"
+														: "Dates:"}
+												</label>
 												<p>
-													{room.startDate} to {room.endDate}
+													{chosenLanguage === "Arabic" ? "من" : "from"}{" "}
+													{room.startDate}{" "}
+													{chosenLanguage === "Arabic" ? "الى" : "to"}{" "}
+													{room.endDate}
 												</p>
 											</DateRangeWrapper>
 											<h4>
-												{Number(pricePerNight * room.amount).toFixed(2)} SAR per
-												night
+												{Number(pricePerNight * room.amount).toFixed(2)}{" "}
+												{t[selectedCurrency.toUpperCase()]} {t.perNight}
 											</h4>
 
 											{/* Room Quantity Controls */}
@@ -508,7 +562,10 @@ const CheckoutContent = () => {
 												<Panel
 													header={
 														<PriceDetailsHeader>
-															<InfoCircleOutlined /> Price Breakdown
+															<InfoCircleOutlined />{" "}
+															{chosenLanguage === "Arabic"
+																? "تفاصيل السعر"
+																: "Price Breakdown"}
 														</PriceDetailsHeader>
 													}
 													key='1'
@@ -524,47 +581,37 @@ const CheckoutContent = () => {
 																			{Number(totalPriceWithCommission).toFixed(
 																				2
 																			)}{" "}
-																			SAR
+																			{t[selectedCurrency.toUpperCase()]}
 																		</li>
 																	);
 																}
 															)
 														) : (
-															<li>No price breakdown available</li>
+															<li>{t.noPriceBreakdown}</li>
 														)}
 													</PricingList>
 												</Panel>
 											</Collapse>
 
 											<RemoveButton onClick={() => removeRoomItem(room.id)}>
-												Remove
+												{t.remove}
 											</RemoveButton>
 										</RoomDetails>
 									</RoomItem>
 								);
 							})
 						) : (
-							<p>No rooms selected.</p>
+							<p>{t.noReservations}</p>
 						)}
 
 						{/* Totals Section */}
 						<TotalsWrapper>
-							<p>Total Rooms: {total_rooms}</p>
+							<p>
+								{t.totalRooms}: {total_rooms}
+							</p>
 							<p className='total-price'>
-								Total Price:{" "}
-								{Number(
-									roomCart.reduce(
-										(total, room) =>
-											total +
-											room.pricingByDayWithCommission.reduce(
-												(subTotal, day) =>
-													subTotal + day.totalPriceWithCommission * room.amount,
-												0
-											),
-										0
-									)
-								).toFixed(2)}{" "}
-								SAR
+								{t.totalPrice}: {convertCurrency(total_price_with_commission)}{" "}
+								{t[selectedCurrency.toUpperCase()]}
 							</p>
 						</TotalsWrapper>
 					</RightSection>
@@ -573,14 +620,14 @@ const CheckoutContent = () => {
 
 			{/* Mobile form for user details */}
 			<MobileFormWrapper>
-				<h2>Customer Details</h2>
+				<h2>{t.customerDetails}</h2>
 				<form>
 					<InputGroup>
-						<label>Name</label>
+						<label>{t.name}</label>
 						<input
 							type='text'
 							name='name'
-							placeholder='First & Last Name'
+							placeholder={t.firstAndLastName}
 							value={customerDetails.name}
 							onChange={(e) =>
 								setCustomerDetails({ ...customerDetails, name: e.target.value })
@@ -588,11 +635,11 @@ const CheckoutContent = () => {
 						/>
 					</InputGroup>
 					<InputGroup>
-						<label>Phone</label>
+						<label>{t.phone}</label>
 						<input
 							type='text'
 							name='phone'
-							placeholder='Phone Number'
+							placeholder={t.phoneNumber}
 							value={customerDetails.phone}
 							onChange={(e) =>
 								setCustomerDetails({
@@ -603,11 +650,11 @@ const CheckoutContent = () => {
 						/>
 					</InputGroup>
 					<InputGroup>
-						<label>Email</label>
+						<label>{t.email}</label>
 						<input
 							type='email'
 							name='email'
-							placeholder='Email Address'
+							placeholder={t.emailAddress}
 							value={customerDetails.email}
 							onChange={(e) =>
 								setCustomerDetails({
@@ -637,11 +684,11 @@ const CheckoutContent = () => {
 							</div>
 							<div className='col-md-6'>
 								<InputGroup>
-									<label>Password</label>
+									<label>{t.password}</label>
 									<input
 										type='password'
 										name='password'
-										placeholder='Password'
+										placeholder={t.enterPassword}
 										value={customerDetails.password}
 										onChange={(e) =>
 											setCustomerDetails({
@@ -655,11 +702,11 @@ const CheckoutContent = () => {
 
 							<div className='col-md-6'>
 								<InputGroup>
-									<label>Confirm Password</label>
+									<label>{t.confirmPassword}</label>
 									<input
 										type='password'
 										name='confirmPassword'
-										placeholder='Confirm Password'
+										placeholder={t.confirmPassword}
 										value={customerDetails.confirmPassword}
 										onChange={(e) =>
 											setCustomerDetails({
@@ -674,19 +721,19 @@ const CheckoutContent = () => {
 					) : null}
 
 					<InputGroup>
-						<label>Nationality</label>
+						<label>{t.nationality}</label>
 						<Select
 							showSearch
-							placeholder='Select a country'
+							placeholder={t.selectCountry}
 							optionFilterProp='children'
 							filterOption={(input, option) =>
 								option.children.toLowerCase().includes(input.toLowerCase())
 							}
-							value={nationality} // Display the selected code in the dropdown value
+							value={nationality}
 							onChange={(value) => {
 								setNationality(value);
 								setCustomerDetails({ ...customerDetails, nationality: value });
-							}} // Set the state with the selected code
+							}}
 							style={{ width: "100%" }}
 						>
 							{countryListWithAbbreviations.map((country) => (
@@ -715,12 +762,11 @@ const CheckoutContent = () => {
 									});
 								}}
 							>
-								Accept Terms & Conditions
+								{t.acceptTerms}
 							</Checkbox>
 						</TermsWrapper>
 						<small onClick={() => window.open("/terms-conditions", "_blank")}>
-							It's highly recommended to check our terms & conditions specially
-							for refund and cancellation sections 4 & 5{" "}
+							{t.checkTerms}
 						</small>
 
 						<TermsWrapper>
@@ -734,20 +780,19 @@ const CheckoutContent = () => {
 										action: "User Checked On Paying Deposit",
 										label: `User Checked On Paying Deposit`,
 									});
-
 									ReactPixel.track("Checked On Paying Deposit", {
 										action: "User Checked On Paying Deposit",
 										page: "checkout",
 									});
 								}}
 							>
-								Pay {averageCommissionRate}% Deposit{" "}
+								{t.payDeposit} ({averageCommissionRate}%){" "}
 								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
 									(SAR {depositAmount})
 								</span>{" "}
-								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
+								{/* <span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
 									(${convertedAmounts && convertedAmounts.depositUSD})
-								</span>
+								</span> */}
 							</Checkbox>
 						</TermsWrapper>
 
@@ -769,13 +814,13 @@ const CheckoutContent = () => {
 									});
 								}}
 							>
-								Pay the whole Total Amount{" "}
+								{t.payTotalAmount}{" "}
 								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
 									(SAR {Number(total_price_with_commission).toFixed(2)})
 								</span>{" "}
-								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
+								{/* <span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
 									(${convertedAmounts && convertedAmounts.totalUSD})
-								</span>
+								</span> */}
 							</Checkbox>
 						</TermsWrapper>
 
@@ -845,6 +890,10 @@ const CheckoutContent = () => {
 				convertedAmounts={convertedAmounts}
 				depositAmount={depositAmount}
 				averageCommissionRate={averageCommissionRate}
+				t={t}
+				chosenLanguage={chosenLanguage}
+				selectedCurrency={selectedCurrency}
+				convertCurrency={convertCurrency}
 			/>
 		</CheckoutContentWrapper>
 	);
