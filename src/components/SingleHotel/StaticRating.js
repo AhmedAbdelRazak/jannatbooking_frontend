@@ -22,7 +22,6 @@ const ScoreBox = styled.div`
 
 const ReviewLink = styled.a`
 	color: #1890ff; /* Ant Design blue */
-	/* font-weight: bold; */
 	text-decoration: none;
 	display: flex;
 	align-items: center;
@@ -34,14 +33,30 @@ const ReviewLink = styled.a`
 	}
 `;
 
-const StaticRating = () => {
+const StaticRating = ({ selectedHotel }) => {
+	// Calculate the rating
+	const rating =
+		selectedHotel && selectedHotel.hotelRating
+			? Number(selectedHotel.hotelRating) * 2
+			: 8.4;
+
+	// Determine the rating text
+	const ratingText =
+		rating >= 9
+			? "Excellent"
+			: rating >= 8
+				? "Very good"
+				: rating >= 6
+					? "Good"
+					: "Not too bad";
+
 	return (
 		<>
 			<ReviewContainer>
-				<ScoreBox>8.4</ScoreBox>
+				<ScoreBox>{rating}</ScoreBox>
 				<div>
 					<Text strong style={{ fontSize: "1rem" }}>
-						Very good
+						{ratingText}
 					</Text>
 				</div>
 				<br />

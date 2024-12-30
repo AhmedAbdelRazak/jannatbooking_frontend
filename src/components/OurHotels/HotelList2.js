@@ -12,6 +12,7 @@ import { amenitiesList, viewsList, extraAmenitiesList } from "../../Assets";
 import { FaCar, FaWalking } from "react-icons/fa";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
+import { useCartContext } from "../../cart_context";
 
 // Helper function to format the address
 const formatAddress = (address) => {
@@ -36,7 +37,7 @@ const getIcon = (item) => {
 };
 
 // HotelCard component for individual hotels
-const HotelCard = ({ hotel, currency }) => {
+const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 	const [thumbsSwiper, setThumbsSwiper] = useState(null); // Each hotel has its own thumbsSwiper
 	const [mainSwiper, setMainSwiper] = useState(null); // Main swiper reference to control autoplay
 	const [showAllAmenities, setShowAllAmenities] = useState(false); // State to show/hide all amenities
@@ -209,7 +210,12 @@ const HotelCard = ({ hotel, currency }) => {
 			{/* Hotel details section */}
 			<HotelDetails>
 				<div>
-					<HotelName className='p-0 m-0'>{hotel.hotelName}</HotelName>
+					<HotelName className='p-0 m-0'>
+						{chosenLanguage === "Arabic" && hotel.hotelName_OtherLanguage
+							? hotel.hotelName_OtherLanguage
+							: hotel.hotelName}
+					</HotelName>
+
 					<Location className='p-0 m-0'>
 						{formatAddress(hotel.hotelAddress)
 							.split(",")
@@ -325,6 +331,8 @@ const HotelCard = ({ hotel, currency }) => {
 };
 
 const HotelList2 = ({ activeHotels, currency }) => {
+	const { chosenLanguage } = useCartContext();
+
 	return (
 		<HotelListWrapper>
 			{activeHotels && activeHotels.length > 0 ? (
@@ -333,6 +341,7 @@ const HotelList2 = ({ activeHotels, currency }) => {
 						key={hotel._id || index}
 						hotel={hotel}
 						currency={currency}
+						chosenLanguage={chosenLanguage}
 					/>
 				))
 			) : (

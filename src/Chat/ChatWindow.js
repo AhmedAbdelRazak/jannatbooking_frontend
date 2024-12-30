@@ -57,12 +57,14 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	}, [selectedHotel]);
 
 	useEffect(() => {
+		// Set authenticated user details
 		if (isAuthenticated()) {
 			const { user } = isAuthenticated();
 			setCustomerName(user.name);
 			setCustomerEmail(user.email || user.phone);
 		}
 
+		// Restore chat from localStorage if it exists
 		const savedChat = JSON.parse(localStorage.getItem("currentChat"));
 		if (savedChat) {
 			setCustomerName(savedChat.customerName || "");
@@ -77,36 +79,51 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 			fetchSupportCase(savedChat.caseId);
 		}
 
+		// Socket listener for new messages
 		socket.on("receiveMessage", (message) => {
 			if (message.caseId === caseId) {
-				setMessages((prevMessages) => [...prevMessages, message]);
-				markMessagesAsSeen(caseId);
+				setMessages((prevMessages) => [...prevMessages, message]); // Add new message
+				markMessagesAsSeen(caseId); // Mark messages as seen
 			}
 		});
 
+		// Socket listener for closed cases
 		socket.on("closeCase", (data) => {
 			if (data.case._id === caseId) {
-				setIsRatingVisible(true);
+				setIsRatingVisible(true); // Show rating dialog
 			}
 		});
 
+		// Socket listener for typing notifications
 		socket.on("typing", (data) => {
 			if (data.caseId === caseId && data.name !== customerName) {
-				setTypingStatus(`${data.name} is typing...`);
+				setTypingStatus(`${data.name} is typing...`); // Show typing status
 			}
 		});
 
+		// Socket listener for stop typing notifications
 		socket.on("stopTyping", (data) => {
 			if (data.caseId === caseId && data.name !== customerName) {
-				setTypingStatus("");
+				setTypingStatus(""); // Clear typing status
 			}
 		});
 
+		// Socket listener for deleted messages
+		socket.on("messageDeleted", (data) => {
+			if (data.caseId === caseId) {
+				setMessages((prevMessages) =>
+					prevMessages.filter((msg) => msg._id !== data.messageId)
+				); // Remove the deleted message from the state
+			}
+		});
+
+		// Cleanup socket listeners on component unmount
 		return () => {
 			socket.off("receiveMessage");
 			socket.off("closeCase");
 			socket.off("typing");
 			socket.off("stopTyping");
+			socket.off("messageDeleted");
 		};
 	}, [caseId, customerEmail, customerName]);
 
@@ -156,7 +173,13 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	const fetchSupportCase = async (id) => {
 		try {
 			const supportCase = await getSupportCaseById(id);
-			setMessages(supportCase.conversation);
+
+			// Ensure conversation array includes `_id`
+			if (supportCase.conversation && supportCase.conversation.length > 0) {
+				setMessages(supportCase.conversation);
+			} else {
+				console.error("Conversation data is missing or malformed.");
+			}
 		} catch (err) {
 			console.error("Error fetching support case", err);
 		}
@@ -193,10 +216,12 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		socket.emit("typing", { name: customerName, caseId });
 	};
 
+	// eslint-disable-next-line
 	const handleInputBlur = () => {
 		socket.emit("stopTyping", { name: customerName, caseId });
 	};
 
+	// eslint-disable-next-line
 	const handleInputKeyPress = (e) => {
 		if (e.key === "Enter") {
 			e.preventDefault();
@@ -305,7 +330,8 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 				...prev,
 				{
 					messageBy: { customerName: "System" },
-					message: "A Representative will be available with you in 3 minutes",
+					message: "A representative will be with you in 3 to 5 minutes",
+					date: new Date(), // Add the current date-time
 				},
 			]); // Add system message
 			fetchSupportCase(response._id); // Fetch the created support case
@@ -448,7 +474,14 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 					<MessagesContainer>
 						{messages &&
 							messages.map((msg, index) => (
-								<Message key={index}>
+								<Message
+									key={index}
+									isAdminMessage={
+										msg.messageBy.customerEmail ===
+											"management@xhotelpro.com" ||
+										msg.messageBy.customerName === "Admin"
+									}
+								>
 									<strong>{msg.messageBy.customerName}:</strong>{" "}
 									{renderMessageWithLinks(msg.message)}
 								</Message>
@@ -459,7 +492,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 					{typingStatus && <TypingStatus>{typingStatus}</TypingStatus>}
 					<Form.Item>
 						<ChatInputContainer>
-							<Input
+							<Input.TextArea
 								placeholder={
 									chosenLanguage === "Arabic"
 										? "اكتب رسالتك..."
@@ -467,8 +500,13 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 								}
 								value={newMessage}
 								onChange={handleInputChange}
-								onBlur={handleInputBlur}
-								onKeyPress={handleInputKeyPress}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" && !e.shiftKey) {
+										e.preventDefault(); // Prevent default Enter behavior
+										handleSendMessage(); // Send the message
+									}
+								}}
+								autoSize={{ minRows: 1, maxRows: 5 }} // Allows dynamic resizing
 								style={{ flexGrow: 1 }}
 							/>
 							<Button onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
@@ -751,7 +789,19 @@ const MessagesContainer = styled.div`
 
 const Message = styled.p`
 	word-wrap: break-word;
-	white-space: pre-wrap;
+	white-space: pre-wrap; /* This preserves new lines */
+	background-color: ${(props) =>
+		props.isAdminMessage
+			? "var(--admin-message-bg)"
+			: "var(--user-message-bg)"};
+	color: ${(props) =>
+		props.isAdminMessage
+			? "var(--admin-message-color)"
+			: "var(--user-message-color)"};
+	padding: 8px;
+	border-radius: 5px;
+	margin: 5px 0;
+	line-height: 1.5;
 `;
 
 const ChatInputContainer = styled.div`

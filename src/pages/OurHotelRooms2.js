@@ -401,6 +401,7 @@ const OurHotelRooms2 = () => {
 									room={room}
 									hotel={hotel}
 									hotelName={hotel.hotelName}
+									hotelName_OtherLanguage={hotel.hotelName_OtherLanguage}
 									hotelRating={hotel.hotelRating}
 									hotelAddress={hotel.hotelAddress}
 									distanceToElHaramWalking={
@@ -446,6 +447,7 @@ const OurHotelRooms2 = () => {
 const RoomCard = ({
 	room,
 	hotelName,
+	hotelName_OtherLanguage,
 	hotelRating,
 	hotelAddress,
 	startDate,
@@ -625,7 +627,11 @@ const RoomCard = ({
 						</RoomImageWrapper>
 
 						<RoomDetails>
-							<HotelName>{hotelName}</HotelName>
+							<HotelName>
+								{chosenLanguage === "Arabic" && hotelName_OtherLanguage
+									? hotelName_OtherLanguage
+									: hotelName}
+							</HotelName>
 							<RoomDisplayName>
 								{chosenLanguage === "Arabic"
 									? room.displayName_OtherLanguage || room.displayName
@@ -636,7 +642,7 @@ const RoomCard = ({
 							>
 								<span
 									style={{
-										fontSize: "14px",
+										fontSize: "11px",
 										fontWeight: "bold",
 										color: "#555",
 									}}

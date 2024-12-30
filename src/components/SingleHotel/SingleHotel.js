@@ -363,7 +363,7 @@ const SingleHotel = ({ selectedHotel }) => {
 					starDimension='15px'
 					starSpacing='1px'
 				/>
-				<StaticRating />
+				<StaticRating selectedHotel={selectedHotel} />
 				{/* <p>Phone: {selectedHotel.phone}</p> */}
 			</HotelInfo>
 
