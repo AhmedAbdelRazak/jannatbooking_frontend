@@ -717,6 +717,15 @@ const SingleHotel = ({ selectedHotel }) => {
 							{/* Updated Price Section */}
 							<PriceSection dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
 								<FinalPrice>
+									{/* Strikethrough price with 10% markup */}
+									<span className='original-price'>
+										<s>
+											{convertCurrency(pricePerNightAfterCommission * 1.1)}{" "}
+											{t[selectedCurrency.toUpperCase()]}{" "}
+											{chosenLanguage === "Arabic" ? "لكل ليلة" : "/ Night"}
+										</s>
+									</span>
+									{/* Current price */}
 									<span className='current-price'>
 										{convertCurrency(pricePerNightAfterCommission)}{" "}
 										{t[selectedCurrency.toUpperCase()]}{" "}
@@ -1113,8 +1122,14 @@ const FinalPrice = styled.div`
 
 	.current-price {
 		font-weight: bold;
-		color: var(--secondary-color);
+		color: darkgreen;
 		font-size: 1.3rem;
+	}
+
+	.original-price {
+		color: red;
+		font-weight: bolder;
+		font-size: 0.9rem;
 	}
 
 	@media (max-width: 768px) {
@@ -1123,6 +1138,10 @@ const FinalPrice = styled.div`
 
 		.current-price {
 			font-size: 1rem;
+		}
+
+		.original-price {
+			font-size: 0.78rem;
 		}
 
 		.finalTotal,

@@ -284,11 +284,31 @@ const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 						isArabic={chosenLanguage === "Arabic"}
 						dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
 					>
-						{Number(
-							convertedPrice * process.env.REACT_APP_COMMISSIONRATE
-						).toFixed(0)}{" "}
-						{t[currency.toUpperCase()]} {t.pricePerNight}{" "}
+						{/* Discounted price first */}
+						<span
+							style={{
+								marginRight: "3px", // Add spacing between the discounted and actual price
+								fontWeight: "bold",
+								fontSize: "0.75rem",
+								color: "red",
+							}}
+						>
+							<s>
+								{Number(
+									convertedPrice * process.env.REACT_APP_COMMISSIONRATE * 1.1
+								).toFixed(0)}{" "}
+								{t[currency.toUpperCase()]}
+							</s>
+						</span>
+						{/* Actual price */}
+						<span>
+							{Number(
+								convertedPrice * process.env.REACT_APP_COMMISSIONRATE
+							).toFixed(0)}{" "}
+							{t[currency.toUpperCase()]} {t.pricePerNight}
+						</span>
 					</PriceWrapper>
+
 					{/* Display unique amenities, views, and extra amenities */}
 					<AmenitiesWrapper className='p-0 mt-1'>
 						{visibleFeatures.map((feature, index) => (
@@ -537,7 +557,7 @@ const HotelName = styled.p`
 	font-weight: bold;
 
 	@media (max-width: 700px) {
-		font-size: 1.1rem;
+		font-size: 1rem;
 		margin-bottom: 0px;
 	}
 `;
@@ -591,7 +611,7 @@ const PriceWrapper = styled.p`
 		margin: 0px;
 		padding: 0px;
 		font-size: 0.9rem;
-		font-size: ${({ isArabic }) => (isArabic ? "1.4rem" : "0.9rem")};
+		font-size: ${({ isArabic }) => (isArabic ? "1.4rem" : "1rem")};
 	}
 `;
 

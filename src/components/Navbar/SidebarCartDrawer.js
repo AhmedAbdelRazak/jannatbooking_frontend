@@ -3,8 +3,10 @@ import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
 import { Link } from "react-router-dom";
 import { FaTimes, FaPlus, FaMinus } from "react-icons/fa";
+// eslint-disable-next-line
 import { DatePicker, ConfigProvider } from "antd"; // Import Ant Design's RangePicker
 import dayjs from "dayjs";
+// eslint-disable-next-line
 import locale from "antd/es/date-picker/locale/en_US"; // Optional locale for DatePicker
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
@@ -89,6 +91,7 @@ const SidebarCartDrawer = () => {
 	};
 
 	// Handle when the user changes the date range
+	// eslint-disable-next-line
 	const handleDateChange = (dates) => {
 		if (dates && dates[0] && dates[1]) {
 			const startDate = dates[0].format("YYYY-MM-DD");
@@ -100,8 +103,10 @@ const SidebarCartDrawer = () => {
 	};
 
 	// Disable past dates
+	// eslint-disable-next-line
 	const disabledDate = (current) => current && current < dayjs().endOf("day");
 
+	// eslint-disable-next-line
 	const panelRender = (panelNode) => (
 		<StyledRangePickerContainer>{panelNode}</StyledRangePickerContainer>
 	);
@@ -125,7 +130,7 @@ const SidebarCartDrawer = () => {
 				</DrawerHeader>
 
 				{/* Ant Design Date Range Picker - Displayed only once */}
-				<DateRangePickerWrapper>
+				{/* <DateRangePickerWrapper>
 					<ConfigProvider locale={locale}>
 						<RangeDatePicker
 							format='YYYY-MM-DD'
@@ -140,7 +145,7 @@ const SidebarCartDrawer = () => {
 							inputReadOnly
 						/>
 					</ConfigProvider>
-				</DateRangePickerWrapper>
+				</DateRangePickerWrapper> */}
 
 				<DrawerContent>
 					{roomCart.length > 0 ? (
@@ -322,11 +327,13 @@ const StyledRangePickerContainer = styled.div`
 	}
 `;
 
+// eslint-disable-next-line
 const DateRangePickerWrapper = styled.div`
 	margin: 10px auto;
 	width: 85%;
 `;
 
+// eslint-disable-next-line
 const RangeDatePicker = styled(RangePicker)`
 	width: 100%;
 `;

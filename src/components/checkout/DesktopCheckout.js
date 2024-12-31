@@ -306,6 +306,7 @@ const DesktopCheckout = ({
 						format='YYYY-MM-DD'
 						disabledDate={disabledDate}
 						onChange={handleDateChange}
+						disabled
 						defaultValue={[
 							dayjs(roomCart[0]?.startDate),
 							dayjs(roomCart[0]?.endDate),

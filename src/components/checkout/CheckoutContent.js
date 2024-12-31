@@ -481,6 +481,7 @@ const CheckoutContent = () => {
 									dayjs(roomCart[0]?.endDate),
 								]}
 								style={{ width: "100%" }}
+								disabled
 								dropdownClassName='mobile-friendly-picker'
 							/>
 						</DateRangePickerWrapper>

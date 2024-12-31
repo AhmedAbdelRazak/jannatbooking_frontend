@@ -720,17 +720,31 @@ const RoomCard = ({
 									textAlign: chosenLanguage === "Arabic" ? "right" : "",
 								}}
 							>
+								{/* Add the discounted price for display purposes */}
+								<span
+									style={{
+										fontWeight: "bold",
+										fontSize: "0.9rem",
+										color: "red",
+									}}
+								>
+									<s>
+										{" "}
+										{(convertedPricePerNight * 1.1).toFixed(0)}{" "}
+										{currency && t[currency.toUpperCase()]}{" "}
+									</s>
+								</span>{" "}
 								<span
 									style={{
 										fontWeight: "bolder",
-										fontSize: "1.3rem",
+										fontSize: "1.1rem",
 										color: "black",
 									}}
 								>
 									{convertedPricePerNight}{" "}
 									{currency && t[currency.toUpperCase()]}{" "}
-								</span>{" "}
-								<span style={{ fontSize: "0.82rem", color: "black" }}>
+								</span>
+								<span style={{ fontSize: "0.7rem", color: "black" }}>
 									{t.pricePerNight}
 								</span>
 								{nights > 0 && (

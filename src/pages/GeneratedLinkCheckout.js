@@ -530,119 +530,102 @@ const GeneratedLinkCheckout = () => {
 				activeKey={mobileExpanded ? "1" : null}
 			>
 				<Panel header='Your Reservation Summary' key='1'>
-					<RightSection>
-						<h2>Your Reservation</h2>
+					<h2>Your Reservation</h2>
+					<DateRangePickerWrapper>
+						<RangePicker
+							format='YYYY-MM-DD'
+							value={[formData.checkInDate, formData.checkOutDate]}
+							disabled
+							style={{ width: "100%", marginBottom: "10px" }}
+							dropdownClassName='mobile-friendly-picker'
+						/>
+					</DateRangePickerWrapper>
 
-						{/* Date Range Picker */}
-						<DateRangePickerWrapper>
-							<RangePicker
-								format='YYYY-MM-DD'
-								value={[formData.checkInDate, formData.checkOutDate]}
-								disabled
-								style={{ width: "100%", marginBottom: "10px" }}
-								dropdownClassName='mobile-friendly-picker'
-							/>
-						</DateRangePickerWrapper>
+					{formData.pickedRooms.length > 0 ? (
+						formData.pickedRooms.map((room, index) => {
+							const totalNights = room.pricingByDay?.length || 0;
 
-						{formData.pickedRooms.length > 0 ? (
-							formData.pickedRooms.map((room, index) => {
-								const totalNights = room.pricingByDay?.length || 0;
+							const totalPriceWithCommission = room.pricingByDay.reduce(
+								(total, day) => total + (day.totalPriceWithCommission || 0),
+								0
+							);
+							const pricePerNight =
+								totalNights > 0 ? totalPriceWithCommission / totalNights : 0;
 
-								// Calculate the price per night and total price
-								const totalPriceWithCommission =
-									room.pricingByDay?.reduce(
-										(total, day) => total + (day.totalPriceWithCommission || 0),
-										0
-									) || 0;
-								const pricePerNight =
-									totalNights > 0 ? totalPriceWithCommission / totalNights : 0;
+							return (
+								<RoomItem key={index}>
+									<RoomImage
+										src={room.photos?.[0]?.url || "/default-room.jpg"}
+										alt='Room'
+									/>
+									<RoomDetails>
+										<h3>{room.displayName}</h3>
+										<p>{room.count} Room(s)</p>
+										<p>
+											{formData.adults} Adult(s), {formData.children} Children
+										</p>
+										<p>{formData.numberOfNights} Nights</p>
+										<p>
+											Dates: {formData.checkInDate?.format("YYYY-MM-DD")} to{" "}
+											{formData.checkOutDate?.format("YYYY-MM-DD")}
+										</p>
+										<h4>
+											{Number(pricePerNight).toFixed(2) * (room.count || 1)} SAR
+											per night
+										</h4>
 
-								return (
-									<RoomItem key={index}>
-										<RoomImage
-											src={room.photos?.[0]?.url || "/default-room.jpg"}
-											alt='Room'
-										/>
-
-										<RoomDetails>
-											<h3>{room.displayName}</h3>
-											<p>{room.count} Room(s)</p>
-											<p>
-												{formData.adults} Adult(s), {formData.children} Children
-											</p>
-											<p>{formData.numberOfNights} Nights</p>
-											<p>
-												Dates: {formData.checkInDate?.format("YYYY-MM-DD")} to{" "}
-												{formData.checkOutDate?.format("YYYY-MM-DD")}
-											</p>
-											<h4>{Number(pricePerNight).toFixed(2)} SAR per night</h4>
-
-											{/* Accordion for Price Breakdown */}
-											<Collapse
-												accordion
-												expandIcon={({ isActive }) => (
-													<CaretRightOutlined
-														rotate={isActive ? 90 : 0}
-														style={{ color: "var(--primary-color)" }}
-													/>
-												)}
+										<Collapse
+											accordion
+											expandIcon={({ isActive }) => (
+												<CaretRightOutlined
+													rotate={isActive ? 90 : 0}
+													style={{ color: "var(--primary-color)" }}
+												/>
+											)}
+										>
+											<Panel
+												header={
+													<PriceDetailsHeader>
+														<InfoCircleOutlined /> Price Breakdown
+													</PriceDetailsHeader>
+												}
+												key='1'
 											>
-												<Panel
-													header={
-														<PriceDetailsHeader>
-															<InfoCircleOutlined /> Price Breakdown
-														</PriceDetailsHeader>
-													}
-													key='1'
-												>
-													<PricingList>
-														{room.pricingByDay?.length > 0 ? (
-															room.pricingByDay.map(
-																({ date, totalPriceWithCommission }, i) => (
-																	<li key={i}>
-																		{dayjs(date).format("YYYY-MM-DD")}:{" "}
-																		{Number(totalPriceWithCommission).toFixed(
-																			2
-																		)}{" "}
-																		SAR
-																	</li>
-																)
+												<PricingList>
+													{room.pricingByDay?.length > 0 ? (
+														room.pricingByDay.map(
+															({ date, totalPriceWithCommission }, i) => (
+																<li key={i}>
+																	{dayjs(date).format("YYYY-MM-DD")}:{" "}
+																	{Number(totalPriceWithCommission).toFixed(2)}{" "}
+																	SAR Per Room
+																</li>
 															)
-														) : (
-															<li>No price breakdown available</li>
-														)}
-													</PricingList>
-												</Panel>
-											</Collapse>
-										</RoomDetails>
-									</RoomItem>
-								);
-							})
-						) : (
-							<p>No rooms selected.</p>
-						)}
+														)
+													) : (
+														<li>No price breakdown available</li>
+													)}
+												</PricingList>
+											</Panel>
+										</Collapse>
+									</RoomDetails>
+								</RoomItem>
+							);
+						})
+					) : (
+						<p>No rooms selected.</p>
+					)}
 
-						{/* Totals Section */}
-						<TotalsWrapper>
-							<p>Total Rooms: {formData.pickedRooms.length}</p>
-							<p className='total-price'>
-								Total Price:{" "}
-								{Number(
-									formData.pickedRooms.reduce(
-										(total, room) =>
-											total +
-											room.pricingByDay.reduce(
-												(subTotal, day) =>
-													subTotal + day.totalPriceWithCommission,
-												0
-											),
-										0
-									)
-								).toFixed(2)}{" "}
-								SAR
-							</p>
-						</TotalsWrapper>
-					</RightSection>
+					<TotalsWrapper>
+						<p>Total Rooms: {formData.pickedRooms.length}</p>
+						<p className='total-price'>
+							Total Price:{" "}
+							{Number(formData.totalAmount + formData.totalCommission).toFixed(
+								2
+							)}{" "}
+							SAR
+						</p>
+					</TotalsWrapper>
 				</Panel>
 			</MobileAccordion>
 
@@ -937,7 +920,10 @@ const GeneratedLinkCheckout = () => {
 											{formData.checkOutDate?.format("YYYY-MM-DD")}
 										</p>
 										<p>{formData.numberOfNights} Nights</p>
-										<h4>{averagePricePerNight.toFixed(2)} SAR per night</h4>
+										<h4>
+											{averagePricePerNight.toFixed(2) * (room.count || 1)} SAR
+											per night
+										</h4>
 
 										{/* Accordion for Price Breakdown */}
 										{room.pricingByDay && room.pricingByDay.length > 0 && (
@@ -964,7 +950,7 @@ const GeneratedLinkCheckout = () => {
 																<li key={i}>
 																	{dayjs(date).format("YYYY-MM-DD")}:{" "}
 																	{Number(totalPriceWithCommission).toFixed(2)}{" "}
-																	SAR
+																	SAR Per Room
 																</li>
 															)
 														)}
@@ -985,18 +971,9 @@ const GeneratedLinkCheckout = () => {
 						<p>Total Rooms: {formData.pickedRooms.length}</p>
 						<p className='total-price'>
 							Total Price:{" "}
-							{Number(
-								formData.pickedRooms.reduce(
-									(total, room) =>
-										total +
-										room.pricingByDay.reduce(
-											(subTotal, day) =>
-												subTotal + day.totalPriceWithCommission,
-											0
-										),
-									0
-								)
-							).toFixed(2)}{" "}
+							{Number(formData.totalAmount + formData.totalCommission).toFixed(
+								2
+							)}{" "}
 							SAR
 						</p>
 					</TotalsWrapper>
@@ -1031,8 +1008,9 @@ const GeneratedLinkCheckoutWrapper = styled.div`
 
 const MobileAccordion = styled(Collapse)`
 	display: none;
+
 	@media (max-width: 768px) {
-		display: block;
+		display: block; /* Show only on mobile */
 		margin-top: 20px;
 		background-color: white;
 		font-weight: bolder;
@@ -1066,8 +1044,9 @@ const RightSection = styled.div`
 	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 	position: sticky;
 	top: 20px;
+
 	@media (max-width: 768px) {
-		padding: 15px;
+		display: none; /* Hide on mobile */
 	}
 `;
 
