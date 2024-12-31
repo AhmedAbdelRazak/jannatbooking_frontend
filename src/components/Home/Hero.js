@@ -59,7 +59,7 @@ const Hero = ({ homePage }) => {
 		})) || defaultImages;
 
 	return (
-		<HeroWrapper>
+		<HeroWrapper isArabic={chosenLanguage === "Arabic"}>
 			<Swiper
 				modules={[Navigation, Pagination, Autoplay]}
 				spaceBetween={0}
@@ -142,6 +142,19 @@ const HeroWrapper = styled.section`
 	position: absolute;
 	z-index: 0;
 	top: 0;
+
+	div,
+	p,
+	span,
+	section,
+	small,
+	input,
+	button,
+	li,
+	ul {
+		font-family: ${({ isArabic }) =>
+			isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
+	}
 
 	@media (max-width: 991px) {
 		height: 600px;

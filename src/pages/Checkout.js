@@ -5,7 +5,7 @@ import { useCartContext } from "../cart_context";
 import { Helmet } from "react-helmet";
 
 const Checkout = () => {
-	const { roomCart } = useCartContext();
+	const { roomCart, chosenLanguage } = useCartContext();
 
 	useEffect(() => {
 		if (window.innerWidth > 768) {
@@ -81,7 +81,7 @@ const Checkout = () => {
 				/>
 				<link rel='canonical' href='https://jannatbooking.com/checkout' />
 			</Helmet>
-			<CheckoutWrapper>
+			<CheckoutWrapper isArabic={chosenLanguage === "Arabic"}>
 				<CheckoutContent />
 			</CheckoutWrapper>
 		</>
@@ -94,6 +94,19 @@ export default Checkout;
 const CheckoutWrapper = styled.div`
 	min-height: 800px;
 	padding: 20px;
+
+	div,
+	p,
+	span,
+	section,
+	small,
+	input,
+	button,
+	li,
+	ul {
+		font-family: ${({ isArabic }) =>
+			isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
+	}
 `;
 
 const EmptyCartWrapper = styled.div`

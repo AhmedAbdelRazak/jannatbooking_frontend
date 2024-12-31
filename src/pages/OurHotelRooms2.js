@@ -392,7 +392,7 @@ const OurHotelRooms2 = () => {
 	const t = translations[chosenLanguage] || translations.English;
 
 	return (
-		<OurHotelRooms2Wrapper>
+		<OurHotelRooms2Wrapper isArabic={chosenLanguage === "Arabic"}>
 			{loading ? (
 				<LoadingOverlay>
 					<Spin size='large' tip={t.loadingMessage} />
@@ -675,12 +675,19 @@ const RoomCard = ({
 						</RoomImageWrapper>
 
 						<RoomDetails>
-							<HotelName>
+							<HotelName
+								dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+								style={{
+									textAlign: chosenLanguage === "Arabic" ? "center" : "",
+								}}
+							>
 								{chosenLanguage === "Arabic" && hotelName_OtherLanguage
 									? hotelName_OtherLanguage
 									: hotelName}
 							</HotelName>
-							<RoomDisplayName>
+							<RoomDisplayName
+								dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+							>
 								{chosenLanguage === "Arabic"
 									? room.displayName_OtherLanguage || room.displayName
 									: room.displayName}
@@ -709,6 +716,9 @@ const RoomCard = ({
 							<PriceWrapper
 								isArabic={chosenLanguage === "Arabic"}
 								dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+								style={{
+									textAlign: chosenLanguage === "Arabic" ? "right" : "",
+								}}
 							>
 								<span
 									style={{
@@ -843,6 +853,19 @@ const OurHotelRooms2Wrapper = styled.div`
 	padding: 220px 250px;
 	background-color: #f9f9f9;
 	min-height: 700px;
+
+	div,
+	p,
+	span,
+	section,
+	small,
+	input,
+	button,
+	li,
+	ul {
+		font-family: ${({ isArabic }) =>
+			isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
+	}
 
 	@media (max-width: 1000px) {
 		padding: 200px 0px;
@@ -981,6 +1004,7 @@ const RoomDisplayName = styled.h3`
 	color: #333;
 	margin-bottom: 5px;
 	text-transform: capitalize;
+	margin-top: 5px;
 
 	@media (max-width: 750px) {
 		font-size: 0.8rem;
@@ -1002,7 +1026,7 @@ const HotelName = styled.p`
 	@media (max-width: 700px) {
 		font-size: 1.1rem;
 		margin-bottom: 0px;
-		line-height: 1.1;
+		line-height: 1.4;
 	}
 `;
 
@@ -1131,7 +1155,7 @@ const StyledButton = styled(Button)`
 	}
 
 	@media (max-width: 800px) {
-		font-size: ${({ isArabic }) => (isArabic ? "0.9rem" : "0.57rem")};
+		font-size: ${({ isArabic }) => (isArabic ? "0.75rem" : "0.57rem")};
 		font-weight: bolder;
 		width: 90% !important;
 		text-transform: capitalize;

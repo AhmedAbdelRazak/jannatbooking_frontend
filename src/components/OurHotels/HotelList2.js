@@ -162,7 +162,7 @@ const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 	};
 
 	return (
-		<HotelCardWrapper>
+		<HotelCardWrapper isArabic={chosenLanguage === "Arabic"}>
 			{/* Image section with Swiper */}
 			<HotelImageWrapper>
 				<Swiper
@@ -239,7 +239,7 @@ const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 			</HotelImageWrapper>
 
 			{/* Hotel details section */}
-			<HotelDetails>
+			<HotelDetails isArabic={chosenLanguage === "Arabic"}>
 				<div>
 					<HotelName
 						className='p-0 m-0'
@@ -418,6 +418,8 @@ const HotelListWrapper = styled.div`
 	padding: 20px;
 	background-color: var(--neutral-light);
 	overflow-x: hidden; /* Prevent horizontal scroll */
+	font-family: ${({ isArabic }) =>
+		isArabic ? `"Droid Arabic Kufi", sans-serif !important` : ""};
 
 	.star-container,
 	svg,
@@ -456,6 +458,8 @@ const HotelCardWrapper = styled.div`
 	box-shadow: var(--box-shadow-light);
 	padding: 20px;
 	transition: var(--main-transition);
+	font-family: ${({ isArabic }) =>
+		isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
 
 	&:hover {
 		box-shadow: var(--box-shadow-dark);
@@ -494,6 +498,14 @@ const HotelDetails = styled.div`
 	display: flex;
 	flex-direction: column;
 	justify-content: space-between;
+
+	div,
+	span,
+	section,
+	p {
+		font-family: ${({ isArabic }) =>
+			isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
+	}
 
 	@media (max-width: 768px) {
 		padding: 0 0px;
@@ -642,6 +654,8 @@ const FreeCancellation = styled.p`
 	margin-top: 12px;
 	color: #34679b;
 	font-size: ${({ isArabic }) => (isArabic ? "1.1rem" : "0.9rem")};
+	font-family: ${({ isArabic }) =>
+		isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
 
 	@media (max-width: 768px) {
 		text-align: center;
@@ -686,10 +700,12 @@ const ReceptionChat = styled.div`
 	color: white;
 	align-items: center;
 	cursor: pointer;
+	font-family: ${({ isArabic }) =>
+		isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
 
 	@media (max-width: 800px) {
 		width: 63% !important;
 		margin-bottom: 10px;
-		font-size: ${({ isArabic }) => (isArabic ? "12px" : "10px")};
+		font-size: ${({ isArabic }) => (isArabic ? "9.5px" : "10px")};
 	}
 `;

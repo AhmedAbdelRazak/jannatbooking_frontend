@@ -422,6 +422,7 @@ const SingleHotel = ({ selectedHotel }) => {
 			<HotelInfo
 				ref={overviewRef}
 				id='overview'
+				isArabic={chosenLanguage === "Arabic"}
 				dir='ltr'
 				style={{
 					textAlign: chosenLanguage === "Arabic" ? "right" : "left",
@@ -439,7 +440,7 @@ const SingleHotel = ({ selectedHotel }) => {
 						.slice(0, 2)
 						.join(", ")}
 				</p>
-				<Distances>
+				<Distances isArabic={chosenLanguage === "Arabic"}>
 					<FaCar />
 					{` ${selectedHotel.distances?.drivingToElHaram} ${
 						chosenLanguage === "Arabic" ? t.drivingToHaram : t.drivingToHaram
@@ -470,6 +471,7 @@ const SingleHotel = ({ selectedHotel }) => {
 			{/* Hotel About */}
 
 			<HotelOverview
+				isArabic={chosenLanguage === "Arabic"}
 				ref={aboutRef}
 				id='about'
 				style={{
@@ -532,7 +534,11 @@ const SingleHotel = ({ selectedHotel }) => {
 			</HotelOverview>
 
 			{/* Rooms Section */}
-			<RoomsSection ref={roomsRef} id='rooms'>
+			<RoomsSection
+				ref={roomsRef}
+				id='rooms'
+				isArabic={chosenLanguage === "Arabic"}
+			>
 				<h2 style={{ textAlign: chosenLanguage === "Arabic" ? "center" : "" }}>
 					{chosenLanguage === "Arabic" ? "اختر غرفتك" : "Choose Your Room"}
 				</h2>
@@ -782,6 +788,7 @@ const SingleHotelWrapper = styled.div`
 	flex-direction: column;
 	align-items: center;
 	overflow: hidden;
+
 	@media (max-width: 800px) {
 		margin-top: 40px;
 		padding: 10px;
@@ -835,6 +842,8 @@ const HotelInfo = styled.div`
 	width: 100%; /* Ensures full width */
 	max-width: 1200px; /* Limits the width on larger screens */
 	margin-left: 0; /* Aligns to the left of the parent container */
+	font-family: ${({ isArabic }) =>
+		isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
 
 	h1 {
 		font-size: 36px;
@@ -877,6 +886,8 @@ const HotelOverview = styled.div`
 	width: 100%; /* Ensures full width */
 	max-width: 1200px; /* Limits the width on larger screens */
 	margin-left: 0; /* Aligns to the left of the parent container */
+	font-family: ${({ isArabic }) =>
+		isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
 
 	h2 {
 		font-size: 30px;
@@ -884,6 +895,8 @@ const HotelOverview = styled.div`
 		margin-bottom: 10px;
 		text-transform: capitalize;
 		font-weight: bold;
+		font-family: ${({ isArabic }) =>
+			isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
 	}
 
 	p {
@@ -892,6 +905,8 @@ const HotelOverview = styled.div`
 		color: var(--darkGrey);
 		white-space: pre-wrap;
 		line-height: 1.5;
+		font-family: ${({ isArabic }) =>
+			isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
 	}
 
 	@media (max-width: 768px) {
@@ -956,6 +971,8 @@ const Distances = styled.div`
 	margin-bottom: 2px;
 	text-transform: capitalize;
 	font-weight: bold;
+	font-family: ${({ isArabic }) =>
+		isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
 
 	@media (max-width: 700px) {
 		font-size: 0.7rem;
@@ -983,6 +1000,8 @@ const RoomsSection = styled.div`
 	border-radius: 10px;
 	margin-top: 20px;
 	max-width: 1200px;
+	font-family: ${({ isArabic }) =>
+		isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
 
 	h2 {
 		/* text-align: center; */

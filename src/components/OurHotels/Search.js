@@ -128,6 +128,7 @@ const Search = ({
 		<SearchWrapper
 			dir={chosenLanguage === "Arabic" ? "rtl" : ""}
 			style={{ textAlign: chosenLanguage === "Arabic" ? "right" : "" }}
+			isArabic={chosenLanguage === "Arabic"}
 		>
 			<DestinationWrapper invalid={invalidFields.destination}>
 				<Select
@@ -305,6 +306,19 @@ const SearchWrapper = styled.div`
 	border-radius: 20px;
 	width: 68%;
 	text-transform: capitalize;
+
+	div,
+	p,
+	span,
+	section,
+	small,
+	input,
+	button,
+	li,
+	ul {
+		font-family: ${({ isArabic }) =>
+			isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
+	}
 
 	.ant-select-selector {
 		padding-top: 7px !important;

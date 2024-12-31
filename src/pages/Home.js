@@ -12,6 +12,7 @@ import { Spin } from "antd";
 import Section2 from "../components/Home/Section2";
 import { Helmet } from "react-helmet";
 import favicon from "../favicon.ico";
+import { useCartContext } from "../cart_context";
 
 const Home = () => {
 	const [homePage, setHomePage] = useState("");
@@ -19,6 +20,7 @@ const Home = () => {
 	const [generalRoomTypes, setGeneralRoomTypes] = useState("");
 	const [distinctRoomTypes, setDistinctRoomTypes] = useState("");
 	const [loading, setLoading] = useState(true);
+	const { chosenLanguage } = useCartContext();
 
 	const roomTypesMapping = [
 		{ value: "standardRooms", label: "Standard Rooms" },
@@ -153,7 +155,7 @@ const Home = () => {
 				<link rel='icon' href={favicon} />
 			</Helmet>
 
-			<HomeWrapper>
+			<HomeWrapper isArabic={chosenLanguage === "Arabic"}>
 				{homePage && <Hero homePage={homePage} />}
 
 				{distinctRoomTypes && (
@@ -190,6 +192,19 @@ export default Home;
 
 const HomeWrapper = styled.div`
 	min-height: 1600px;
+
+	div,
+	p,
+	span,
+	section,
+	small,
+	input,
+	button,
+	li,
+	ul {
+		font-family: ${({ isArabic }) =>
+			isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
+	}
 `;
 
 const SpinWrapper = styled.div`

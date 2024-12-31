@@ -78,6 +78,7 @@ const Navbar = () => {
 			<NavbarWrapper
 				inTop={inTop}
 				dir={chosenLanguage === "Arabic" ? "rtl" : ""}
+				isArabic={chosenLanguage === "Arabic"}
 			>
 				<LogoSection
 					onClick={() => {
@@ -484,6 +485,19 @@ const NavbarWrapper = styled.div`
 	width: 100%;
 	justify-content: space-between;
 
+	div,
+	p,
+	span,
+	section,
+	small,
+	input,
+	button,
+	li,
+	ul {
+		font-family: ${({ isArabic }) =>
+			isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
+	}
+
 	@media (max-width: 1000px) {
 		position: fixed;
 		padding: 0% 3%;
@@ -616,6 +630,19 @@ const SideDrawer = styled.div`
 	flex-direction: column;
 	align-items: center;
 	padding-top: 20px;
+
+	div,
+	p,
+	span,
+	section,
+	small,
+	input,
+	button,
+	li,
+	ul {
+		font-family: ${({ language }) =>
+			language ? `"Droid Arabic Kufi", sans-serif` : ""};
+	}
 
 	a {
 		color: white;

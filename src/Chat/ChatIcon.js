@@ -21,6 +21,22 @@ const ChatIconWrapper = styled.div`
 	display: flex;
 	align-items: center;
 
+	div,
+	p,
+	span,
+	section,
+	small,
+	input,
+	button,
+	li,
+	ul,
+	select,
+	option,
+	label {
+		font-family: ${({ isArabic }) =>
+			isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
+	}
+
 	@media (max-width: 750px) {
 		bottom: 30px;
 	}
@@ -223,7 +239,7 @@ const ChatIcon = () => {
 	}, [handleUserInteraction]);
 
 	return (
-		<ChatIconWrapper>
+		<ChatIconWrapper isArabic={chosenLanguage === "Arabic"}>
 			<ChatMessage onClick={toggleChatWindow}>
 				<div className='chat-name'>
 					{selectedHotel ? selectedHotel.hotelName : "Jannat Booking"}
