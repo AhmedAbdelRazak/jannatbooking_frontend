@@ -7,6 +7,7 @@ import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { FaMinus, FaPlus } from "react-icons/fa";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
+import PaymentOptions from "./PaymentOptions";
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
@@ -52,9 +53,12 @@ const DesktopCheckout = ({
 	depositAmount,
 	averageCommissionRate,
 	t,
+	hotelDetails,
 	chosenLanguage,
 	selectedCurrency,
 	convertCurrency,
+	selectedPaymentOption,
+	setSelectedPaymentOption,
 }) => {
 	return (
 		<DesktopWrapper>
@@ -210,84 +214,52 @@ const DesktopCheckout = ({
 							{t.checkTerms}
 						</small>
 
-						<TermsWrapper>
-							<Checkbox
-								checked={pay10Percent}
-								onChange={(e) => {
-									setPayWholeAmount(false);
-									setPay10Percent(e.target.checked);
-									ReactGA.event({
-										category: "User Checked On Paying Deposit",
-										action: "User Checked On Paying Deposit",
-										label: `User Checked On Paying Deposit`,
-									});
-									ReactPixel.track("Checked On Paying Deposit", {
-										action: "User Checked On Paying Deposit",
-										page: "checkout",
-									});
-								}}
-							>
-								{t.payDeposit} ({averageCommissionRate}%){" "}
-								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
-									(SAR {depositAmount})
-								</span>{" "}
-								{/* <span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
-									(${convertedAmounts && convertedAmounts.depositUSD})
-								</span> */}
-							</Checkbox>
-						</TermsWrapper>
-
-						<TermsWrapper>
-							<Checkbox
-								checked={payWholeAmount}
-								onChange={(e) => {
-									setPay10Percent(false);
-									setPayWholeAmount(e.target.checked);
-									ReactGA.event({
-										category: "User Checked On Paying Whole Amount",
-										action: "User Checked On Paying Whole Amount",
-										label: `User Checked On Paying Whole Amount`,
-									});
-
-									ReactPixel.track("Checked On Paying Whole Amount", {
-										action: "User Checked On Paying Whole Amount",
-										page: "checkout",
-									});
-								}}
-							>
-								{t.payTotalAmount}{" "}
-								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
-									(SAR {Number(total_price_with_commission).toFixed(2)})
-								</span>{" "}
-								{/* <span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
-									(${convertedAmounts && convertedAmounts.totalUSD})
-								</span> */}
-							</Checkbox>
-						</TermsWrapper>
-
-						{guestAgreedOnTermsAndConditions &&
-						(pay10Percent || payWholeAmount) ? (
-							<PaymentDetails
-								cardNumber={cardNumber}
-								setCardNumber={setCardNumber}
-								expiryDate={expiryDate}
-								setExpiryDate={setExpiryDate}
-								cvv={cvv}
-								setCvv={setCvv}
-								cardHolderName={cardHolderName}
-								setCardHolderName={setCardHolderName}
-								postalCode={postalCode}
-								setPostalCode={setPostalCode}
-								handleReservation={createNewReservation}
-								total={total_price}
-								total_price_with_commission={total_price_with_commission}
-								pay10Percent={pay10Percent}
-								convertedAmounts={convertedAmounts}
+						{hotelDetails && hotelDetails.hotelName ? (
+							<PaymentOptions
+								hotelDetails={hotelDetails}
+								chosenLanguage={chosenLanguage}
+								t={t}
 								depositAmount={depositAmount}
-								setCustomerDetails={setCustomerDetails}
-								nationality={nationality}
-								customerDetails={customerDetails}
+								averageCommissionRate={averageCommissionRate}
+								total_price_with_commission={total_price_with_commission}
+								convertedAmounts={convertedAmounts}
+								selectedPaymentOption={selectedPaymentOption}
+								setSelectedPaymentOption={setSelectedPaymentOption}
 							/>
+						) : null}
+
+						{guestAgreedOnTermsAndConditions && selectedPaymentOption ? (
+							selectedPaymentOption === "acceptReserveNowPayInHotel" ? (
+								<Button
+									type='primary'
+									onClick={createNewReservation}
+									style={{ marginTop: "20px", width: "100%" }}
+								>
+									{chosenLanguage === "Arabic" ? "احجز الآن" : "Reserve Now"}
+								</Button>
+							) : (
+								<PaymentDetails
+									cardNumber={cardNumber}
+									setCardNumber={setCardNumber}
+									expiryDate={expiryDate}
+									setExpiryDate={setExpiryDate}
+									cvv={cvv}
+									setCvv={setCvv}
+									cardHolderName={cardHolderName}
+									setCardHolderName={setCardHolderName}
+									postalCode={postalCode}
+									setPostalCode={setPostalCode}
+									handleReservation={createNewReservation}
+									total={total_price}
+									total_price_with_commission={total_price_with_commission}
+									convertedAmounts={convertedAmounts}
+									depositAmount={depositAmount}
+									setCustomerDetails={setCustomerDetails}
+									nationality={nationality}
+									customerDetails={customerDetails}
+									selectedPaymentOption={selectedPaymentOption}
+								/>
+							)
 						) : null}
 					</div>
 				</form>

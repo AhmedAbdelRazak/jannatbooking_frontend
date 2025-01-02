@@ -56,6 +56,7 @@ const PaymentDetails = ({
 	convertedAmounts,
 	total_price_with_commission,
 	depositAmount,
+	selectedPaymentOption,
 }) => {
 	const [errors, setErrors] = useState({});
 	const { chosenLanguage } = useCartContext();
@@ -168,6 +169,8 @@ const PaymentDetails = ({
 		if (Object.keys(newErrors).length === 0) handleReservation();
 	};
 
+	console.log(selectedPaymentOption, "selectedPaymentOption");
+
 	return (
 		<PaymentWrapper dir='ltr'>
 			<TitleWrapper className='my-2'>
@@ -247,24 +250,40 @@ const PaymentDetails = ({
 			{/* Price Section */}
 			<PriceWrapper>
 				{pricePerNight && <h4>{pricePerNight} SAR per night</h4>}
-				{pay10Percent ? (
+				{selectedPaymentOption === "acceptDeposit" ? (
 					<>
-						{/* <h4>Total Amount: {Number(depositAmount).toFixed(2)} SAR</h4> */}
 						<h4>
-							Total Amount in USD: $
+							Total Deposit Amount: $
 							{Number(convertedAmounts.depositUSD).toFixed(2)}
 						</h4>
 					</>
-				) : (
+				) : selectedPaymentOption === "acceptPayWholeAmount" ? (
 					<>
-						<h4>
-							{/* Total Amount: {Number(total_price_with_commission).toFixed(2)} SAR */}
-						</h4>
 						<h4>
 							Total Amount in USD: $
 							{Number(convertedAmounts.totalUSD).toFixed(2)}
 						</h4>
 					</>
+				) : selectedPaymentOption === "acceptReserveNowPayInHotel" ? (
+					<>
+						<h4>
+							Total Payable at Hotel:{" "}
+							{(
+								Number(total_price_with_commission) +
+								Number(total_price_with_commission) * 0.1
+							).toFixed(2)}{" "}
+							SAR
+						</h4>
+						<h4>
+							Total Amount in USD: $
+							{(
+								Number(convertedAmounts.totalUSD) +
+								Number(convertedAmounts.totalUSD) * 0.1
+							).toFixed(2)}
+						</h4>
+					</>
+				) : (
+					<h4>Please select a payment option to see the details.</h4>
 				)}
 			</PriceWrapper>
 

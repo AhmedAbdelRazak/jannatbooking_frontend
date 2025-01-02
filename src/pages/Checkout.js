@@ -1,11 +1,32 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import CheckoutContent from "../components/checkout/CheckoutContent";
 import { useCartContext } from "../cart_context";
 import { Helmet } from "react-helmet";
+import { Modal, Spin } from "antd";
+import { useHistory } from "react-router-dom";
 
 const Checkout = () => {
-	const { roomCart, chosenLanguage } = useCartContext();
+	const { roomCart, chosenLanguage, clearRoomCart } = useCartContext();
+	const [verificationModalVisible, setVerificationModalVisible] =
+		useState(false);
+	const [isBuffering, setIsBuffering] = useState(false); // New state for buffering
+	const history = useHistory();
+
+	// Show the modal if there's a "Not Paid" reservation after buffering
+	const handleNotPaidReservation = () => {
+		setIsBuffering(true);
+		setTimeout(() => {
+			setIsBuffering(false); // Stop buffering after 2 seconds
+			setVerificationModalVisible(true); // Show modal
+		}, 2000);
+	};
+
+	// Handle modal close (ok or cancel)
+	const handleModalClose = () => {
+		clearRoomCart(); // Clear the cart
+		history.push("/"); // Redirect to the home page
+	};
 
 	useEffect(() => {
 		if (window.innerWidth > 768) {
@@ -81,16 +102,53 @@ const Checkout = () => {
 				/>
 				<link rel='canonical' href='https://jannatbooking.com/checkout' />
 			</Helmet>
-			<CheckoutWrapper isArabic={chosenLanguage === "Arabic"}>
-				<CheckoutContent />
-			</CheckoutWrapper>
+
+			{/* Buffering state */}
+			{isBuffering ? (
+				<BufferingWrapper>
+					<Spin size='large' />
+					<p>
+						{chosenLanguage === "Arabic"
+							? "الرجاء الانتظار، يتم التحقق من الحجز..."
+							: "Please wait, verifying your reservation..."}
+					</p>
+				</BufferingWrapper>
+			) : (
+				<CheckoutWrapper isArabic={chosenLanguage === "Arabic"}>
+					<CheckoutContent
+						verificationEmailSent={verificationModalVisible}
+						setVerificationEmailSent={setVerificationModalVisible}
+						onNotPaidReservation={handleNotPaidReservation}
+					/>
+				</CheckoutWrapper>
+			)}
+
+			{/* Verification Modal */}
+			<Modal
+				title={
+					chosenLanguage === "Arabic"
+						? "يرجى التحقق من بريدك الإلكتروني"
+						: "Please Check Your Email"
+				}
+				open={verificationModalVisible}
+				onOk={handleModalClose}
+				onCancel={handleModalClose}
+				okText={chosenLanguage === "Arabic" ? "موافق" : "OK"}
+				cancelText={chosenLanguage === "Arabic" ? "إلغاء" : "Cancel"}
+			>
+				<p>
+					{chosenLanguage === "Arabic"
+						? "يرجى التحقق من بريدك الإلكتروني للتحقق من حجزك. إذا لم تتمكن من العثور على البريد الإلكتروني، يرجى التحقق من صندوق البريد العشوائي أو التواصل مع الدعم."
+						: "Please check your email to verify your reservation. If you can't find the email, please check your spam folder or contact support."}
+				</p>
+			</Modal>
 		</>
 	);
 };
 
 export default Checkout;
 
-// Styled components
+// Styled Components
 const CheckoutWrapper = styled.div`
 	min-height: 800px;
 	padding: 20px;
@@ -106,6 +164,23 @@ const CheckoutWrapper = styled.div`
 	ul {
 		font-family: ${({ isArabic }) =>
 			isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
+	}
+`;
+
+const BufferingWrapper = styled.div`
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	min-height: 800px;
+	padding: 20px;
+	text-align: center;
+
+	p {
+		margin-top: 20px;
+		font-size: 1.2rem;
+		color: #555;
+		text-align: center;
 	}
 `;
 

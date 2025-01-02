@@ -11,13 +11,18 @@ import {
 	translations,
 } from "../../Assets"; // Ensure this file contains an array of countries
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
-import { createNewReservationClient, currencyConversion } from "../../apiCore";
+import {
+	createNewReservationClient,
+	currencyConversion,
+	gettingSingleHotel,
+} from "../../apiCore";
 import { FaMinus, FaPlus } from "react-icons/fa";
 import { authenticate, isAuthenticated, signin } from "../../auth";
 import { useHistory } from "react-router-dom";
 import DesktopCheckout from "./DesktopCheckout";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
+import PaymentOptions from "./PaymentOptions";
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
@@ -59,7 +64,11 @@ const calculateDepositDetails = (roomCart) => {
 	};
 };
 
-const CheckoutContent = () => {
+const CheckoutContent = ({
+	verificationEmailSent,
+	setVerificationEmailSent,
+	onNotPaidReservation,
+}) => {
 	const {
 		roomCart,
 		updateRoomDates,
@@ -82,6 +91,7 @@ const CheckoutContent = () => {
 	const [cardNumber, setCardNumber] = useState("");
 	const [pay10Percent, setPay10Percent] = useState(false);
 	const [payWholeAmount, setPayWholeAmount] = useState(false);
+	const [hotelDetails, setHotelDetails] = useState(null);
 	const [expiryDate, setExpiryDate] = useState("");
 	const [cvv, setCvv] = useState("");
 	const [cardHolderName, setCardHolderName] = useState("");
@@ -99,7 +109,7 @@ const CheckoutContent = () => {
 	});
 	const [selectedCurrency, setSelectedCurrency] = useState("SAR");
 	const [currencyRates, setCurrencyRates] = useState({});
-
+	const [selectedPaymentOption, setSelectedPaymentOption] = useState("");
 	const [convertedAmounts, setConvertedAmounts] = useState({
 		depositUSD: null,
 		totalUSD: null,
@@ -109,6 +119,34 @@ const CheckoutContent = () => {
 		() => calculateDepositDetails(roomCart),
 		[roomCart]
 	);
+
+	useEffect(() => {
+		const fetchHotel = async () => {
+			try {
+				// Ensure roomCart exists and has at least one room
+				if (roomCart && roomCart.length > 0) {
+					const hotelName = roomCart[0]?.hotelName; // Extract hotelName from roomCart
+
+					if (hotelName) {
+						// Generate slug by replacing spaces with "-"
+						const hotelNameSlug = hotelName.toLowerCase().replace(/\s+/g, "-");
+						// console.log("Generated hotelNameSlug:", hotelNameSlug);
+
+						const hotelData = await gettingSingleHotel(hotelNameSlug); // Fetch hotel by slug
+						setHotelDetails(hotelData); // Set the response to hotelDetails state
+					} else {
+						console.error("No hotelName found in roomCart");
+					}
+				} else {
+					console.error("roomCart is empty or not available");
+				}
+			} catch (error) {
+				console.error("Error fetching hotel:", error);
+			}
+		};
+
+		fetchHotel(); // Call the fetchHotel function
+	}, [roomCart]); // Depend on roomCart to re-fetch if it changes
 
 	useEffect(() => {
 		// Fetch currency and rates from localStorage
@@ -145,18 +183,22 @@ const CheckoutContent = () => {
 	}, [total_price, total_price_with_commission]);
 
 	// Function to transform roomCart into pickedRoomsType format
-	const transformRoomCartToPickedRoomsType = (roomCart) => {
+	const transformRoomCartToPickedRoomsType = (roomCart, isPayInHotel) => {
 		return roomCart.flatMap((room) => {
 			return Array.from({ length: room.amount }, () => {
 				// Transform each day in pricingByDayWithCommission
 				const pricingDetails =
 					room.pricingByDayWithCommission?.map((day) => ({
 						date: day.date,
-						price: day.totalPriceWithCommission, // Use totalPriceWithCommission
-						rootPrice: Number(day.rootPrice) || 0, // Use rootPrice
-						commissionRate: day.commissionRate || 0, // Use commissionRate
-						totalPriceWithCommission: Number(day.totalPriceWithCommission), // Keep totalPriceWithCommission
-						totalPriceWithoutCommission: Number(day.price), // Use price from roomCart
+						price: isPayInHotel
+							? day.totalPriceWithCommission * 1.1 // Increase by 10%
+							: day.totalPriceWithCommission, // Keep as is
+						rootPrice: Number(day.rootPrice) || 0, // Keep root price unchanged
+						commissionRate: day.commissionRate || 0, // Keep commission rate
+						totalPriceWithCommission: isPayInHotel
+							? day.totalPriceWithCommission * 1.1 // Increase by 10%
+							: day.totalPriceWithCommission, // Keep as is
+						totalPriceWithoutCommission: Number(day.price), // Keep as is
 					})) || [];
 
 				// Calculate the average price with commission
@@ -167,13 +209,14 @@ const CheckoutContent = () => {
 					) / pricingDetails.length;
 
 				return {
-					room_type: room.roomType, // Room type
-					displayName: room.name, // Display name
-					chosenPrice: Number(averagePriceWithCommission).toFixed(2), // Average price from pricing details
-					count: 1, // Each room is counted individually in pickedRoomsType
-					pricingByDay: pricingDetails, // Transformed pricing details
-					roomColor: room.roomColor, // Room color
-					// Additional calculated totals
+					room_type: room.roomType,
+					displayName: room.name,
+					chosenPrice: isPayInHotel
+						? Number(averagePriceWithCommission).toFixed(2) // Increase by 10%
+						: Number(averagePriceWithCommission).toFixed(2), // Keep as is
+					count: 1,
+					pricingByDay: pricingDetails,
+					roomColor: room.roomColor,
 					totalPriceWithCommission: pricingDetails.reduce(
 						(sum, day) => sum + day.totalPriceWithCommission,
 						0
@@ -285,49 +328,40 @@ const CheckoutContent = () => {
 			return;
 		}
 
-		// Card expiry validation
-		if (expiryDate) {
-			// Ensure the input format is correct (MM/YYYY)
-			const [month, year] = expiryDate.split("/");
-
-			if (month && year && month.length === 2 && year.length === 4) {
-				const cardExpiryDate = dayjs(`${year}-${month}-01`); // Construct the date as YYYY-MM-01
-				const currentDate = dayjs();
-				const tenYearsFromNow = currentDate.add(10, "year");
-
-				if (cardExpiryDate.isBefore(currentDate, "month")) {
-					message.error("The card expiry date is invalid or expired.");
-					return;
-				}
-
-				if (cardExpiryDate.isAfter(tenYearsFromNow, "month")) {
-					message.error(
-						"The card expiry date cannot be more than 10 years from today's date."
-					);
-					return;
-				}
-			} else {
-				message.error("Please enter a valid expiry date in MM/YYYY format.");
-				return;
-			}
-		}
-
-		// Nationality validation
-		if (!nationality) {
-			message.error("Please select your nationality.");
-			return;
-		}
-
 		// Hotel name consistency validation
 		const hotelNames = roomCart.map((room) => room.hotelName);
 		const uniqueHotelNames = [...new Set(hotelNames)];
 
-		// Check if there are multiple unique hotel names
 		if (uniqueHotelNames.length > 1) {
 			message.error(
 				"You cannot make a reservation with rooms from multiple hotels. Please ensure all rooms are from the same hotel."
 			);
 			return;
+		}
+
+		// Dynamically set payment-related fields based on selectedPaymentOption
+		let payment = "Not Paid";
+		let commissionPaid = false;
+		let commission = 0;
+		let paid_amount = 0;
+		let totalAmount = total_price_with_commission; // Default total amount
+
+		if (selectedPaymentOption === "acceptDeposit") {
+			payment = "Deposit Paid";
+			commissionPaid = true;
+			commission = depositAmount;
+			paid_amount = depositAmount;
+		} else if (selectedPaymentOption === "acceptPayWholeAmount") {
+			payment = "Paid Online";
+			commissionPaid = true;
+			commission = depositAmount;
+			paid_amount = total_price_with_commission;
+		} else if (selectedPaymentOption === "acceptReserveNowPayInHotel") {
+			payment = "Not Paid";
+			commissionPaid = false;
+			commission = depositAmount; // Same calculation as in PaymentOptions
+			totalAmount = total_price_with_commission * 1.1; // Increase total by 10%
+			paid_amount = 0; // No payment made upfront
 		}
 
 		// Prepare reservation data
@@ -338,12 +372,17 @@ const CheckoutContent = () => {
 			cardHolderName,
 		};
 
-		const pickedRoomsType = transformRoomCartToPickedRoomsType(roomCart);
+		// Adjust pickedRoomsType to reflect changes for "Pay in Hotel"
+		const pickedRoomsType = transformRoomCartToPickedRoomsType(
+			roomCart,
+			selectedPaymentOption === "acceptReserveNowPayInHotel" // Pass a flag
+		);
 
 		const reservationData = {
 			guestAgreedOnTermsAndConditions: guestAgreedOnTermsAndConditions,
 			userId: user ? user._id : null,
 			hotelId: roomCart[0].hotelId,
+			hotelName: roomCart[0].hotelName,
 			belongsTo: roomCart[0].belongsTo,
 			customerDetails: {
 				...customerDetails,
@@ -355,13 +394,11 @@ const CheckoutContent = () => {
 			total_guests: Number(roomCart[0].adults) + Number(roomCart[0].children),
 			adults: Number(roomCart[0].adults),
 			children: Number(roomCart[0].children) ? Number(roomCart[0].children) : 0,
-			total_amount: total_price_with_commission,
-			payment: pay10Percent ? "Deposit Paid" : "Paid Online",
-			paid_amount: pay10Percent ? depositAmount : total_price_with_commission,
-			commission: depositAmount,
-
-			commissionPaid: true,
-
+			total_amount: totalAmount, // Adjusted if "Pay in Hotel"
+			payment,
+			paid_amount,
+			commission,
+			commissionPaid,
 			checkin_date: roomCart[0].startDate,
 			checkout_date: roomCart[0].endDate,
 			days_of_residence: dayjs(roomCart[0].endDate).diff(
@@ -371,65 +408,76 @@ const CheckoutContent = () => {
 			booking_source: "Online Jannat Booking",
 			pickedRoomsType,
 			convertedAmounts,
+			usePassword: password,
 		};
 
 		try {
 			const response = await createNewReservationClient(reservationData);
-			if (response && response.message === "Reservation created successfully") {
-				message.success("Reservation created successfully");
-				ReactGA.event({
-					category: "User Checkedout and Paid Successfully",
-					action: "User Checkedout and Paid Successfully",
-					label: `User Checkedout and Paid Successfully`,
-				});
+			console.log(response, "response");
+			if (response) {
+				if (
+					payment === "Not Paid" &&
+					response.message ===
+						"Verification email sent successfully. Please check your inbox."
+				) {
+					message.success(response.message);
+					onNotPaidReservation();
+					return;
+				}
 
-				ReactPixel.track("Successfully Paid And Checkedout", {
-					action: "Successfully Paid And Checkedout",
-					page: "checkout",
-				});
-
-				// Construct query params
-				const queryParams = new URLSearchParams();
-				queryParams.append("name", customerDetails.name);
-				queryParams.append("total_price", total_price_with_commission);
-				queryParams.append("total_rooms", total_rooms);
-
-				// Add each room's details to the query
-				roomCart.forEach((room, index) => {
-					queryParams.append(`hotel_name_${index}`, room.hotelName);
-					queryParams.append(`room_type_${index}`, room.roomType);
-					queryParams.append(`room_display_name_${index}`, room.name);
-					queryParams.append(`nights_${index}`, room.nights);
-					queryParams.append(`checkin_date_${index}`, room.startDate);
-					queryParams.append(`checkout_date_${index}`, room.endDate);
-				});
-
-				// Automatically sign in the user if the account was just created
-				if (!user) {
-					const signInResponse = await signin({
-						emailOrPhone: email,
-						password: password,
+				if (payment !== "Not Paid") {
+					message.success("Reservation created successfully");
+					ReactGA.event({
+						category: "User Checked Out and Paid Successfully",
+						action: "Reservation Created",
+						label: "Reservation Paid",
 					});
 
-					if (signInResponse.error) {
-						message.error(
-							"Failed to sign in automatically after account creation."
-						);
-					} else {
-						authenticate(signInResponse, () => {
-							clearRoomCart();
-							window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
+					ReactPixel.track("Reservation Paid", {
+						action: "Checkout Completed",
+						page: "checkout",
+					});
+
+					const queryParams = new URLSearchParams();
+					queryParams.append("name", customerDetails.name);
+					queryParams.append("total_price", total_price_with_commission);
+					queryParams.append("total_rooms", total_rooms);
+
+					roomCart.forEach((room, index) => {
+						queryParams.append(`hotel_name_${index}`, room.hotelName);
+						queryParams.append(`room_type_${index}`, room.roomType);
+						queryParams.append(`room_display_name_${index}`, room.name);
+						queryParams.append(`nights_${index}`, room.nights);
+						queryParams.append(`checkin_date_${index}`, room.startDate);
+						queryParams.append(`checkout_date_${index}`, room.endDate);
+					});
+
+					if (!user) {
+						const signInResponse = await signin({
+							emailOrPhone: email,
+							password: password,
 						});
+
+						if (signInResponse.error) {
+							message.error(
+								"Failed to sign in automatically after account creation."
+							);
+						} else {
+							authenticate(signInResponse, () => {
+								clearRoomCart();
+								window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
+							});
+						}
+					} else {
+						clearRoomCart();
+						window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
 					}
 				} else {
-					clearRoomCart();
-					window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
+					message.error(response.message || "Error creating reservation.");
 				}
-			} else {
-				message.error(response.message || "Error creating reservation");
 			}
 		} catch (error) {
-			console.error("Error creating reservation", error);
+			console.error("Error creating reservation:", error);
 			message.error("An error occurred while creating the reservation");
 		}
 	};
@@ -770,84 +818,52 @@ const CheckoutContent = () => {
 							{t.checkTerms}
 						</small>
 
-						<TermsWrapper>
-							<Checkbox
-								checked={pay10Percent}
-								onChange={(e) => {
-									setPayWholeAmount(false);
-									setPay10Percent(e.target.checked);
-									ReactGA.event({
-										category: "User Checked On Paying Deposit",
-										action: "User Checked On Paying Deposit",
-										label: `User Checked On Paying Deposit`,
-									});
-									ReactPixel.track("Checked On Paying Deposit", {
-										action: "User Checked On Paying Deposit",
-										page: "checkout",
-									});
-								}}
-							>
-								{t.payDeposit} ({averageCommissionRate}%){" "}
-								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
-									(SAR {depositAmount})
-								</span>{" "}
-								{/* <span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
-									(${convertedAmounts && convertedAmounts.depositUSD})
-								</span> */}
-							</Checkbox>
-						</TermsWrapper>
-
-						<TermsWrapper>
-							<Checkbox
-								checked={payWholeAmount}
-								onChange={(e) => {
-									setPay10Percent(false);
-									setPayWholeAmount(e.target.checked);
-									ReactGA.event({
-										category: "User Checked On Paying Whole Amount",
-										action: "User Checked On Paying Whole Amount",
-										label: `User Checked On Paying Whole Amount`,
-									});
-
-									ReactPixel.track("Checked On Paying Whole Amount", {
-										action: "User Checked On Paying Whole Amount",
-										page: "checkout",
-									});
-								}}
-							>
-								{t.payTotalAmount}{" "}
-								<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
-									(SAR {Number(total_price_with_commission).toFixed(2)})
-								</span>{" "}
-								{/* <span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
-									(${convertedAmounts && convertedAmounts.totalUSD})
-								</span> */}
-							</Checkbox>
-						</TermsWrapper>
-
-						{guestAgreedOnTermsAndConditions &&
-						(pay10Percent || payWholeAmount) ? (
-							<PaymentDetails
-								cardNumber={cardNumber}
-								setCardNumber={setCardNumber}
-								expiryDate={expiryDate}
-								setExpiryDate={setExpiryDate}
-								cvv={cvv}
-								setCvv={setCvv}
-								cardHolderName={cardHolderName}
-								setCardHolderName={setCardHolderName}
-								postalCode={postalCode}
-								setPostalCode={setPostalCode}
-								handleReservation={createNewReservation}
-								total={total_price}
-								total_price_with_commission={total_price_with_commission}
-								pay10Percent={pay10Percent}
-								convertedAmounts={convertedAmounts}
+						{hotelDetails && hotelDetails.hotelName ? (
+							<PaymentOptions
+								hotelDetails={hotelDetails}
+								chosenLanguage={chosenLanguage}
+								t={t}
 								depositAmount={depositAmount}
-								setCustomerDetails={setCustomerDetails}
-								nationality={nationality}
-								customerDetails={customerDetails}
+								averageCommissionRate={averageCommissionRate}
+								total_price_with_commission={total_price_with_commission}
+								convertedAmounts={convertedAmounts}
+								selectedPaymentOption={selectedPaymentOption}
+								setSelectedPaymentOption={setSelectedPaymentOption}
 							/>
+						) : null}
+
+						{guestAgreedOnTermsAndConditions && selectedPaymentOption ? (
+							selectedPaymentOption === "acceptReserveNowPayInHotel" ? (
+								<Button
+									type='primary'
+									onClick={createNewReservation}
+									style={{ marginTop: "20px", width: "100%" }}
+								>
+									{chosenLanguage === "Arabic" ? "احجز الآن" : "Reserve Now"}
+								</Button>
+							) : (
+								<PaymentDetails
+									cardNumber={cardNumber}
+									setCardNumber={setCardNumber}
+									expiryDate={expiryDate}
+									setExpiryDate={setExpiryDate}
+									cvv={cvv}
+									setCvv={setCvv}
+									cardHolderName={cardHolderName}
+									setCardHolderName={setCardHolderName}
+									postalCode={postalCode}
+									setPostalCode={setPostalCode}
+									handleReservation={createNewReservation}
+									total={total_price}
+									total_price_with_commission={total_price_with_commission}
+									convertedAmounts={convertedAmounts}
+									depositAmount={depositAmount}
+									setCustomerDetails={setCustomerDetails}
+									nationality={nationality}
+									customerDetails={customerDetails}
+									selectedPaymentOption={selectedPaymentOption}
+								/>
+							)
 						) : null}
 					</div>
 				</form>
@@ -895,6 +911,9 @@ const CheckoutContent = () => {
 				chosenLanguage={chosenLanguage}
 				selectedCurrency={selectedCurrency}
 				convertCurrency={convertCurrency}
+				hotelDetails={hotelDetails}
+				selectedPaymentOption={selectedPaymentOption}
+				setSelectedPaymentOption={setSelectedPaymentOption}
 			/>
 		</CheckoutContentWrapper>
 	);

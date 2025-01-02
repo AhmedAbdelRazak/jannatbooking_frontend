@@ -1,6 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
-import { DatePicker, Collapse, message, Checkbox } from "antd";
+import {
+	DatePicker,
+	Collapse,
+	message,
+	Checkbox,
+	Button,
+	Modal,
+	Spin,
+} from "antd";
 import { useLocation, useHistory } from "react-router-dom";
 import {
 	gettingHotelDetailsById,
@@ -15,6 +23,8 @@ import { Helmet } from "react-helmet";
 import favicon from "../favicon.ico";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
+import PaymentOptions from "../components/checkout/PaymentOptions";
+import { useCartContext } from "../cart_context";
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
@@ -61,6 +71,7 @@ const GeneratedLinkCheckout = () => {
 	const location = useLocation();
 	const history = useHistory();
 	const { user } = isAuthenticated();
+	const { chosenLanguage } = useCartContext();
 
 	const [formData, setFormData] = useState({
 		hotelId: "",
@@ -81,6 +92,9 @@ const GeneratedLinkCheckout = () => {
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [hotelDetails, setHotelDetails] = useState(null);
+	const [verificationModalVisible, setVerificationModalVisible] =
+		useState(false);
+	const [isBuffering, setIsBuffering] = useState(false); // New state for buffering
 
 	const [convertedAmounts, setConvertedAmounts] = useState({
 		depositUSD: null,
@@ -96,36 +110,46 @@ const GeneratedLinkCheckout = () => {
 	const [postalCode, setPostalCode] = useState("");
 	const [guestAgreedOnTermsAndConditions, setGuestAgreedOnTermsAndConditions] =
 		useState(false);
-	const [pay10Percent, setPay10Percent] = useState(false);
-	const [payWholeAmount, setPayWholeAmount] = useState(false);
+	const [selectedPaymentOption, setSelectedPaymentOption] = useState("");
 
 	useEffect(() => {
+		// Extract parameters from the URL
 		const params = new URLSearchParams(location.search);
 		const hotelId = params.get("hotelId");
-		window.scrollTo({ top: 8, behavior: "smooth" });
+		window.scrollTo({ top: 8, behavior: "smooth" }); // Scroll to the top for better user experience
 
 		const pickedRooms = [];
-		let roomIndex = 1;
+		let roomIndex = 1; // To iterate through room parameters in the URL
 
-		// Parse room details from URL
+		// Parse room details from the URL until no more room data is found
 		while (
 			params.get(`roomType${roomIndex}`) &&
 			params.get(`displayName${roomIndex}`)
 		) {
 			try {
-				// Parse and decode pricing breakdown
-				const pricingBreakdown = JSON.parse(
-					decodeURIComponent(params.get(`pricingBreakdown${roomIndex}`) || "[]")
+				// Parse and decode the pricing breakdown from the URL (double-decoding)
+				const encodedBreakdown = params.get(`pricingBreakdown${roomIndex}`);
+				const decodedBreakdown = decodeURIComponent(
+					decodeURIComponent(encodedBreakdown || "[]")
 				);
 
+				// Parse the JSON string into an object
+				const pricingBreakdown = JSON.parse(decodedBreakdown);
+
+				// Check and parse commission rate from the breakdown or fallback to URL parameter
+				const commissionRateFromBreakdown =
+					pricingBreakdown.length > 0
+						? parseFloat(pricingBreakdown[0].commissionRate.trim()) // Ensure proper parsing with trim
+						: parseFloat(params.get(`commissionRate${roomIndex}`)) || 1;
+
+				// Add the parsed room details to the pickedRooms array
 				pickedRooms.push({
 					roomType: params.get(`roomType${roomIndex}`),
 					displayName: params.get(`displayName${roomIndex}`),
 					count: parseInt(params.get(`roomCount${roomIndex}`), 10) || 1,
 					pricePerNight:
 						parseFloat(params.get(`pricePerNight${roomIndex}`)) || 0,
-					commissionRate:
-						parseFloat(params.get(`commissionRate${roomIndex}`)) || 1,
+					commissionRate: commissionRateFromBreakdown, // Use the corrected commission rate
 					pricingByDay: pricingBreakdown.map((day) => ({
 						date: day.date,
 						price: parseFloat(day.price) || 0,
@@ -136,21 +160,23 @@ const GeneratedLinkCheckout = () => {
 					})),
 				});
 			} catch (error) {
+				// Log any errors encountered during parsing
 				console.error(
 					`Error parsing pricingBreakdown for room ${roomIndex}:`,
 					error
 				);
 			}
 
-			roomIndex++;
+			roomIndex++; // Increment to check for the next room in the URL
 		}
 
-		// Fetch hotel details and enrich room data
+		// Fetch hotel details if the hotelId exists
 		if (hotelId) {
 			gettingHotelDetailsById(hotelId).then((data) => {
 				if (data) {
 					setHotelDetails(data);
 
+					// Enrich room data with additional details from the backend
 					const enrichedRooms = pickedRooms.map((room) => {
 						const matchingRoom = data.roomCountDetails.find(
 							(detail) =>
@@ -159,10 +185,10 @@ const GeneratedLinkCheckout = () => {
 						);
 
 						if (matchingRoom) {
-							// Merge backend data with URL data
+							// Merge backend data with existing room data
 							return {
 								...room,
-								photos: matchingRoom.photos || [],
+								photos: matchingRoom.photos || [], // Add room photos if available
 							};
 						} else {
 							console.warn(
@@ -172,16 +198,18 @@ const GeneratedLinkCheckout = () => {
 						}
 					});
 
+					// Update formData with enriched room data
 					setFormData((prevFormData) => ({
 						...prevFormData,
 						pickedRooms: enrichedRooms,
 					}));
 				} else {
-					message.error("Failed to fetch hotel details.");
+					message.error("Failed to fetch hotel details."); // Show error message if hotel details couldn't be fetched
 				}
 			});
 		}
 
+		// Update formData with the extracted parameters and parsed room details
 		setFormData((prevFormData) => ({
 			...prevFormData,
 			hotelId: hotelId || "",
@@ -225,20 +253,38 @@ const GeneratedLinkCheckout = () => {
 		fetchConversion();
 	}, [formData.totalAmount, formData.totalCommission]);
 
+	// Show the modal if there's a "Not Paid" reservation after buffering
+	const handleNotPaidReservation = () => {
+		setIsBuffering(true);
+		setTimeout(() => {
+			setIsBuffering(false); // Stop buffering after 2 seconds
+			setVerificationModalVisible(true); // Show modal
+		}, 2000);
+	};
+
+	// Handle modal close (ok or cancel)
+	const handleModalClose = () => {
+		history.push("/"); // Redirect to the home page
+	};
+
 	// Updated transformPickedRoomsToPickedRoomsType Function
 	// eslint-disable-next-line
-	const transformPickedRoomsToPickedRoomsType = (pickedRooms) => {
+	const transformPickedRoomsToPickedRoomsType = (pickedRooms, isPayInHotel) => {
 		return pickedRooms.flatMap((room) => {
 			// Process each room individually
 			return Array.from({ length: room.count }, () => {
 				// Transform each day's pricing details for the room
 				const pricingDetails = room.pricingByDay.map((day) => ({
 					date: day.date,
-					price: Number(day.price), // Base price of the room
-					rootPrice: Number(day.rootPrice), // Hotel's base price
-					commissionRate: Number(day.commissionRate), // Commission rate
-					totalPriceWithCommission: Number(day.totalPriceWithCommission), // Final price with commission
-					totalPriceWithoutCommission: Number(day.price), // Original price without added commission
+					price: isPayInHotel
+						? day.totalPriceWithCommission * 1.1 // Increase by 10% if paying in hotel
+						: day.totalPriceWithCommission, // Keep as is otherwise
+					rootPrice: Number(day.rootPrice) || 0, // Base price
+					commissionRate: Number(day.commissionRate) || 0, // Commission rate
+					totalPriceWithCommission: isPayInHotel
+						? day.totalPriceWithCommission * 1.1 // Increase by 10% if paying in hotel
+						: day.totalPriceWithCommission, // Keep as is otherwise
+					totalPriceWithoutCommission: Number(day.price) || 0, // Price without commission
 				}));
 
 				// Calculate the average price with commission
@@ -251,10 +297,11 @@ const GeneratedLinkCheckout = () => {
 				return {
 					room_type: room.roomType, // Room type
 					displayName: room.displayName, // Display name
-					chosenPrice: averagePriceWithCommission.toFixed(2), // Average price with commission
-					count: 1, // Each room is represented individually
+					chosenPrice: isPayInHotel
+						? Number(averagePriceWithCommission).toFixed(2) // Increase by 10% if paying in hotel
+						: Number(averagePriceWithCommission).toFixed(2), // Keep as is otherwise
+					count: 1, // Represent each room individually
 					pricingByDay: pricingDetails, // Detailed pricing breakdown
-					// Additional calculated totals
 					totalPriceWithCommission: pricingDetails.reduce(
 						(sum, day) => sum + day.totalPriceWithCommission,
 						0
@@ -262,11 +309,61 @@ const GeneratedLinkCheckout = () => {
 					hotelShouldGet: pricingDetails.reduce(
 						(sum, day) => sum + day.rootPrice,
 						0
-					), // Total base price the hotel should get
+					), // Total base price for the hotel
 				};
 			});
 		});
 	};
+
+	// Computed fields for deposit and average commission rate
+	const calculateDepositDetails = (pickedRooms) => {
+		if (!pickedRooms || pickedRooms.length === 0) {
+			return { averageCommissionRate: 0, depositAmount: 0 };
+		}
+
+		const totalWeightedCommissionRate = pickedRooms.reduce((total, room) => {
+			const totalRoomCommissionRate = room.pricingByDay.reduce(
+				(sum, day) => sum + day.commissionRate, // Accumulate commission rates
+				0
+			);
+			const daysCount = room.pricingByDay.length || 1; // Ensure at least 1 day
+			const averageRoomCommissionRate = totalRoomCommissionRate / daysCount; // Average for the room
+			return total + averageRoomCommissionRate * room.count; // Weight by room count
+		}, 0);
+
+		const totalRooms = pickedRooms.reduce(
+			(total, room) => total + room.count,
+			0
+		); // Total number of rooms
+
+		const averageCommissionRate = totalWeightedCommissionRate / totalRooms; // Average across all rooms
+
+		const depositAmount = pickedRooms.reduce((total, room) => {
+			return (
+				total +
+				room.pricingByDay.reduce(
+					(sum, day) =>
+						sum +
+						day.totalPriceWithCommission * (day.commissionRate / 100 || 0), // Use proper percentage
+					0
+				) *
+					room.count // Multiply by room count
+			);
+		}, 0);
+
+		return {
+			averageCommissionRate: Number(averageCommissionRate).toFixed(2), // Keep as percentage
+			depositAmount: Number(depositAmount).toFixed(2), // Total deposit amount
+		};
+	};
+
+	const { averageCommissionRate, depositAmount } = useMemo(
+		() => calculateDepositDetails(formData.pickedRooms),
+		[formData.pickedRooms] // Ensure this is the minimal dependency
+	);
+
+	const total_price_with_commission =
+		formData.totalAmount + formData.totalCommission;
 
 	const handleReservation = async () => {
 		const {
@@ -282,9 +379,7 @@ const GeneratedLinkCheckout = () => {
 			numberOfNights,
 		} = formData;
 
-		console.log(phone, "phone");
-
-		// Validate Terms & Conditions
+		// Step 1: Validate Terms & Conditions acceptance
 		if (!guestAgreedOnTermsAndConditions) {
 			message.error(
 				"You must accept the Terms & Conditions before proceeding."
@@ -292,27 +387,27 @@ const GeneratedLinkCheckout = () => {
 			return;
 		}
 
-		// Full name validation
+		// Step 2: Validate full name (must have first and last name)
 		if (!name || name.trim().split(" ").length < 2) {
 			message.error("Please provide your full name (first and last name).");
 			return;
 		}
 
-		// Phone number validation
+		// Step 3: Validate phone number (must be at least 6 digits)
 		const phoneRegex = /^[0-9]{6,}$/;
 		if (!phone || !phoneRegex.test(phone)) {
 			message.error("Please provide a valid phone number.");
 			return;
 		}
 
-		// Email validation
+		// Step 4: Validate email format
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 		if (!email || !emailRegex.test(email)) {
 			message.error("Please provide a valid email address.");
 			return;
 		}
 
-		// Password validation (only for non-authenticated users)
+		// Step 5: Validate password (only for non-authenticated users)
 		if (!user) {
 			if (!password || !confirmPassword) {
 				message.error("Please enter your password and confirm it.");
@@ -333,13 +428,13 @@ const GeneratedLinkCheckout = () => {
 			}
 		}
 
-		// Passport validation
+		// Step 6: Validate passport number
 		if (!passport) {
 			message.error("Please provide your passport number.");
 			return;
 		}
 
-		// Passport expiry validation
+		// Step 7: Validate passport expiry date (must be at least 6 months from today)
 		if (passportExpiry) {
 			const expiryDate = dayjs(passportExpiry);
 			const sixMonthsFromNow = dayjs().add(6, "month");
@@ -355,7 +450,7 @@ const GeneratedLinkCheckout = () => {
 			return;
 		}
 
-		// Prepare payment details
+		// Step 8: Prepare payment details (if applicable)
 		const paymentDetails = {
 			cardNumber,
 			cardExpiryDate: expiryDate,
@@ -363,10 +458,39 @@ const GeneratedLinkCheckout = () => {
 			cardHolderName,
 		};
 
-		// Use the `transformPickedRoomsToPickedRoomsType` helper function
-		const pickedRoomsType = transformPickedRoomsToPickedRoomsType(pickedRooms);
+		// Step 9: Transform pickedRooms into the correct format
+		const isPayInHotel = selectedPaymentOption === "acceptReserveNowPayInHotel";
+		const pickedRoomsType = transformPickedRoomsToPickedRoomsType(
+			pickedRooms,
+			isPayInHotel
+		);
 
-		// Construct reservation data
+		// Step 10: Determine payment-related fields dynamically based on selectedPaymentOption
+		let payment = "Not Paid";
+		let commissionPaid = false;
+		let commission = 0;
+		let paid_amount = 0;
+		let adjustedTotalAmount = totalAmount + formData.totalCommission; // Default total amount
+
+		if (selectedPaymentOption === "acceptDeposit") {
+			payment = "Deposit Paid";
+			commissionPaid = true;
+			commission = depositAmount;
+			paid_amount = depositAmount;
+		} else if (selectedPaymentOption === "acceptPayWholeAmount") {
+			payment = "Paid Online";
+			commissionPaid = true;
+			commission = depositAmount;
+			paid_amount = adjustedTotalAmount;
+		} else if (selectedPaymentOption === "acceptReserveNowPayInHotel") {
+			payment = "Not Paid";
+			commissionPaid = false;
+			commission = depositAmount; // Same calculation as in PaymentOptions
+			adjustedTotalAmount *= 1.1; // Increase total by 10%
+			paid_amount = 0; // No payment made upfront
+		}
+
+		// Step 11: Construct the reservation data object
 		const reservationData = {
 			guestAgreedOnTermsAndConditions,
 			userId: user ? user._id : null,
@@ -393,68 +517,54 @@ const GeneratedLinkCheckout = () => {
 			days_of_residence: numberOfNights,
 			booking_source: "Generated Link",
 			pickedRoomsType,
-			total_amount: totalAmount + formData.totalCommission,
-			payment: pay10Percent ? "Deposit Paid" : "Paid Online",
-			paid_amount: pay10Percent
-				? formData.totalCommission
-				: totalAmount + formData.totalCommission,
-			commission: formData.totalCommission,
-			commissionPaid: true,
+			total_amount: adjustedTotalAmount, // Adjusted for "Pay in Hotel"
+			payment,
+			paid_amount,
+			commission,
+			commissionPaid,
 			convertedAmounts,
 		};
 
 		try {
+			// Step 12: Make the API call to create the reservation
+
 			const response = await createNewReservationClient(reservationData);
+
+			if (selectedPaymentOption === "acceptReserveNowPayInHotel") {
+				handleNotPaidReservation(); // Trigger buffering and modal display
+			}
+
+			// Handle the "Not Paid" scenario
+			if (response?.message === "Verification email sent successfully") {
+				if (payment === "Not Paid") {
+					message.success(response.message);
+					handleNotPaidReservation(); // Trigger Not Paid workflow
+					return;
+				}
+			}
+
+			// Handle successful reservation creation
 			if (response?.message === "Reservation created successfully") {
 				message.success("Reservation created successfully");
+
+				// Track successful payment events
 				ReactGA.event({
-					category: "User Checkedout and Paid Successfully",
-					action: "User Checkedout and Paid Successfully",
-					label: `User Checkedout and Paid Successfully`,
+					category: "Reservation Paid (GeneratedLink)",
+					action: "Reservation Paid (GeneratedLink)",
+					label: "Reservation Paid (GeneratedLink)",
 				});
 
-				ReactPixel.track("Successfully Paid And Checkedout", {
-					action: "Successfully Paid And Checkedout",
+				ReactPixel.track("Reservation Paid (GeneratedLink)", {
+					action: "Checkout Completed (GeneratedLink)",
 					page: "checkout",
 				});
 
-				// Automatically sign in the user if the account was just created
-				if (!user) {
-					const signInResponse = await signin({
-						emailOrPhone: email,
-						password,
-					});
-					if (signInResponse.error) {
-						message.error(
-							"Failed to sign in automatically after account creation."
-						);
-					} else {
-						authenticate(signInResponse, () => {
-							message.success("User authenticated successfully.");
-						});
-					}
-				}
-
-				// Construct query params for redirection
+				// Step 13: Construct query parameters for redirection
 				const queryParams = new URLSearchParams();
 				queryParams.append("name", name);
-				queryParams.append(
-					"total_price",
-					(totalAmount + formData.totalCommission).toFixed(2)
-				);
+				queryParams.append("total_price", adjustedTotalAmount.toFixed(2));
 				queryParams.append("total_rooms", reservationData.total_rooms);
-				queryParams.append(
-					"checkin_date",
-					checkInDate ? checkInDate.format("YYYY-MM-DD") : ""
-				);
-				queryParams.append(
-					"checkout_date",
-					checkOutDate ? checkOutDate.format("YYYY-MM-DD") : ""
-				);
-				queryParams.append("nights", numberOfNights);
-				queryParams.append("hotel_name", hotelDetails?.hotelName);
 
-				// Add each room's details to the query
 				pickedRooms.forEach((room, index) => {
 					queryParams.append(`room_type${index + 1}`, room.roomType);
 					queryParams.append(`room_display_name${index + 1}`, room.displayName);
@@ -465,9 +575,29 @@ const GeneratedLinkCheckout = () => {
 					queryParams.append(`room_count${index + 1}`, room.count);
 				});
 
-				// Redirect to the confirmation page
-				window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
+				// Step 14: Handle automatic sign-in for new users
+				if (!user) {
+					const signInResponse = await signin({
+						emailOrPhone: email,
+						password,
+					});
+
+					if (signInResponse.error) {
+						message.error(
+							"Failed to sign in automatically after account creation."
+						);
+					} else {
+						authenticate(signInResponse, () => {
+							message.success("User authenticated successfully.");
+							window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
+						});
+					}
+				} else {
+					// Redirect authenticated users to the confirmation page
+					window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
+				}
 			} else {
+				// Handle reservation errors
 				message.error(response.message || "Error creating reservation");
 			}
 		} catch (error) {
@@ -525,211 +655,228 @@ const GeneratedLinkCheckout = () => {
 				{/* Favicon */}
 				<link rel='icon' href={favicon} />
 			</Helmet>
-			<MobileAccordion
-				onChange={() => setMobileExpanded(!mobileExpanded)}
-				activeKey={mobileExpanded ? "1" : null}
-			>
-				<Panel header='Your Reservation Summary' key='1'>
-					<h2>Your Reservation</h2>
-					<DateRangePickerWrapper>
-						<RangePicker
-							format='YYYY-MM-DD'
-							value={[formData.checkInDate, formData.checkOutDate]}
-							disabled
-							style={{ width: "100%", marginBottom: "10px" }}
-							dropdownClassName='mobile-friendly-picker'
-						/>
-					</DateRangePickerWrapper>
 
-					{formData.pickedRooms.length > 0 ? (
-						formData.pickedRooms.map((room, index) => {
-							const totalNights = room.pricingByDay?.length || 0;
-
-							const totalPriceWithCommission = room.pricingByDay.reduce(
-								(total, day) => total + (day.totalPriceWithCommission || 0),
-								0
-							);
-							const pricePerNight =
-								totalNights > 0 ? totalPriceWithCommission / totalNights : 0;
-
-							return (
-								<RoomItem key={index}>
-									<RoomImage
-										src={room.photos?.[0]?.url || "/default-room.jpg"}
-										alt='Room'
-									/>
-									<RoomDetails>
-										<h3>{room.displayName}</h3>
-										<p>{room.count} Room(s)</p>
-										<p>
-											{formData.adults} Adult(s), {formData.children} Children
-										</p>
-										<p>{formData.numberOfNights} Nights</p>
-										<p>
-											Dates: {formData.checkInDate?.format("YYYY-MM-DD")} to{" "}
-											{formData.checkOutDate?.format("YYYY-MM-DD")}
-										</p>
-										<h4>
-											{Number(pricePerNight).toFixed(2) * (room.count || 1)} SAR
-											per night
-										</h4>
-
-										<Collapse
-											accordion
-											expandIcon={({ isActive }) => (
-												<CaretRightOutlined
-													rotate={isActive ? 90 : 0}
-													style={{ color: "var(--primary-color)" }}
-												/>
-											)}
-										>
-											<Panel
-												header={
-													<PriceDetailsHeader>
-														<InfoCircleOutlined /> Price Breakdown
-													</PriceDetailsHeader>
-												}
-												key='1'
-											>
-												<PricingList>
-													{room.pricingByDay?.length > 0 ? (
-														room.pricingByDay.map(
-															({ date, totalPriceWithCommission }, i) => (
-																<li key={i}>
-																	{dayjs(date).format("YYYY-MM-DD")}:{" "}
-																	{Number(totalPriceWithCommission).toFixed(2)}{" "}
-																	SAR Per Room
-																</li>
-															)
-														)
-													) : (
-														<li>No price breakdown available</li>
-													)}
-												</PricingList>
-											</Panel>
-										</Collapse>
-									</RoomDetails>
-								</RoomItem>
-							);
-						})
-					) : (
-						<p>No rooms selected.</p>
-					)}
-
-					<TotalsWrapper>
-						<p>Total Rooms: {formData.pickedRooms.length}</p>
-						<p className='total-price'>
-							Total Price:{" "}
-							{Number(formData.totalAmount + formData.totalCommission).toFixed(
-								2
-							)}{" "}
-							SAR
-						</p>
-					</TotalsWrapper>
-				</Panel>
-			</MobileAccordion>
-
-			<DesktopWrapper>
-				<LeftSection>
-					<h1
-						style={{
-							fontSize: "1.5rem",
-							fontWeight: "bolder",
-							textAlign: "center",
-						}}
+			{isBuffering ? (
+				<BufferingWrapper>
+					<Spin size='large' />
+					<p>
+						{chosenLanguage === "Arabic"
+							? "الرجاء الانتظار، يتم التحقق من الحجز..."
+							: "Please wait, verifying your reservation..."}
+					</p>
+				</BufferingWrapper>
+			) : (
+				<>
+					<MobileAccordion
+						onChange={() => setMobileExpanded(!mobileExpanded)}
+						activeKey={mobileExpanded ? "1" : null}
 					>
-						Hotel: {hotelDetails && hotelDetails.hotelName}
-					</h1>
+						<Panel header='Your Reservation Summary' key='1'>
+							<h2>Your Reservation</h2>
+							<DateRangePickerWrapper>
+								<RangePicker
+									format='YYYY-MM-DD'
+									value={[formData.checkInDate, formData.checkOutDate]}
+									disabled
+									style={{ width: "100%", marginBottom: "10px" }}
+									dropdownClassName='mobile-friendly-picker'
+								/>
+							</DateRangePickerWrapper>
 
-					<h2>Customer Details</h2>
-					<form>
-						<InputGroup>
-							<label>Name</label>
-							<input
-								type='text'
-								value={formData.name}
-								onChange={(e) =>
-									setFormData({ ...formData, name: e.target.value })
-								}
-								readOnly={!!user}
-							/>
-						</InputGroup>
-						<InputGroup>
-							<label>Phone</label>
-							<input
-								type='text'
-								value={formData.phone}
-								onChange={
-									(e) => setFormData({ ...formData, phone: e.target.value }) // Corrected to use e.target.value
-								}
-								readOnly={!!user}
-							/>
-						</InputGroup>
-						<InputGroup>
-							<label>Email</label>
-							<input
-								type='email'
-								value={formData.email}
-								onChange={(e) =>
-									setFormData({ ...formData, email: e.target.value })
-								}
-								readOnly={!!user}
-							/>
-						</InputGroup>
-						{!user && (
-							<div className='row'>
-								<div className='col-md-12 mt-1'>
-									<p style={{ fontWeight: "bold", fontSize: "13px" }}>
-										Already Have An Account?{" "}
-										<span
-											onClick={redirectToSignin}
-											style={{
-												color: "blue",
-												cursor: "pointer",
-												textDecoration: "underline",
-											}}
-										>
-											Please Click Here To Signin
-										</span>
-									</p>
-								</div>
-								<div className='col-md-6'>
-									<InputGroup>
-										<label>Password</label>
-										<input
-											type='password'
-											placeholder='Password'
-											value={password}
-											onChange={(e) => setPassword(e.target.value)}
-										/>
-									</InputGroup>
-								</div>
-								<div className='col-md-6'>
-									<InputGroup>
-										<label>Confirm Password</label>
-										<input
-											type='password'
-											placeholder='Confirm Password'
-											value={confirmPassword}
-											onChange={(e) => setConfirmPassword(e.target.value)}
-										/>
-									</InputGroup>
-								</div>
-							</div>
-						)}
+							{formData.pickedRooms.length > 0 ? (
+								formData.pickedRooms.map((room, index) => {
+									const totalNights = room.pricingByDay?.length || 0;
 
-						<InputGroup>
-							<label>Phone</label>
-							<input
-								type='text'
-								value={formData.phone}
-								onChange={
-									(e) => setFormData({ ...formData, phone: e.target.value }) // Corrected to use e.target.value
-								}
-								readOnly={!!user}
-							/>
-						</InputGroup>
-						{/* <InputGroup>
+									const totalPriceWithCommission = room.pricingByDay.reduce(
+										(total, day) => total + (day.totalPriceWithCommission || 0),
+										0
+									);
+									const pricePerNight =
+										totalNights > 0
+											? totalPriceWithCommission / totalNights
+											: 0;
+
+									return (
+										<RoomItem key={index}>
+											<RoomImage
+												src={room.photos?.[0]?.url || "/default-room.jpg"}
+												alt='Room'
+											/>
+											<RoomDetails>
+												<h3>{room.displayName}</h3>
+												<p>{room.count} Room(s)</p>
+												<p>
+													{formData.adults} Adult(s), {formData.children}{" "}
+													Children
+												</p>
+												<p>{formData.numberOfNights} Nights</p>
+												<p>
+													Dates: {formData.checkInDate?.format("YYYY-MM-DD")} to{" "}
+													{formData.checkOutDate?.format("YYYY-MM-DD")}
+												</p>
+												<h4>
+													{Number(pricePerNight).toFixed(2) * (room.count || 1)}{" "}
+													SAR per night
+												</h4>
+
+												<Collapse
+													accordion
+													expandIcon={({ isActive }) => (
+														<CaretRightOutlined
+															rotate={isActive ? 90 : 0}
+															style={{ color: "var(--primary-color)" }}
+														/>
+													)}
+												>
+													<Panel
+														header={
+															<PriceDetailsHeader>
+																<InfoCircleOutlined /> Price Breakdown
+															</PriceDetailsHeader>
+														}
+														key='1'
+													>
+														<PricingList>
+															{room.pricingByDay?.length > 0 ? (
+																room.pricingByDay.map(
+																	({ date, totalPriceWithCommission }, i) => (
+																		<li key={i}>
+																			{dayjs(date).format("YYYY-MM-DD")}:{" "}
+																			{Number(totalPriceWithCommission).toFixed(
+																				2
+																			)}{" "}
+																			SAR Per Room
+																		</li>
+																	)
+																)
+															) : (
+																<li>No price breakdown available</li>
+															)}
+														</PricingList>
+													</Panel>
+												</Collapse>
+											</RoomDetails>
+										</RoomItem>
+									);
+								})
+							) : (
+								<p>No rooms selected.</p>
+							)}
+
+							<TotalsWrapper>
+								<p>Total Rooms: {formData.pickedRooms.length}</p>
+								<p className='total-price'>
+									Total Price:{" "}
+									{Number(
+										formData.totalAmount + formData.totalCommission
+									).toFixed(2)}{" "}
+									SAR
+								</p>
+							</TotalsWrapper>
+						</Panel>
+					</MobileAccordion>
+
+					<DesktopWrapper>
+						<LeftSection>
+							<h1
+								style={{
+									fontSize: "1.5rem",
+									fontWeight: "bolder",
+									textAlign: "center",
+								}}
+							>
+								Hotel: {hotelDetails && hotelDetails.hotelName}
+							</h1>
+
+							<h2>Customer Details</h2>
+							<form>
+								<InputGroup>
+									<label>Name</label>
+									<input
+										type='text'
+										value={formData.name}
+										onChange={(e) =>
+											setFormData({ ...formData, name: e.target.value })
+										}
+										readOnly={!!user}
+									/>
+								</InputGroup>
+								<InputGroup>
+									<label>Phone</label>
+									<input
+										type='text'
+										value={formData.phone}
+										onChange={
+											(e) => setFormData({ ...formData, phone: e.target.value }) // Corrected to use e.target.value
+										}
+										readOnly={!!user}
+									/>
+								</InputGroup>
+								<InputGroup>
+									<label>Email</label>
+									<input
+										type='email'
+										value={formData.email}
+										onChange={(e) =>
+											setFormData({ ...formData, email: e.target.value })
+										}
+										readOnly={!!user}
+									/>
+								</InputGroup>
+								{!user && (
+									<div className='row'>
+										<div className='col-md-12 mt-1'>
+											<p style={{ fontWeight: "bold", fontSize: "13px" }}>
+												Already Have An Account?{" "}
+												<span
+													onClick={redirectToSignin}
+													style={{
+														color: "blue",
+														cursor: "pointer",
+														textDecoration: "underline",
+													}}
+												>
+													Please Click Here To Signin
+												</span>
+											</p>
+										</div>
+										<div className='col-md-6'>
+											<InputGroup>
+												<label>Password</label>
+												<input
+													type='password'
+													placeholder='Password'
+													value={password}
+													onChange={(e) => setPassword(e.target.value)}
+												/>
+											</InputGroup>
+										</div>
+										<div className='col-md-6'>
+											<InputGroup>
+												<label>Confirm Password</label>
+												<input
+													type='password'
+													placeholder='Confirm Password'
+													value={confirmPassword}
+													onChange={(e) => setConfirmPassword(e.target.value)}
+												/>
+											</InputGroup>
+										</div>
+									</div>
+								)}
+
+								<InputGroup>
+									<label>Phone</label>
+									<input
+										type='text'
+										value={formData.phone}
+										onChange={
+											(e) => setFormData({ ...formData, phone: e.target.value }) // Corrected to use e.target.value
+										}
+										readOnly={!!user}
+									/>
+								</InputGroup>
+								{/* <InputGroup>
 							<label>Passport Number</label>
 							<input
 								type='text'
@@ -749,236 +896,219 @@ const GeneratedLinkCheckout = () => {
 								}
 							/>
 						</InputGroup> */}
-						<InputGroup>
-							<label>Nationality</label>
-							<input type='text' value={formData.nationality} disabled />
-						</InputGroup>
-					</form>
+								<InputGroup>
+									<label>Nationality</label>
+									<input type='text' value={formData.nationality} disabled />
+								</InputGroup>
+							</form>
 
-					<TermsWrapper>
-						<Checkbox
-							checked={guestAgreedOnTermsAndConditions}
-							onChange={(e) => {
-								ReactGA.event({
-									category: "User Accepted Terms And Cond (Link Generated)",
-									action: "User Accepted Terms And Cond (Link Generated)",
-									label: `User Accepted Terms And Cond (Link Generated)`,
-								});
+							<TermsWrapper>
+								<Checkbox
+									checked={guestAgreedOnTermsAndConditions}
+									onChange={(e) => {
+										ReactGA.event({
+											category: "User Accepted Terms And Cond (Link Generated)",
+											action: "User Accepted Terms And Cond (Link Generated)",
+											label: `User Accepted Terms And Cond (Link Generated)`,
+										});
 
-								ReactPixel.track(
-									"Terms And Conditions Accepted (Line Generated)",
-									{
-										action:
-											"User Accepted Terms And Conditions Accepted (Line Generated)",
-										page: "Link Generated",
-									}
-								);
+										ReactPixel.track(
+											"Terms And Conditions Accepted (Line Generated)",
+											{
+												action:
+													"User Accepted Terms And Conditions Accepted (Line Generated)",
+												page: "Link Generated",
+											}
+										);
 
-								setGuestAgreedOnTermsAndConditions(e.target.checked);
-							}}
-						>
-							Accept Terms & Conditions
-						</Checkbox>
-					</TermsWrapper>
+										setGuestAgreedOnTermsAndConditions(e.target.checked);
+									}}
+								>
+									Accept Terms & Conditions
+								</Checkbox>
+							</TermsWrapper>
 
-					<TermsWrapper>
-						<Checkbox
-							checked={pay10Percent}
-							onChange={(e) => {
-								setPayWholeAmount(false);
-								ReactGA.event({
-									category: "User Checked On Paying Deposit (Link Generated)",
-									action: "User Checked On Paying Deposit (Link Generated)",
-									label: `User Checked On Paying Deposit (Link Generated)`,
-								});
+							{hotelDetails && hotelDetails.hotelName ? (
+								<PaymentOptions
+									hotelDetails={hotelDetails}
+									chosenLanguage={"English"}
+									t={() => ""} // Dummy translation function
+									depositAmount={depositAmount}
+									averageCommissionRate={averageCommissionRate}
+									total_price_with_commission={total_price_with_commission}
+									convertedAmounts={convertedAmounts}
+									selectedPaymentOption={selectedPaymentOption}
+									setSelectedPaymentOption={setSelectedPaymentOption}
+								/>
+							) : null}
 
-								ReactPixel.track("Checked On Paying Deposit (Link Generated)", {
-									action: "User Checked On Paying Deposit (Link Generated)",
-									page: "Link Generated",
-								});
+							<small onClick={() => window.open("/terms-conditions", "_blank")}>
+								It's highly recommended to check our terms & conditions
+								specially for refund and cancellation sections 4 & 5{" "}
+							</small>
 
-								setPay10Percent(e.target.checked);
-							}}
-						>
-							Pay{" "}
-							{Number(
-								(formData.totalCommission /
-									(Number(formData.totalAmount) +
-										Number(formData.totalCommission))) *
-									100
-							).toFixed(0)}
-							% Deposit{" "}
-							<span style={{ fontWeight: "bold" }}>
-								(SAR {Number(formData.totalCommission).toFixed(2)})
-							</span>
-						</Checkbox>
-					</TermsWrapper>
-					<TermsWrapper>
-						<Checkbox
-							checked={payWholeAmount}
-							onChange={(e) => {
-								setPay10Percent(false);
-								setPayWholeAmount(e.target.checked);
-								ReactGA.event({
-									category:
-										"User Checked On Paying Whole Amount (Link Generated)",
-									action:
-										"User Checked On Paying Whole Amount (Link Generated)",
-									label: `User Checked On Paying Whole Amount (Link Generated)`,
-								});
-
-								ReactPixel.track(
-									"Checked On Paying Whole Amount (Link Generated)",
-									{
-										action:
-											"User Checked On Paying Whole Amount (Link Generated)",
-										page: "Link Generated",
-									}
-								);
-							}}
-						>
-							Pay the whole Total Amount{" "}
-							<span style={{ fontWeight: "bold" }}>
-								(SAR{" "}
-								{Number(
-									Number(formData.totalAmount) +
-										Number(formData.totalCommission)
-								).toFixed(2)}
-								)
-							</span>
-						</Checkbox>
-					</TermsWrapper>
-
-					<small onClick={() => window.open("/terms-conditions", "_blank")}>
-						It's highly recommended to check our terms & conditions specially
-						for refund and cancellation sections 4 & 5{" "}
-					</small>
-
-					{guestAgreedOnTermsAndConditions &&
-					(pay10Percent || payWholeAmount) ? (
-						<PaymentDetails
-							cardNumber={cardNumber}
-							setCardNumber={setCardNumber}
-							expiryDate={expiryDate}
-							setExpiryDate={setExpiryDate}
-							cvv={cvv}
-							setCvv={setCvv}
-							cardHolderName={cardHolderName}
-							setCardHolderName={setCardHolderName}
-							postalCode={postalCode}
-							setPostalCode={setPostalCode}
-							handleReservation={handleReservation}
-							pricePerNight={formData.pricePerNight}
-							total={formData.totalAmount}
-							pay10Percent={pay10Percent}
-							total_price_with_commission={
-								Number(formData.totalAmount) + Number(formData.totalCommission)
-							}
-							convertedAmounts={convertedAmounts}
-							depositAmount={Number(formData.totalCommission)}
-							nationality={formData.nationality}
-						/>
-					) : null}
-				</LeftSection>
-
-				<RightSection>
-					<h2>Your Reservation</h2>
-
-					<RangePicker
-						value={[formData.checkInDate, formData.checkOutDate]}
-						disabled
-						style={{ width: "100%", marginBottom: "10px" }}
-					/>
-
-					{formData.pickedRooms.length > 0 ? (
-						formData.pickedRooms.map((room, index) => {
-							const totalNights = room.pricingByDay.length || 0;
-
-							// Calculate the total price with commission and average price per night
-							const totalPriceWithCommission = room.pricingByDay.reduce(
-								(total, day) => total + day.totalPriceWithCommission,
-								0
-							);
-							const averagePricePerNight =
-								totalNights > 0 ? totalPriceWithCommission / totalNights : 0;
-
-							return (
-								<RoomItem key={index}>
-									<RoomImage
-										src={room.photos?.[0]?.url || "/default-room.jpg"}
-										alt='Room'
+							{guestAgreedOnTermsAndConditions && selectedPaymentOption ? (
+								selectedPaymentOption === "acceptReserveNowPayInHotel" ? (
+									<Button
+										type='primary'
+										onClick={handleReservation}
+										style={{ marginTop: "20px", width: "100%" }}
+									>
+										Reserve Now
+									</Button>
+								) : (
+									<PaymentDetails
+										cardNumber={cardNumber}
+										setCardNumber={setCardNumber}
+										expiryDate={expiryDate}
+										setExpiryDate={setExpiryDate}
+										cvv={cvv}
+										setCvv={setCvv}
+										cardHolderName={cardHolderName}
+										setCardHolderName={setCardHolderName}
+										postalCode={postalCode}
+										setPostalCode={setPostalCode}
+										handleReservation={handleReservation}
+										pricePerNight={formData.pricePerNight}
+										total={formData.totalAmount}
+										total_price_with_commission={
+											Number(formData.totalAmount) +
+											Number(formData.totalCommission)
+										}
+										convertedAmounts={convertedAmounts}
+										depositAmount={Number(formData.totalCommission)}
+										nationality={formData.nationality}
+										selectedPaymentOption={selectedPaymentOption}
 									/>
+								)
+							) : null}
+						</LeftSection>
 
-									<RoomDetails>
-										<h3>{room.displayName}</h3>
-										<p>{room.count} Room(s)</p>
-										<p>
-											{formData.adults} Adult(s), {formData.children} Children
-										</p>
-										<p>
-											Dates: {formData.checkInDate?.format("YYYY-MM-DD")} to{" "}
-											{formData.checkOutDate?.format("YYYY-MM-DD")}
-										</p>
-										<p>{formData.numberOfNights} Nights</p>
-										<h4>
-											{averagePricePerNight.toFixed(2) * (room.count || 1)} SAR
-											per night
-										</h4>
+						<RightSection>
+							<h2>Your Reservation</h2>
 
-										{/* Accordion for Price Breakdown */}
-										{room.pricingByDay && room.pricingByDay.length > 0 && (
-											<Collapse
-												accordion
-												expandIcon={({ isActive }) => (
-													<CaretRightOutlined
-														rotate={isActive ? 90 : 0}
-														style={{ color: "var(--primary-color)" }}
-													/>
-												)}
-											>
-												<Panel
-													header={
-														<PriceDetailsHeader>
-															<InfoCircleOutlined /> Price Breakdown
-														</PriceDetailsHeader>
-													}
-													key='1'
-												>
-													<PricingList>
-														{room.pricingByDay.map(
-															({ date, totalPriceWithCommission }, i) => (
-																<li key={i}>
-																	{dayjs(date).format("YYYY-MM-DD")}:{" "}
-																	{Number(totalPriceWithCommission).toFixed(2)}{" "}
-																	SAR Per Room
-																</li>
-															)
+							<RangePicker
+								value={[formData.checkInDate, formData.checkOutDate]}
+								disabled
+								style={{ width: "100%", marginBottom: "10px" }}
+							/>
+
+							{formData.pickedRooms.length > 0 ? (
+								formData.pickedRooms.map((room, index) => {
+									const totalNights = room.pricingByDay.length || 0;
+
+									// Calculate the total price with commission and average price per night
+									const totalPriceWithCommission = room.pricingByDay.reduce(
+										(total, day) => total + day.totalPriceWithCommission,
+										0
+									);
+									const averagePricePerNight =
+										totalNights > 0
+											? totalPriceWithCommission / totalNights
+											: 0;
+
+									return (
+										<RoomItem key={index}>
+											<RoomImage
+												src={room.photos?.[0]?.url || "/default-room.jpg"}
+												alt='Room'
+											/>
+
+											<RoomDetails>
+												<h3>{room.displayName}</h3>
+												<p>{room.count} Room(s)</p>
+												<p>
+													{formData.adults} Adult(s), {formData.children}{" "}
+													Children
+												</p>
+												<p>
+													Dates: {formData.checkInDate?.format("YYYY-MM-DD")} to{" "}
+													{formData.checkOutDate?.format("YYYY-MM-DD")}
+												</p>
+												<p>{formData.numberOfNights} Nights</p>
+												<h4>
+													{averagePricePerNight.toFixed(2) * (room.count || 1)}{" "}
+													SAR per night
+												</h4>
+
+												{/* Accordion for Price Breakdown */}
+												{room.pricingByDay && room.pricingByDay.length > 0 && (
+													<Collapse
+														accordion
+														expandIcon={({ isActive }) => (
+															<CaretRightOutlined
+																rotate={isActive ? 90 : 0}
+																style={{ color: "var(--primary-color)" }}
+															/>
 														)}
-													</PricingList>
-												</Panel>
-											</Collapse>
-										)}
-									</RoomDetails>
-								</RoomItem>
-							);
-						})
-					) : (
-						<p>No rooms selected.</p>
-					)}
+													>
+														<Panel
+															header={
+																<PriceDetailsHeader>
+																	<InfoCircleOutlined /> Price Breakdown
+																</PriceDetailsHeader>
+															}
+															key='1'
+														>
+															<PricingList>
+																{room.pricingByDay.map(
+																	({ date, totalPriceWithCommission }, i) => (
+																		<li key={i}>
+																			{dayjs(date).format("YYYY-MM-DD")}:{" "}
+																			{Number(totalPriceWithCommission).toFixed(
+																				2
+																			)}{" "}
+																			SAR Per Room
+																		</li>
+																	)
+																)}
+															</PricingList>
+														</Panel>
+													</Collapse>
+												)}
+											</RoomDetails>
+										</RoomItem>
+									);
+								})
+							) : (
+								<p>No rooms selected.</p>
+							)}
 
-					{/* Totals Section */}
-					<TotalsWrapper>
-						<p>Total Rooms: {formData.pickedRooms.length}</p>
-						<p className='total-price'>
-							Total Price:{" "}
-							{Number(formData.totalAmount + formData.totalCommission).toFixed(
-								2
-							)}{" "}
-							SAR
-						</p>
-					</TotalsWrapper>
-				</RightSection>
-			</DesktopWrapper>
+							{/* Totals Section */}
+							<TotalsWrapper>
+								<p>Total Rooms: {formData.pickedRooms.length}</p>
+								<p className='total-price'>
+									Total Price:{" "}
+									{Number(
+										formData.totalAmount + formData.totalCommission
+									).toFixed(2)}{" "}
+									SAR
+								</p>
+							</TotalsWrapper>
+						</RightSection>
+					</DesktopWrapper>
+				</>
+			)}
+
+			{/* Verification Modal */}
+			<Modal
+				title={
+					chosenLanguage === "Arabic"
+						? "يرجى التحقق من بريدك الإلكتروني"
+						: "Please Check Your Email"
+				}
+				open={verificationModalVisible}
+				onOk={handleModalClose}
+				onCancel={handleModalClose}
+				okText={chosenLanguage === "Arabic" ? "موافق" : "OK"}
+				cancelText={chosenLanguage === "Arabic" ? "إلغاء" : "Cancel"}
+			>
+				<p>
+					{chosenLanguage === "Arabic"
+						? "يرجى التحقق من بريدك الإلكتروني للتحقق من حجزك. إذا لم تتمكن من العثور على البريد الإلكتروني، يرجى التحقق من صندوق البريد العشوائي أو التواصل مع الدعم."
+						: "Please check your email to verify your reservation. If you can't find the email, please check your spam folder or contact support."}
+				</p>
+			</Modal>
 		</GeneratedLinkCheckoutWrapper>
 	);
 };
@@ -1140,5 +1270,22 @@ const DateRangePickerWrapper = styled.div`
 			top: 50px;
 			transform: none;
 		}
+	}
+`;
+
+const BufferingWrapper = styled.div`
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	min-height: 800px;
+	padding: 20px;
+	text-align: center;
+
+	p {
+		margin-top: 20px;
+		font-size: 1.2rem;
+		color: #555;
+		text-align: center;
 	}
 `;

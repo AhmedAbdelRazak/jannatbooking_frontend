@@ -75,7 +75,8 @@ const ReservationSummary = ({ reservations }) => {
 							<strong>Number of Nights:</strong> {reservation.days_of_residence}
 						</p>
 						<p>
-							<strong>Total Amount:</strong> {reservation.total_amount}{" "}
+							<strong>Total Amount:</strong>{" "}
+							{Number(reservation.total_amount).toFixed(2)}{" "}
 							{reservation.currency.toUpperCase()}
 						</p>
 						<p>
@@ -127,7 +128,8 @@ const ReservationSummary = ({ reservations }) => {
 												room.pricingByDay.map(
 													({ date, totalPriceWithCommission }, dayIndex) => (
 														<li key={dayIndex}>
-															{date}: {totalPriceWithCommission} SAR
+															{date}:{" "}
+															{Number(totalPriceWithCommission).toFixed(2)} SAR
 														</li>
 													)
 												)
