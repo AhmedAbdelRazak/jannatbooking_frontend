@@ -388,6 +388,7 @@ const CheckoutContent = ({
 				...customerDetails,
 				nationality,
 				postalCode,
+				password,
 			},
 			paymentDetails,
 			total_rooms,
