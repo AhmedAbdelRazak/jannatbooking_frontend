@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useHistory } from "react-router-dom";
-import { DatePicker, Select, InputNumber, Button } from "antd";
+import { DatePicker, Select, InputNumber, Button, Input } from "antd";
 import styled, { css } from "styled-components";
 import { toast } from "react-toastify";
 // eslint-disable-next-line
@@ -91,9 +91,20 @@ const SearchUpdate = ({
 		}));
 	};
 
-	// Disable past dates in the pickers
-	const disabledDate = (current) => {
+	// ---- Date disabling logic ----
+	const disabledDateCheckIn = (current) => {
+		// Disallow any date before today's endOf("day")
 		return current && current < dayjs().endOf("day");
+	};
+
+	const disabledDateCheckOut = (current) => {
+		// If there's no checkIn, just disallow anything before today
+		if (!searchParams.checkIn) {
+			return current && current < dayjs().endOf("day");
+		}
+		// Must be at least 1 day after checkIn
+		const minCheckOut = searchParams.checkIn.clone().add(1, "day");
+		return current && current < minCheckOut;
 	};
 
 	// Validate required fields (destination, checkIn, checkOut, roomType, adults)
@@ -111,6 +122,7 @@ const SearchUpdate = ({
 	};
 
 	const handleSubmit = () => {
+		// 1) Validate required fields (existing logic)
 		if (!validateFields()) {
 			toast.error(
 				chosenLanguage === "Arabic"
@@ -120,7 +132,21 @@ const SearchUpdate = ({
 			return;
 		}
 
-		// Possibly map the chosen roomType to a backend-friendly version
+		// 2) Sanity check: checkIn must be strictly less than checkOut
+		if (
+			searchParams.checkIn &&
+			searchParams.checkOut &&
+			!searchParams.checkIn.isBefore(searchParams.checkOut)
+		) {
+			toast.error(
+				chosenLanguage === "Arabic"
+					? "يجب أن يكون تاريخ المغادرة بعد تاريخ الوصول. يرجى اختيار تاريخ مغادرة صالح."
+					: "Your check-out date must be after your check-in date. Please choose a valid check-out date."
+			);
+			return;
+		}
+
+		// 3) Possibly map the chosen roomType to a backend-friendly version
 		const selectedRoomType = roomTypesWithTranslations.find(
 			(type) => type.roomType === searchParams.roomType
 		);
@@ -128,7 +154,7 @@ const SearchUpdate = ({
 			? selectedRoomType.roomType
 			: searchParams.roomType;
 
-		// Build the query string
+		// 4) Build the query string
 		const queryParams = new URLSearchParams({
 			destination: searchParams.destination,
 			startDate: searchParams.checkIn.format("YYYY-MM-DD"),
@@ -140,13 +166,13 @@ const SearchUpdate = ({
 
 		// Track events
 		ReactGA.event({
-			category: "Search",
-			action: "User submitted a search",
+			category: "Search Submitted From Our Hotels Page",
+			action: "Search Submitted From Our Hotels Page",
 			label: `Search - ${searchParams.destination}`,
 		});
-		ReactPixel.track("Search Submitted", {
-			action: "User searched for rooms",
-			destination: searchParams.destination,
+		ReactPixel.track("Search Submitted From Our Hotels Page", {
+			action: "User searched for rooms From Our Hotels Page",
+			destination: `/our-hotels-rooms?${queryParams}`,
 		});
 
 		// Finally, navigate to the results page
@@ -163,7 +189,7 @@ const SearchUpdate = ({
 			<Heading>
 				{chosenLanguage === "Arabic"
 					? "دعنا نساعدك في إيجاد ما تحتاجه"
-					: "Let us Help you Find your needs"}
+					: "Let us help you to find your perfect hotel!"}
 			</Heading>
 
 			<RowWrapper>
@@ -197,7 +223,7 @@ const SearchUpdate = ({
 					<Label>{chosenLanguage === "Arabic" ? "من" : "FROM"}</Label>
 					<StyledDatePicker
 						value={searchParams.checkIn}
-						disabledDate={disabledDate}
+						disabledDate={disabledDateCheckIn}
 						onChange={handleFromDateChange}
 						placeholder={
 							chosenLanguage === "Arabic" ? "اختر تاريخ الوصول" : "Select date"
@@ -210,7 +236,7 @@ const SearchUpdate = ({
 					<Label>{chosenLanguage === "Arabic" ? "إلى" : "TO"}</Label>
 					<StyledDatePicker
 						value={searchParams.checkOut}
-						disabledDate={disabledDate}
+						disabledDate={disabledDateCheckOut}
 						onChange={handleToDateChange}
 						placeholder={
 							chosenLanguage === "Arabic"
@@ -228,16 +254,7 @@ const SearchUpdate = ({
 						{chosenLanguage === "Arabic" ? "نوع الغرفة" : "ROOM TYPE"}
 					</Label>
 					<Select
-						style={{
-							width: "100%",
-							height: "40px",
-							fontSize: "10px",
-						}}
-						placeholder={
-							chosenLanguage === "Arabic"
-								? "اختر نوع الغرفة"
-								: "Select room type"
-						}
+						style={{ width: "100%", height: "40px", fontSize: "10px" }}
 						onChange={(value) => handleSelectChange(value, "roomType")}
 						value={searchParams.roomType}
 					>
@@ -251,35 +268,67 @@ const SearchUpdate = ({
 						>
 							{chosenLanguage === "Arabic" ? "نوع الغرفة" : "Room Type"}
 						</Option>
-						{roomTypesWithTranslations.map(({ roomType, roomTypeArabic }) => (
-							<Option
-								key={roomType}
-								style={{
-									fontSize: chosenLanguage === "Arabic" ? "13px" : "10px",
-									fontWeight: "bold",
-									textAlign: chosenLanguage === "Arabic" ? "right" : "",
-								}}
-								value={roomType}
-							>
-								{chosenLanguage === "Arabic" ? roomTypeArabic : roomType}
-							</Option>
-						))}
+						{distinctRoomTypes &&
+							distinctRoomTypes.map((labelEn) => {
+								const match = roomTypesWithTranslations.find(
+									(item) => item.labelEn === labelEn
+								);
+								if (match) {
+									return (
+										<Option
+											key={match.roomType}
+											value={match.roomType}
+											style={{
+												fontSize: chosenLanguage === "Arabic" ? "13px" : "10px",
+												fontWeight: "bold",
+												textAlign: chosenLanguage === "Arabic" ? "right" : "",
+											}}
+										>
+											{chosenLanguage === "Arabic"
+												? match.roomTypeArabic
+												: match.labelEn}
+										</Option>
+									);
+								}
+								// Fallback if distinctRoomTypes has an unexpected label
+								return (
+									<Option
+										key={labelEn}
+										value={labelEn}
+										style={{
+											fontSize: chosenLanguage === "Arabic" ? "13px" : "10px",
+											fontWeight: "bold",
+											textAlign: chosenLanguage === "Arabic" ? "right" : "",
+										}}
+									>
+										{labelEn}
+									</Option>
+								);
+							})}
 					</Select>
 				</FieldWrapper>
 
 				{/* GUESTS (Adults) */}
 				<FieldWrapper invalid={invalidFields.adults}>
 					<Label>{chosenLanguage === "Arabic" ? "الضيوف" : "GUESTS"}</Label>
-					<StyledInputNumber
+					<StyledNumericInput
 						isArabic={chosenLanguage === "Arabic"}
-						prefix={<UserOutlined />}
-						min={1}
-						max={99}
+						min='1'
+						max='99'
+						// To display the placeholder in Arabic/English
 						placeholder={
 							chosenLanguage === "Arabic" ? "عدد الضيوف" : "Number of guests"
 						}
-						onChange={(value) => handleSelectChange(value, "adults")}
+						prefix={<UserOutlined />}
 						value={searchParams.adults}
+						onChange={(e) => {
+							// Convert to integer, store in state
+							const numericValue = parseInt(e.target.value, 10);
+							handleSelectChange(
+								isNaN(numericValue) ? "" : numericValue,
+								"adults"
+							);
+						}}
 					/>
 				</FieldWrapper>
 
@@ -340,7 +389,7 @@ export const SearchWrapper = styled.div`
 
 export const Heading = styled.h3`
 	margin: 0;
-	font-size: 1rem;
+	font-size: 0.95rem;
 	font-weight: 600;
 	color: #000;
 `;
@@ -386,8 +435,13 @@ export const Label = styled.label`
 	color: #000;
 `;
 
-export const StyledDatePicker = styled(({ invalid, ...props }) => (
-	<DatePicker {...props} />
+export const StyledDatePicker = styled((props) => (
+	<DatePicker
+		{...props}
+		inputReadOnly
+		popupClassName='centered-calendar'
+		getPopupContainer={() => document.body}
+	/>
 ))`
 	width: 100%;
 	height: 40px;
@@ -402,6 +456,7 @@ export const StyledDatePicker = styled(({ invalid, ...props }) => (
 		padding: 20px 10px !important;
 		font-size: 12px !important;
 		background-color: rgba(22, 97, 119, 0.15);
+
 		input {
 			font-size: 0.75rem !important;
 			color: #000;
@@ -458,5 +513,25 @@ export const SearchButton = styled(Button)`
 	&:hover {
 		background-color: #e96e00 !important;
 		color: #fff !important;
+	}
+`;
+
+/**
+ * This is our numeric-only input:
+ * - type="number" ensures numeric keyboard on most mobile devices.
+ * - inputMode="numeric" + pattern="[0-9]*" helps ensure a numeric keypad is shown.
+ * - prefix icon from AntD can still be shown by wrapping it in a suffix or prefix prop.
+ */
+const StyledNumericInput = styled(Input).attrs(() => ({
+	type: "number",
+	inputMode: "numeric",
+	pattern: "[0-9]*",
+}))`
+	width: 100%;
+	height: 40px;
+
+	/* Ensure text alignment matches the language direction, if needed */
+	.ant-input {
+		text-align: ${(props) => (props.isArabic ? "right" : "left")};
 	}
 `;

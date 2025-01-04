@@ -25,6 +25,22 @@ body {
 	background-color: #f0f0f0;
 }
 
+.centered-calendar {
+	position: fixed !important;
+	left: 50% !important;
+	top: 35% !important;
+	transform: translate(-50%, -50%) !important;
+	z-index: 9999; /* Adjust if needed */
+}
+
+.centered-calendar2 {
+	position: fixed !important;
+	left: 50% !important;
+	top: 50% !important;
+	transform: translate(-50%, -50%) !important;
+	z-index: 9999; /* Adjust if needed */
+}
+
 :root {
 	--primaryBlue: #20212c;
 	--primaryBlueDarker: #1e2332;

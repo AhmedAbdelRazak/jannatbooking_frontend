@@ -776,21 +776,72 @@ export const countryListWithAbbreviations = [
 	{ name: "Åland Islands", code: "AX" },
 ];
 
+// Assets/roomTypesWithTranslations.js
+
 export const roomTypesWithTranslations = [
-	{ roomType: "standardRooms", roomTypeArabic: "غرف ستاندارد" },
-	{ roomType: "singleRooms", roomTypeArabic: "غرف فردية" },
-	{ roomType: "doubleRooms", roomTypeArabic: "غرف مزدوجة" },
-	{ roomType: "twinRooms", roomTypeArabic: "غرف توين" },
-	{ roomType: "queenRooms", roomTypeArabic: "غرف كوين" },
-	{ roomType: "kingRooms", roomTypeArabic: "غرف كينج" },
-	{ roomType: "tripleRooms", roomTypeArabic: "غرف ثلاثية" },
-	{ roomType: "quadRooms", roomTypeArabic: "غرف رباعية" },
-	{ roomType: "studioRooms", roomTypeArabic: "استوديوهات" },
-	{ roomType: "suite", roomTypeArabic: "أجنحة" },
-	{ roomType: "masterSuite", roomTypeArabic: "الأجنحة الرئيسية" },
-	{ roomType: "familyRooms", roomTypeArabic: "غرف عائلية" },
+	{
+		roomType: "standardRooms",
+		labelEn: "Standard Rooms",
+		roomTypeArabic: "غرف ستاندارد",
+	},
+	{
+		roomType: "singleRooms",
+		labelEn: "Single Rooms",
+		roomTypeArabic: "غرف فردية",
+	},
+	{
+		roomType: "doubleRooms",
+		labelEn: "Double Rooms",
+		roomTypeArabic: "غرف مزدوجة",
+	},
+	{
+		roomType: "twinRooms",
+		labelEn: "Twin Rooms",
+		roomTypeArabic: "غرف توين",
+	},
+	{
+		roomType: "queenRooms",
+		labelEn: "Queen Rooms",
+		roomTypeArabic: "غرف كوين",
+	},
+	{
+		roomType: "kingRooms",
+		labelEn: "King Rooms",
+		roomTypeArabic: "غرف كينج",
+	},
+	{
+		roomType: "tripleRooms",
+		labelEn: "Triple Rooms",
+		roomTypeArabic: "غرف ثلاثية",
+	},
+	{
+		roomType: "quadRooms",
+		labelEn: "Quad Rooms",
+		roomTypeArabic: "غرف رباعية",
+	},
+	{
+		roomType: "studioRooms",
+		labelEn: "Studio Rooms",
+		roomTypeArabic: "استوديوهات",
+	},
+	{
+		roomType: "suite",
+		labelEn: "Suite",
+		roomTypeArabic: "أجنحة",
+	},
+	{
+		roomType: "masterSuite",
+		labelEn: "Master Suite",
+		roomTypeArabic: "الأجنحة الرئيسية",
+	},
+	{
+		roomType: "familyRooms",
+		labelEn: "Family Rooms",
+		roomTypeArabic: "غرف عائلية",
+	},
 	{
 		roomType: "individualBed",
+		labelEn: "Rooms With Individual Beds",
 		roomTypeArabic: "غرف بأسرة فردية (غرف مشتركة)",
 	},
 ];
