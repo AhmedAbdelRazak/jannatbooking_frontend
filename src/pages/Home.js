@@ -13,6 +13,7 @@ import Section2 from "../components/Home/Section2";
 import { Helmet } from "react-helmet";
 import favicon from "../favicon.ico";
 import { useCartContext } from "../cart_context";
+import SearchUpdate from "../components/Home/SearchUpdate";
 
 const Home = () => {
 	const [homePage, setHomePage] = useState("");
@@ -159,7 +160,16 @@ const Home = () => {
 				{homePage && <Hero homePage={homePage} />}
 
 				{distinctRoomTypes && (
-					<div>
+					<div className='mobile-search'>
+						<SearchUpdate
+							distinctRoomTypes={distinctRoomTypes}
+							roomTypesMapping={roomTypesMapping}
+						/>
+					</div>
+				)}
+
+				{distinctRoomTypes && (
+					<div className='desktop-search'>
 						<Search
 							distinctRoomTypes={distinctRoomTypes}
 							roomTypesMapping={roomTypesMapping}
@@ -204,6 +214,27 @@ const HomeWrapper = styled.div`
 	ul {
 		font-family: ${({ isArabic }) =>
 			isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
+	}
+
+	@media (min-width: 1001px) {
+		.desktop-search {
+			display: block;
+		}
+		.mobile-search {
+			display: none;
+		}
+	}
+
+	@media (max-width: 1000px) {
+		min-height: 1200px;
+
+		.mobile-search {
+			display: block;
+		}
+
+		.desktop-search {
+			display: none;
+		}
 	}
 `;
 

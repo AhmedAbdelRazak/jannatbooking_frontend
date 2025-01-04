@@ -15,6 +15,12 @@
 	font-family: "Montserrat", "Poppins", sans-serif;
 }
 
+.ant-select-item-option-content,
+.ant-select-item-option-state,
+.ant-select-item {
+	text-transform: capitalize !important;
+}
+
 body {
 	background-color: #f0f0f0;
 }

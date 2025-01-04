@@ -21,6 +21,7 @@ import SortDropdown from "../components/OurHotels/SortDropdown";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import SearchResults from "../components/OurHotels/SearchResults";
+import SearchUpdate from "../components/OurHotels/SearchUpdate";
 
 //Rooms to our hotels
 //Sliders shouldn't be auto.
@@ -177,7 +178,7 @@ const translations = {
 		loadingMessage: "جاري تحميل بيانات الغرف...",
 		noDataFound: "لا توجد بيانات.",
 		hotelRating: "تقييم الفندق:",
-		perNight: "لليلة",
+		perNight: "/ الليلة",
 		totalNights: "المجموع",
 		nights: "ليالٍ",
 		addToReservation: "إضافة إلى الحجز",
@@ -187,7 +188,7 @@ const translations = {
 		drivingToHaram: "بالسيارة إلى الحرم",
 		showMore: "عرض المزيد...",
 		showLess: "عرض أقل...",
-		pricePerNight: "لليلة",
+		pricePerNight: "/ ليلة",
 		SAR: "ريال",
 		USD: "دولار",
 		EUR: "يورو",
@@ -258,7 +259,7 @@ const OurHotelRooms2 = () => {
 	);
 
 	useEffect(() => {
-		window.scrollTo({ top: 50, behavior: "smooth" });
+		window.scrollTo({ top: 30, behavior: "smooth" });
 		const fetchRoomData = async () => {
 			const query = [
 				encodeURIComponent(queryParams.startDate),
@@ -400,21 +401,45 @@ const OurHotelRooms2 = () => {
 			) : roomData ? (
 				<RoomListWrapper>
 					<SearchSection>
-						<Search
-							distinctRoomTypes={distinctRoomTypes}
-							roomTypesMapping={roomTypesMapping}
-							initialSearchParams={{
-								dates: [
-									dayjs(queryParams.startDate, "YYYY-MM-DD"),
-									dayjs(queryParams.endDate, "YYYY-MM-DD"),
-								],
-								destination: queryParams.destination || "", // Include destination
-								roomType: queryParams.roomType || "",
-								adults: queryParams.adults || "",
-								children: queryParams.children || "",
-							}}
-						/>
+						{distinctRoomTypes && (
+							<div className='mobile-search'>
+								<SearchUpdate
+									distinctRoomTypes={distinctRoomTypes}
+									roomTypesMapping={roomTypesMapping}
+									initialSearchParams={{
+										dates: [
+											dayjs(queryParams.startDate, "YYYY-MM-DD"),
+											dayjs(queryParams.endDate, "YYYY-MM-DD"),
+										],
+										destination: queryParams.destination || "", // Include destination
+										roomType: queryParams.roomType || "",
+										adults: queryParams.adults || "",
+										children: queryParams.children || "",
+									}}
+								/>
+							</div>
+						)}
+
+						{distinctRoomTypes && (
+							<div className='desktop-search'>
+								<Search
+									distinctRoomTypes={distinctRoomTypes}
+									roomTypesMapping={roomTypesMapping}
+									initialSearchParams={{
+										dates: [
+											dayjs(queryParams.startDate, "YYYY-MM-DD"),
+											dayjs(queryParams.endDate, "YYYY-MM-DD"),
+										],
+										destination: queryParams.destination || "", // Include destination
+										roomType: queryParams.roomType || "",
+										adults: queryParams.adults || "",
+										children: queryParams.children || "",
+									}}
+								/>
+							</div>
+						)}
 					</SearchSection>
+
 					<SearchResults
 						initialSearchParams={{
 							dates: [
@@ -882,7 +907,7 @@ const OurHotelRooms2Wrapper = styled.div`
 	}
 
 	@media (max-width: 1000px) {
-		padding: 200px 0px;
+		padding: 100px 0px;
 
 		.habal {
 			display: none;
@@ -905,11 +930,30 @@ const LoadingOverlay = styled.div`
 
 const SearchSection = styled.div`
 	width: 100%;
-	margin-bottom: 50px;
 
-	@media (max-width: 800px) {
-		margin-top: 50px;
-		margin-bottom: 270px;
+	@media (min-width: 1001px) {
+		width: 100%;
+		margin-bottom: 50px;
+		.desktop-search {
+			display: block;
+		}
+		.mobile-search {
+			display: none;
+		}
+	}
+
+	@media (max-width: 1000px) {
+		margin-top: 0px;
+		margin-bottom: 120px;
+		padding: 0px !important;
+
+		.mobile-search {
+			display: block;
+		}
+
+		.desktop-search {
+			display: none;
+		}
 	}
 `;
 

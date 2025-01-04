@@ -52,7 +52,7 @@ const translations = {
 	},
 	Arabic: {
 		hotelRating: "تقييم الفندق:",
-		pricePerNight: "لليلة",
+		pricePerNight: "/ ليلة",
 		freeCancellation: "+ إلغاء مجاني",
 		drivingToHaram: "بالسيارة إلى الحرم",
 		showMore: "عرض المزيد...",

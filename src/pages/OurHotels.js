@@ -2,12 +2,14 @@ import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { gettingActiveHotelList, gettingDistinctRoomTypes } from "../apiCore";
 import { Spin } from "antd";
+// eslint-disable-next-line
 import Search from "../components/OurHotels/Search";
 import HotelList2 from "../components/OurHotels/HotelList2";
 import SortDropdown from "../components/OurHotels/SortDropdown";
 import { Helmet } from "react-helmet";
 import favicon from "../favicon.ico";
 import { useCartContext } from "../cart_context";
+import SearchUpdate from "../components/OurHotels/SearchUpdate";
 
 const roomTypesMapping = [
 	{ value: "standardRooms", label: "Standard Rooms" },
@@ -41,7 +43,7 @@ const OurHotels = () => {
 	}, [storedCurrency]);
 
 	useEffect(() => {
-		window.scrollTo({ top: 50, behavior: "smooth" });
+		window.scrollTo({ top: 35, behavior: "smooth" });
 		const fetchDistinctRoomTypes = async () => {
 			const data3 = await gettingDistinctRoomTypes();
 			const distinctRoomTypesArray = [
@@ -171,10 +173,23 @@ const OurHotels = () => {
 			</Helmet>
 
 			<SearchSection>
-				<Search
-					distinctRoomTypes={distinctRoomTypes}
-					roomTypesMapping={roomTypesMapping}
-				/>
+				{distinctRoomTypes && (
+					<div className='mobile-search'>
+						<SearchUpdate
+							distinctRoomTypes={distinctRoomTypes}
+							roomTypesMapping={roomTypesMapping}
+						/>
+					</div>
+				)}
+
+				{distinctRoomTypes && (
+					<div className='desktop-search'>
+						<Search
+							distinctRoomTypes={distinctRoomTypes}
+							roomTypesMapping={roomTypesMapping}
+						/>
+					</div>
+				)}
 			</SearchSection>
 
 			<SortDropdownSection>
@@ -213,7 +228,7 @@ const OurHotelsWrapper = styled.div`
 
 	@media (max-width: 1000px) {
 		padding: 70px 0px;
-		margin-top: 310px;
+		margin-top: 30px;
 	}
 `;
 
@@ -224,6 +239,25 @@ const SearchSection = styled.div`
 	@media (max-width: 800px) {
 		margin-top: 30px;
 	}
+
+	@media (min-width: 1001px) {
+		.desktop-search {
+			display: block;
+		}
+		.mobile-search {
+			display: none;
+		}
+	}
+
+	@media (max-width: 1000px) {
+		.mobile-search {
+			display: block;
+		}
+
+		.desktop-search {
+			display: none;
+		}
+	}
 `;
 
 const SortDropdownSection = styled.div`
@@ -232,7 +266,7 @@ const SortDropdownSection = styled.div`
 
 	@media (max-width: 768px) {
 		text-align: left;
-		margin-top: 80px;
+		margin-top: 30px;
 		margin-bottom: -10px;
 	}
 `;
