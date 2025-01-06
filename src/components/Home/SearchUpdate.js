@@ -19,11 +19,11 @@ const { Option } = Select;
 const SearchUpdate = ({ distinctRoomTypes }) => {
 	// ------------------- State -------------------
 	const [searchParams, setSearchParams] = useState({
-		destination: "",
+		destination: "Makkah", // Default to Makkah
 		checkIn: null, // from (replacing dates[0])
 		checkOut: null, // to (replacing dates[1])
-		roomType: "",
-		adults: "",
+		roomType: "all",
+		adults: "1",
 		children: "", // We'll keep children in the data, but not display in the screenshot layout
 	});
 
@@ -43,7 +43,7 @@ const SearchUpdate = ({ distinctRoomTypes }) => {
 	useEffect(() => {
 		// By default: from = tomorrow, to = +7 days from tomorrow
 		const startDate = dayjs().add(1, "day").startOf("day");
-		const endDate = dayjs().add(7, "day").endOf("day");
+		const endDate = dayjs().add(4, "day").endOf("day");
 
 		setSearchParams((prev) => ({
 			...prev,
@@ -69,15 +69,25 @@ const SearchUpdate = ({ distinctRoomTypes }) => {
 
 	// Handle the "FROM" date change
 	const handleFromDateChange = (date) => {
-		setSearchParams((prev) => ({
-			...prev,
-			checkIn: date ? date.clone() : null,
-		}));
+		if (date) {
+			setSearchParams((prev) => ({
+				...prev,
+				checkIn: date.clone(),
+				checkOut: date.clone().add(1, "day"), // Automatically set checkOut to checkIn + 1 day
+			}));
+		} else {
+			setSearchParams((prev) => ({
+				...prev,
+				checkIn: null,
+				checkOut: null, // Reset checkOut if checkIn is cleared
+			}));
+		}
+
 		setInvalidFields((prev) => ({
 			...prev,
 			checkIn: false,
+			checkOut: false, // Clear invalid state for checkOut
 		}));
-		if (date) setCalendarStartDate(date);
 	};
 
 	// Handle the "TO" date change
@@ -198,7 +208,7 @@ const SearchUpdate = ({ distinctRoomTypes }) => {
 			<RowWrapper>
 				{/* COUNTRY field */}
 				<FieldWrapper invalid={invalidFields.destination}>
-					<Label>{chosenLanguage === "Arabic" ? "البلد" : "COUNTRY"}</Label>
+					<Label>{chosenLanguage === "Arabic" ? "المدينة" : "CITY"}</Label>
 					<Select
 						style={{
 							width: "100%",
@@ -213,13 +223,29 @@ const SearchUpdate = ({ distinctRoomTypes }) => {
 						onChange={(value) => handleSelectChange(value, "destination")}
 						value={searchParams.destination}
 					>
-						<Option value=''>
-							{chosenLanguage === "Arabic" ? "اختر وجهتك" : "Destination"}
+						<Option
+							value=''
+							style={{
+								textAlign: chosenLanguage === "Arabic" ? "right" : "",
+								fontSize: chosenLanguage === "Arabic" ? "" : "11.5px",
+							}}
+						>
+							{chosenLanguage === "Arabic" ? "اختر وجهتك" : "Please Select"}
 						</Option>
-						<Option value='Makkah'>
+						<Option
+							value='Makkah'
+							style={{
+								textAlign: chosenLanguage === "Arabic" ? "right" : "",
+							}}
+						>
 							{chosenLanguage === "Arabic" ? "مكة" : "Makkah"}
 						</Option>
-						<Option value='Madinah'>
+						<Option
+							value='Madinah'
+							style={{
+								textAlign: chosenLanguage === "Arabic" ? "right" : "",
+							}}
+						>
 							{chosenLanguage === "Arabic" ? "المدينة المنورة" : "Madinah"}
 						</Option>
 					</Select>
@@ -277,6 +303,16 @@ const SearchUpdate = ({ distinctRoomTypes }) => {
 							}}
 						>
 							{chosenLanguage === "Arabic" ? "نوع الغرفة" : "Room Type"}
+						</Option>
+						<Option
+							value='all'
+							style={{
+								fontSize: chosenLanguage === "Arabic" ? "13px" : "10px",
+								fontWeight: "bold",
+								textAlign: chosenLanguage === "Arabic" ? "right" : "",
+							}}
+						>
+							{chosenLanguage === "Arabic" ? "الكل" : "All"}
 						</Option>
 						{distinctRoomTypes &&
 							distinctRoomTypes.map((labelEn) => {
@@ -607,5 +643,9 @@ const StyledNumericInput = styled(Input).attrs(() => ({
 	/* Ensure text alignment matches the language direction, if needed */
 	.ant-input {
 		text-align: ${(props) => (props.isArabic ? "right" : "left")};
+	}
+
+	::placeholder {
+		font-size: 0.65rem !important;
 	}
 `;

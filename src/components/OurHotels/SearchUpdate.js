@@ -32,11 +32,11 @@ const SearchUpdate = ({
 
 	// ----------------- State -----------------
 	const [searchParams, setSearchParams] = useState(() => ({
-		destination: initialSearchParams.destination || "",
+		destination: initialSearchParams.destination || "Makkah", // Default to Makkah
 		checkIn: hasInitialDates ? initialSearchParams.dates[0] : defaultCheckIn,
 		checkOut: hasInitialDates ? initialSearchParams.dates[1] : defaultCheckOut,
-		roomType: initialSearchParams.roomType || "",
-		adults: initialSearchParams.adults || "",
+		roomType: initialSearchParams.roomType || "all",
+		adults: initialSearchParams.adults || "1",
 		children: initialSearchParams.children || "",
 	}));
 
@@ -70,13 +70,24 @@ const SearchUpdate = ({
 	};
 
 	const handleFromDateChange = (date) => {
-		setSearchParams((prev) => ({
-			...prev,
-			checkIn: date ? date.clone() : null,
-		}));
+		if (date) {
+			setSearchParams((prev) => ({
+				...prev,
+				checkIn: date.clone(),
+				checkOut: date.clone().add(1, "day"), // Automatically set checkOut to checkIn + 1 day
+			}));
+		} else {
+			setSearchParams((prev) => ({
+				...prev,
+				checkIn: null,
+				checkOut: null, // Reset checkOut if checkIn is cleared
+			}));
+		}
+
 		setInvalidFields((prev) => ({
 			...prev,
 			checkIn: false,
+			checkOut: false, // Clear invalid state for checkOut
 		}));
 	};
 
@@ -195,7 +206,7 @@ const SearchUpdate = ({
 			<RowWrapper>
 				{/* Destination / Country */}
 				<FieldWrapper invalid={invalidFields.destination}>
-					<Label>{chosenLanguage === "Arabic" ? "البلد" : "COUNTRY"}</Label>
+					<Label>{chosenLanguage === "Arabic" ? "المدينة" : "CITY"}</Label>
 					<Select
 						style={{ width: "100%", height: "40px" }}
 						placeholder={
@@ -206,13 +217,29 @@ const SearchUpdate = ({
 						onChange={(value) => handleSelectChange(value, "destination")}
 						value={searchParams.destination}
 					>
-						<Option value=''>
-							{chosenLanguage === "Arabic" ? "اختر وجهتك" : "Destination"}
+						<Option
+							value=''
+							style={{
+								textAlign: chosenLanguage === "Arabic" ? "right" : "",
+								fontSize: chosenLanguage === "Arabic" ? "" : "11.5px",
+							}}
+						>
+							{chosenLanguage === "Arabic" ? "اختر وجهتك" : "Please Select"}
 						</Option>
-						<Option value='Makkah'>
+						<Option
+							value='Makkah'
+							style={{
+								textAlign: chosenLanguage === "Arabic" ? "right" : "",
+							}}
+						>
 							{chosenLanguage === "Arabic" ? "مكة" : "Makkah"}
 						</Option>
-						<Option value='Madinah'>
+						<Option
+							value='Madinah'
+							style={{
+								textAlign: chosenLanguage === "Arabic" ? "right" : "",
+							}}
+						>
 							{chosenLanguage === "Arabic" ? "المدينة المنورة" : "Madinah"}
 						</Option>
 					</Select>
@@ -267,6 +294,17 @@ const SearchUpdate = ({
 							}}
 						>
 							{chosenLanguage === "Arabic" ? "نوع الغرفة" : "Room Type"}
+						</Option>
+
+						<Option
+							value='all'
+							style={{
+								fontSize: chosenLanguage === "Arabic" ? "13px" : "10px",
+								fontWeight: "bold",
+								textAlign: chosenLanguage === "Arabic" ? "right" : "",
+							}}
+						>
+							{chosenLanguage === "Arabic" ? "الكل" : "All"}
 						</Option>
 						{distinctRoomTypes &&
 							distinctRoomTypes.map((labelEn) => {

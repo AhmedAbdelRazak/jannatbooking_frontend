@@ -54,10 +54,20 @@ const calculatePricingByDay2 = (
 	endDate,
 	basePrice,
 	defaultCost,
-	commissionRate
+	commissionRate // Passed directly from the component
 ) => {
 	const start = dayjs(startDate).startOf("day");
 	const end = dayjs(endDate).subtract(1, "day").startOf("day"); // Exclude the checkout day
+
+	// Default commission rate: process.env.REACT_APP_COMMISSIONRATE - 1
+	const defaultCommissionRate =
+		Number(process.env.REACT_APP_COMMISSIONRATE || 1.1) - 1;
+
+	// Use the passed commissionRate if available, otherwise use the default
+	const finalCommissionRate =
+		typeof commissionRate !== "undefined"
+			? Number(commissionRate)
+			: defaultCommissionRate;
 
 	const dateArray = [];
 	let currentDate = start;
@@ -65,16 +75,24 @@ const calculatePricingByDay2 = (
 	while (currentDate.isBefore(end) || currentDate.isSame(end, "day")) {
 		const formattedDate = currentDate.format("YYYY-MM-DD");
 
-		// Find rate for the current date
-		const rateForDate = pricingRate.find(
-			(rate) => dayjs(rate.date).format("YYYY-MM-DD") === formattedDate
-		);
+		// Find rate for the current date in pricingRate
+		const rateForDate =
+			pricingRate && Array.isArray(pricingRate)
+				? pricingRate.find(
+						(rate) =>
+							dayjs(rate.calendarDate).format("YYYY-MM-DD") === formattedDate
+					)
+				: null;
 
 		dateArray.push({
 			date: formattedDate,
-			price: rateForDate ? rateForDate.price : basePrice,
-			rootPrice: rateForDate ? rateForDate.rootPrice : defaultCost,
-			commissionRate: rateForDate ? rateForDate.commissionRate : commissionRate,
+			price: rateForDate ? Number(rateForDate.price) : Number(basePrice),
+			rootPrice: rateForDate
+				? Number(rateForDate.rootPrice)
+				: Number(defaultCost),
+			commissionRate: rateForDate
+				? Number(rateForDate.commissionRate || finalCommissionRate)
+				: finalCommissionRate, // Use finalCommissionRate
 		});
 
 		currentDate = currentDate.add(1, "day");
@@ -93,6 +111,35 @@ const calculatePricingByDayWithCommission = (
 	commissionRate
 ) => {
 	const pricingByDay = calculatePricingByDay(
+		pricingRate,
+		startDate,
+		endDate,
+		basePrice,
+		defaultCost,
+		commissionRate
+	);
+
+	return pricingByDay.map((day) => ({
+		...day,
+		totalPriceWithCommission: Number(
+			(
+				Number(day.price) +
+				Number(day.rootPrice) * Number(day.commissionRate)
+			).toFixed(2)
+		),
+	}));
+};
+
+const calculatePricingByDayWithCommission2 = (
+	pricingRate,
+	startDate,
+	endDate,
+	basePrice,
+	defaultCost,
+	commissionRate
+) => {
+	// Calculate pricing by day
+	const pricingByDay = calculatePricingByDay2(
 		pricingRate,
 		startDate,
 		endDate,
@@ -197,29 +244,45 @@ const cart_reducer = (state, action) => {
 	}
 
 	if (action.type === UPDATE_ROOM_DATES) {
-		const { id, startDate, endDate } = action.payload;
+		const { id, startDate, endDate, pricingByDay } = action.payload;
 
 		const updatedCart = state.roomCart.map((room) => {
 			if (room.id === id) {
-				const newPricingByDay = calculatePricingByDay2(
-					room.priceRating,
-					startDate,
-					endDate,
-					Number(room.price)
-				);
-				const newPricingByDayWithCommission =
-					calculatePricingByDayWithCommission(
+				// Recalculate nights dynamically
+				const nights = dayjs(endDate).diff(dayjs(startDate), "day");
+
+				// Ensure commission rate fallback is applied correctly
+				const defaultCommissionRate =
+					Number(process.env.REACT_APP_COMMISSIONRATE || 1.1) - 1;
+
+				// Calculate pricing by day and pricing by day with commission
+				const newPricingByDay =
+					pricingByDay ||
+					calculatePricingByDay2(
 						room.priceRating,
 						startDate,
 						endDate,
+						Number(room.price),
 						Number(room.defaultCost),
-						Number(room.commissionRate) || 0
+						Number(room.commissionRate || defaultCommissionRate)
+					);
+
+				const newPricingByDayWithCommission =
+					pricingByDay ||
+					calculatePricingByDayWithCommission2(
+						room.priceRating,
+						startDate,
+						endDate,
+						Number(room.price),
+						Number(room.defaultCost),
+						Number(room.commissionRate || defaultCommissionRate)
 					);
 
 				return {
 					...room,
 					startDate,
 					endDate,
+					nights, // Update nights dynamically
 					pricingByDay: newPricingByDay,
 					pricingByDayWithCommission: newPricingByDayWithCommission,
 				};
@@ -257,40 +320,37 @@ const cart_reducer = (state, action) => {
 	}
 
 	if (action.type === COUNT_ROOM_TOTALS) {
-		const {
-			total_rooms,
-			total_price_with_commission,
-			total_price,
-			total_commission,
-			total_guests,
-			total_adults,
-			total_children,
-		} = state.roomCart.reduce(
-			(totals, item) => {
+		const totals = state.roomCart.reduce(
+			(accum, item) => {
+				// Total room price (sum of daily prices for the room)
 				const totalRoomPrice = item.pricingByDay.reduce(
-					(sum, day) => sum + Number(day.price),
+					(sum, day) => sum + Number(day.price), // Sum up all daily prices
 					0
 				);
 
+				// Total room commission (calculated per day)
 				const totalRoomCommission = item.pricingByDayWithCommission.reduce(
 					(sum, day) =>
-						sum + Number(day.rootPrice) * Number(day.commissionRate),
+						sum + Number(day.rootPrice) * Number(day.commissionRate), // Add daily commissions
 					0
 				);
 
+				// Room total price including commission
 				const roomTotalWithCommission = totalRoomPrice + totalRoomCommission;
 
-				totals.total_rooms += item.amount;
-				totals.total_price += totalRoomPrice * item.amount;
-				totals.total_commission += totalRoomCommission * item.amount;
-				totals.total_price_with_commission +=
-					roomTotalWithCommission * item.amount;
-				totals.total_guests += item.amount * (item.adults + item.children);
-				totals.total_adults += item.adults * item.amount;
-				totals.total_children += item.children * item.amount;
+				// Update overall totals
+				accum.total_rooms += item.amount; // Total number of rooms
+				accum.total_price += totalRoomPrice * item.amount; // Total price for all rooms
+				accum.total_commission += totalRoomCommission * item.amount; // Total commission
+				accum.total_price_with_commission +=
+					roomTotalWithCommission * item.amount; // Total price with commission
+				accum.total_guests += item.amount * (item.adults + item.children); // Total guests
+				accum.total_adults += item.adults * item.amount; // Total adults
+				accum.total_children += item.children * item.amount; // Total children
 
-				return totals;
+				return accum;
 			},
+			// Initialize totals
 			{
 				total_rooms: 0,
 				total_price: 0,
@@ -302,15 +362,10 @@ const cart_reducer = (state, action) => {
 			}
 		);
 
+		// Return updated state with new totals
 		return {
 			...state,
-			total_rooms,
-			total_price,
-			total_price_with_commission,
-			total_commission,
-			total_guests,
-			total_adults,
-			total_children,
+			...totals,
 		};
 	}
 

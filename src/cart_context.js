@@ -98,11 +98,25 @@ export const CartProvider = ({ children }) => {
 		dispatch({ type: SIDEBAR_CLOSE2 });
 	};
 
-	const updateRoomDates = (id, startDate, endDate) => {
+	const updateRoomDates = (
+		id,
+		startDate,
+		endDate,
+		pricingByDay,
+		pricingByDayWithCommission
+	) => {
 		dispatch({
 			type: UPDATE_ROOM_DATES,
-			payload: { id, startDate, endDate },
+			payload: {
+				id,
+				startDate,
+				endDate,
+				pricingByDay,
+				pricingByDayWithCommission,
+			},
 		});
+		// Recalculate totals after updating room dates
+		dispatch({ type: COUNT_ROOM_TOTALS });
 	};
 
 	useEffect(() => {

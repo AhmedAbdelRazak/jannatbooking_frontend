@@ -285,6 +285,27 @@ export const gettingDistinctRoomTypes = (token) => {
 		.catch((err) => console.log(err));
 };
 
+export const gettingRoomByIds = (ids) => {
+	return fetch(`${process.env.REACT_APP_API_URL}/rooms/get-by-ids`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json", // Specify that we are sending JSON
+			Accept: "application/json", // Accept JSON in response
+		},
+		body: JSON.stringify({ roomIds: ids }), // Pass the array of room IDs in the body
+	})
+		.then((response) => {
+			if (!response.ok) {
+				// Handle errors with a meaningful message
+				throw new Error(`Error: ${response.status} ${response.statusText}`);
+			}
+			return response.json(); // Parse the JSON response
+		})
+		.catch((err) => {
+			console.error("Error fetching room data:", err);
+		});
+};
+
 export const gettingSingleHotel = (hotelSlug) => {
 	return fetch(`${process.env.REACT_APP_API_URL}/single-hotel/${hotelSlug}`, {
 		method: "GET",

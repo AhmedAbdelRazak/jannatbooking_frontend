@@ -4,14 +4,16 @@ import { useCartContext } from "../../cart_context";
 import { Link } from "react-router-dom";
 import { FaTimes, FaPlus, FaMinus } from "react-icons/fa";
 // eslint-disable-next-line
-import { DatePicker, ConfigProvider } from "antd"; // Import Ant Design's RangePicker
+import { DatePicker, Button } from "antd";
 import dayjs from "dayjs";
-// eslint-disable-next-line
-import locale from "antd/es/date-picker/locale/en_US"; // Optional locale for DatePicker
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter"; // Import the plugin
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
+import { gettingRoomByIds } from "../../apiCore";
+import { toast } from "react-toastify";
 
-const { RangePicker } = DatePicker;
+// Extend Day.js with the plugin
+dayjs.extend(isSameOrAfter);
 
 // Define translations
 const translations = {
@@ -51,12 +53,59 @@ const translations = {
 	},
 };
 
+const generateDateRange = (startDate, endDate) => {
+	const start = dayjs(startDate);
+	const end = dayjs(endDate);
+	const dateArray = [];
+
+	let currentDate = start;
+	while (currentDate.isBefore(end)) {
+		// Exclude end date
+		dateArray.push(currentDate.format("YYYY-MM-DD"));
+		currentDate = currentDate.add(1, "day");
+	}
+
+	return dateArray;
+};
+
+const calculatePricingByDay = (
+	pricingRate,
+	startDate,
+	endDate,
+	basePrice,
+	defaultCost,
+	roomCommission
+) => {
+	const dateRange = generateDateRange(startDate, endDate);
+
+	return dateRange.map((date) => {
+		const rateForDate = pricingRate?.find((rate) => rate.calendarDate === date);
+		const selectedCommissionRate = rateForDate?.commissionRate
+			? rateForDate.commissionRate / 100
+			: roomCommission
+				? roomCommission / 100
+				: parseFloat(process.env.REACT_APP_COMMISSIONRATE) - 1;
+
+		return {
+			date,
+			price: rateForDate
+				? parseFloat(rateForDate.price) || 0 // Use `price` if available
+				: parseFloat(basePrice || 0), // Fallback to `basePrice`
+			rootPrice: rateForDate
+				? parseFloat(rateForDate.rootPrice) ||
+					parseFloat(defaultCost || basePrice || 0)
+				: parseFloat(defaultCost || basePrice || 0),
+			commissionRate: selectedCommissionRate,
+		};
+	});
+};
+
 const SidebarCartDrawer = () => {
 	const {
 		roomCart,
 		removeRoomItem,
 		toggleRoomAmount,
-		updateRoomDates, // Add updateRoomDates function
+		updateRoomDates,
 		total_rooms,
 		closeSidebar2,
 		isSidebarOpen2,
@@ -66,9 +115,14 @@ const SidebarCartDrawer = () => {
 
 	const [selectedCurrency, setSelectedCurrency] = useState("SAR");
 	const [currencyRates, setCurrencyRates] = useState({});
+	const [checkIn, setCheckIn] = useState(null);
+	const [checkOut, setCheckOut] = useState(null);
+	const [roomDetailsFromIds, setRoomDetailsFromIds] = useState([]);
+	const [nightsCount, setNightsCount] = useState(0);
+	const [prevCheckIn, setPrevCheckIn] = useState(null);
+	const [prevCheckOut, setPrevCheckOut] = useState(null);
 
 	useEffect(() => {
-		// Fetch currency and rates from localStorage
 		const currency = localStorage.getItem("selectedCurrency") || "SAR";
 		const rates = JSON.parse(localStorage.getItem("rates")) || {
 			SAR_USD: 0.27,
@@ -79,45 +133,265 @@ const SidebarCartDrawer = () => {
 		setCurrencyRates(rates);
 	}, []);
 
-	// Helper to convert currency
+	useEffect(() => {
+		const fetchRoomDetails = async () => {
+			try {
+				const roomIds = roomCart && roomCart.map((i) => i.id);
+
+				if (!roomIds || roomIds.length === 0) {
+					console.warn("No room IDs found in the cart.");
+					return;
+				}
+
+				const data = await gettingRoomByIds(roomIds);
+
+				if (data && data.success) {
+					setRoomDetailsFromIds(data.rooms);
+				} else {
+					console.error(
+						"Failed to fetch room details:",
+						data.error || "Unknown error"
+					);
+				}
+			} catch (error) {
+				console.error("An error occurred while fetching room details:", error);
+			}
+		};
+
+		fetchRoomDetails();
+
+		if (roomCart.length > 0) {
+			const initialCheckIn = dayjs(roomCart[0].startDate);
+			const initialCheckOut = dayjs(roomCart[0].endDate);
+			setCheckIn(initialCheckIn);
+			setCheckOut(initialCheckOut);
+			setPrevCheckIn(initialCheckIn);
+			setPrevCheckOut(initialCheckOut);
+
+			// Calculate and store the initial nights count
+			setNightsCount(initialCheckOut.diff(initialCheckIn, "day"));
+		}
+	}, [roomCart]);
+
+	useEffect(() => {
+		if (checkIn && checkOut) {
+			let isValid = true;
+			roomDetailsFromIds.forEach((room) => {
+				const selectedDates = room.pricingRate.filter(
+					(rate) =>
+						dayjs(rate.calendarDate).isSameOrAfter(checkIn) &&
+						dayjs(rate.calendarDate).isBefore(checkOut)
+				);
+
+				if (selectedDates.some((date) => Number(date.price) === 0)) {
+					isValid = false;
+				}
+			});
+
+			if (!isValid) {
+				toast.error(
+					chosenLanguage === "Arabic"
+						? "الغرفة غير متاحة في التواريخ المعدلة، يرجى تجربة نطاق تاريخ آخر"
+						: "Room is unavailable in the modified selected dates"
+				);
+			}
+		}
+	}, [checkIn, checkOut, roomDetailsFromIds, chosenLanguage]);
+
 	const convertCurrency = (amount) => {
-		if (!amount || isNaN(amount)) return "0.00"; // Default to "0.00" if amount is invalid
+		if (!amount || isNaN(amount)) return "0.00";
 
 		if (selectedCurrency === "usd")
 			return (amount * (currencyRates.SAR_USD || 1)).toFixed(2);
 		if (selectedCurrency === "eur")
 			return (amount * (currencyRates.SAR_EUR || 1)).toFixed(2);
-		return amount.toFixed(2); // Default to SAR
+		return amount.toFixed(2);
 	};
 
-	// Handle when the user changes the date range
-	// eslint-disable-next-line
-	const handleDateChange = (dates) => {
-		if (dates && dates[0] && dates[1]) {
-			const startDate = dates[0].format("YYYY-MM-DD");
-			const endDate = dates[1].format("YYYY-MM-DD");
+	// Validate the dates before proceeding to checkout
+	const validateDates = () => {
+		if (!checkIn || !checkOut) {
+			toast.error(
+				chosenLanguage === "Arabic"
+					? "يرجى اختيار تواريخ تسجيل الوصول والمغادرة"
+					: "Please select check-in and check-out dates"
+			);
+			return false;
+		}
 
-			// Update the room dates in the context for the entire reservation
-			roomCart.forEach((room) => updateRoomDates(room.id, startDate, endDate));
+		if (!checkIn.isBefore(checkOut)) {
+			toast.error(
+				chosenLanguage === "Arabic"
+					? "يجب أن يكون تاريخ تسجيل الوصول قبل تاريخ المغادرة"
+					: "Check-in date must be before check-out date"
+			);
+			return false;
+		}
+
+		return true;
+	};
+
+	const handleDateChange = (date, type) => {
+		if (type === "checkIn") {
+			const newCheckOut = date.add(nightsCount, "day");
+
+			// Validate the new date range
+			const isValid = validateDates(date, newCheckOut);
+
+			if (!isValid) {
+				toast.error(
+					chosenLanguage === "Arabic"
+						? "توجد تواريخ غير متاحة للحجز. تم إعادة التواريخ إلى الوضع السابق."
+						: "Some dates are unavailable for booking. Dates have been reset to the previous values."
+				);
+				setCheckIn(prevCheckIn);
+				setCheckOut(prevCheckOut);
+				return;
+			}
+
+			setCheckIn(date);
+			setCheckOut(newCheckOut);
+
+			// Update previous dates
+			setPrevCheckIn(date);
+			setPrevCheckOut(newCheckOut);
+
+			// Automatically update the cart
+			roomCart.forEach((room) => {
+				const roomDetails = roomDetailsFromIds.find(
+					(detail) => detail._id === room.id
+				);
+
+				if (roomDetails) {
+					const updatedPricingByDay = calculatePricingByDay(
+						roomDetails.pricingRate || [],
+						date.format("YYYY-MM-DD"),
+						newCheckOut.format("YYYY-MM-DD"),
+						roomDetails.price.basePrice,
+						roomDetails.defaultCost,
+						roomDetails.roomCommission
+					);
+
+					const updatedPricingByDayWithCommission = updatedPricingByDay.map(
+						(day) => ({
+							...day,
+							totalPriceWithCommission: Number(
+								(
+									Number(day.price) +
+									Number(day.rootPrice) * Number(day.commissionRate)
+								).toFixed(2)
+							),
+						})
+					);
+
+					updateRoomDates(
+						room.id,
+						date.format("YYYY-MM-DD"),
+						newCheckOut.format("YYYY-MM-DD"),
+						updatedPricingByDay,
+						updatedPricingByDayWithCommission
+					);
+				}
+			});
+		}
+
+		if (type === "checkOut") {
+			if (!checkIn) {
+				toast.error(
+					chosenLanguage === "Arabic"
+						? "يرجى اختيار تاريخ الوصول أولاً."
+						: "Please select a check-in date first."
+				);
+				return;
+			}
+
+			if (!checkIn.isBefore(date)) {
+				toast.error(
+					chosenLanguage === "Arabic"
+						? "يجب أن يكون تاريخ المغادرة بعد تاريخ الوصول."
+						: "Check-out date must be after check-in date."
+				);
+				setCheckOut(prevCheckOut);
+				return;
+			}
+
+			// Validate the new date range
+			const isValid = validateDates(checkIn, date);
+
+			if (!isValid) {
+				toast.error(
+					chosenLanguage === "Arabic"
+						? "توجد تواريخ غير متاحة للحجز. تم إعادة التواريخ إلى الوضع السابق."
+						: "Some dates are unavailable for booking. Dates have been reset to the previous values."
+				);
+				setCheckIn(prevCheckIn);
+				setCheckOut(prevCheckOut);
+				return;
+			}
+
+			setCheckOut(date);
+
+			// Update previous dates
+			setPrevCheckOut(date);
+
+			// Automatically update the cart
+			roomCart.forEach((room) => {
+				const roomDetails = roomDetailsFromIds.find(
+					(detail) => detail._id === room.id
+				);
+
+				if (roomDetails) {
+					const updatedPricingByDay = calculatePricingByDay(
+						roomDetails.pricingRate || [],
+						checkIn.format("YYYY-MM-DD"),
+						date.format("YYYY-MM-DD"),
+						roomDetails.price.basePrice,
+						roomDetails.defaultCost,
+						roomDetails.roomCommission
+					);
+
+					const updatedPricingByDayWithCommission = updatedPricingByDay.map(
+						(day) => ({
+							...day,
+							totalPriceWithCommission: Number(
+								(
+									Number(day.price) +
+									Number(day.rootPrice) * Number(day.commissionRate)
+								).toFixed(2)
+							),
+						})
+					);
+
+					updateRoomDates(
+						room.id,
+						checkIn.format("YYYY-MM-DD"),
+						date.format("YYYY-MM-DD"),
+						updatedPricingByDay,
+						updatedPricingByDayWithCommission
+					);
+				}
+			});
 		}
 	};
 
-	// Disable past dates
-	// eslint-disable-next-line
-	const disabledDate = (current) => current && current < dayjs().endOf("day");
+	const disabledCheckInDate = (current) => {
+		return current && current < dayjs().endOf("day");
+	};
 
-	// eslint-disable-next-line
-	const panelRender = (panelNode) => (
-		<StyledRangePickerContainer>{panelNode}</StyledRangePickerContainer>
-	);
+	const disabledCheckOutDate = (current) => {
+		if (!checkIn) return current && current < dayjs().endOf("day");
+		return current && current <= checkIn.endOf("day");
+	};
 
-	// Get translations for the chosen language
 	const t = translations[chosenLanguage] || translations.English;
 
 	return (
 		<div>
 			<Overlay isOpen={isSidebarOpen2} onClick={closeSidebar2} />
-			<DrawerWrapper isOpen={isSidebarOpen2}>
+			<DrawerWrapper
+				isOpen={isSidebarOpen2}
+				isArabic={chosenLanguage === "Arabic"}
+			>
 				<CloseIcon onClick={closeSidebar2} />
 				<DrawerHeader
 					dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
@@ -129,23 +403,38 @@ const SidebarCartDrawer = () => {
 					{t.yourReservation}
 				</DrawerHeader>
 
-				{/* Ant Design Date Range Picker - Displayed only once */}
-				{/* <DateRangePickerWrapper>
-					<ConfigProvider locale={locale}>
-						<RangeDatePicker
-							format='YYYY-MM-DD'
-							onChange={handleDateChange}
-							value={
-								roomCart.length > 0
-									? [dayjs(roomCart[0]?.startDate), dayjs(roomCart[0]?.endDate)]
-									: null
-							}
-							disabledDate={disabledDate}
-							panelRender={panelRender}
-							inputReadOnly
-						/>
-					</ConfigProvider>
-				</DateRangePickerWrapper> */}
+				{roomCart.length > 0 && (
+					<DatePickersWrapper dir={chosenLanguage === "Arabic" ? "rtl" : ""}>
+						<div>
+							<Label>{chosenLanguage === "Arabic" ? "من" : "Check-In"}</Label>
+							<DatePicker
+								value={checkIn}
+								onChange={(date) => handleDateChange(date, "checkIn")}
+								disabledDate={disabledCheckInDate}
+								inputReadOnly
+								placeholder={
+									chosenLanguage === "Arabic"
+										? "اختر تاريخ الوصول"
+										: "Select check-in"
+								}
+							/>
+						</div>
+						<div>
+							<Label>{chosenLanguage === "Arabic" ? "إلى" : "Check-Out"}</Label>
+							<DatePicker
+								value={checkOut}
+								onChange={(date) => handleDateChange(date, "checkOut")}
+								disabledDate={disabledCheckOutDate}
+								inputReadOnly
+								placeholder={
+									chosenLanguage === "Arabic"
+										? "اختر تاريخ المغادرة"
+										: "Select check-out"
+								}
+							/>
+						</div>
+					</DatePickersWrapper>
+				)}
 
 				<DrawerContent>
 					{roomCart.length > 0 ? (
@@ -229,7 +518,37 @@ const SidebarCartDrawer = () => {
 					</TotalPrice>
 					<CheckoutButton
 						to='/checkout'
-						onClick={() => {
+						onClick={(e) => {
+							// Prevent navigation initially
+							e.preventDefault();
+
+							// Check if all rooms belong to the same hotel
+							const uniqueHotelIds = [
+								...new Set(roomCart.map((room) => room.hotelId)),
+							];
+							if (uniqueHotelIds.length > 1) {
+								toast.error(
+									chosenLanguage === "Arabic"
+										? "لا يمكنك الحجز مع فنادق مختلفة في نفس الحجز."
+										: "You cannot book with two different hotels in the same reservation."
+								);
+								return;
+							}
+
+							// Check if any room has a blocked date (price = 0)
+							const hasBlockedDates = roomCart.some((room) =>
+								room.pricingByDay.some((day) => Number(day.price) === 0)
+							);
+							if (hasBlockedDates) {
+								toast.error(
+									chosenLanguage === "Arabic"
+										? "الغرفة غير متاحة في التواريخ المعدلة، يرجى تجربة نطاق تاريخ آخر"
+										: "Some selected dates are unavailable for booking. Please adjust the dates."
+								);
+								return;
+							}
+
+							// If all checks pass, proceed to checkout
 							ReactGA.event({
 								category: "User Clicked On Checkout",
 								action: "User Clicked On Checkout",
@@ -243,6 +562,8 @@ const SidebarCartDrawer = () => {
 
 							closeSidebar2();
 							window.scrollTo({ top: 50, behavior: "smooth" });
+							// Navigate to checkout
+							window.location.href = "/checkout";
 						}}
 					>
 						{t.proceedToCheckout}
@@ -290,6 +611,7 @@ const DrawerWrapper = styled.div`
 		top 0.3s ease-in-out;
 	transform: ${({ isOpen }) => (isOpen ? "translateX(0)" : "translateX(100%)")};
 	color: var(--text-color-primary);
+	text-align: ${({ isArabic }) => (isArabic ? "right" : "")};
 
 	@media (max-width: 768px) {
 		width: 90%;
@@ -319,23 +641,19 @@ const DrawerHeader = styled.h2`
 	margin-bottom: 15px;
 `;
 
-const StyledRangePickerContainer = styled.div`
-	@media (max-width: 576px) {
-		.ant-picker-panels {
-			flex-direction: column !important;
+const DatePickersWrapper = styled.div`
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 20px;
+
+	div {
+		flex: 1;
+		margin-right: 10px;
+
+		&:last-child {
+			margin-right: 0;
 		}
 	}
-`;
-
-// eslint-disable-next-line
-const DateRangePickerWrapper = styled.div`
-	margin: 10px auto;
-	width: 85%;
-`;
-
-// eslint-disable-next-line
-const RangeDatePicker = styled(RangePicker)`
-	width: 100%;
 `;
 
 const DrawerContent = styled.div`
@@ -500,4 +818,10 @@ const CheckoutButton = styled(Link)`
 	&:hover {
 		background: var(--primary-color-light);
 	}
+`;
+
+const Label = styled.label`
+	display: block;
+	margin-bottom: 5px;
+	font-weight: bold;
 `;

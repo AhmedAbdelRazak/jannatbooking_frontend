@@ -214,6 +214,16 @@ const Search = ({
 						>
 							{chosenLanguage === "Arabic" ? "نوع الغرفة" : "Room Type"}
 						</Option>
+						<Option
+							value='all'
+							style={{
+								fontSize: chosenLanguage === "Arabic" ? "13px" : "10px",
+								fontWeight: "bold",
+								textAlign: chosenLanguage === "Arabic" ? "right" : "",
+							}}
+						>
+							{chosenLanguage === "Arabic" ? "الكل" : "All"}
+						</Option>
 						{roomTypesWithTranslations.map(({ roomType, roomTypeArabic }) => (
 							<Option
 								key={roomType}

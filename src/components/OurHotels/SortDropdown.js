@@ -4,34 +4,12 @@ import { Select } from "antd";
 import { SortAscendingOutlined } from "@ant-design/icons";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
+import { useCartContext } from "../../cart_context";
 
 const { Option } = Select;
 
-const SortDropdown = ({
-	sortOption,
-	setSortOption,
-	currency,
-	setCurrency,
-	chosenLanguage,
-}) => {
-	const handleSortChange = (value) => {
-		setSortOption(value); // Update the selected sort option in parent component
-	};
-
-	const handleCurrencyChange = (value) => {
-		ReactPixel.track("CurrencyChanged_OurHotels", {
-			action: "User Changed Currency",
-			page: "Our Hotels",
-		});
-
-		ReactGA.event({
-			category: "User Changed Currency From Our Hotels Page",
-			action: "User Changed Currency From Our Hotels Page",
-			label: `User Changed Currency From Our Hotels Page`,
-		});
-		setCurrency(value); // Update the selected currency option in parent component
-		localStorage.setItem("selectedCurrency", value); // Save the selected currency to localStorage
-	};
+const SortDropdown = ({ sortOption, setSortOption, currency, setCurrency }) => {
+	const { chosenLanguage } = useCartContext();
 
 	// Translations
 	const translations = {
@@ -57,14 +35,33 @@ const SortDropdown = ({
 
 	const t = translations[chosenLanguage] || translations.English;
 
+	// Handlers
+	const handleSortChange = (value) => {
+		setSortOption(value);
+	};
+
+	const handleCurrencyChange = (value) => {
+		ReactPixel.track("CurrencyChanged_OurHotels", {
+			action: "User Changed Currency",
+			page: "Our Hotels",
+		});
+
+		ReactGA.event({
+			category: "User Changed Currency From Our Hotels Page",
+			action: "User Changed Currency From Our Hotels Page",
+			label: `User Changed Currency From Our Hotels Page`,
+		});
+		setCurrency(value);
+		localStorage.setItem("selectedCurrency", value);
+	};
+
 	return (
 		<DropdownRow
-			style={{
-				marginRight: chosenLanguage === "Arabic" ? "10px" : "",
-			}}
+			isArabic={chosenLanguage === "Arabic"}
+			dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
 		>
 			{/* Sort Dropdown */}
-			<SortWrapper>
+			<SortWrapper isArabic={chosenLanguage === "Arabic"}>
 				<StyledSelect
 					value={sortOption}
 					onChange={handleSortChange}
@@ -73,13 +70,24 @@ const SortDropdown = ({
 					style={{
 						direction: chosenLanguage === "Arabic" ? "rtl" : "ltr",
 						textAlign: chosenLanguage === "Arabic" ? "right" : "left",
-						marginRight: chosenLanguage === "Arabic" ? "10px" : "",
 					}}
 				>
-					<Option value='closest' style={{ fontSize: "0.75rem" }}>
+					<Option
+						value='closest'
+						style={{
+							direction: chosenLanguage === "Arabic" ? "rtl" : "ltr",
+							textAlign: chosenLanguage === "Arabic" ? "right" : "left",
+						}}
+					>
 						{t.closest}
 					</Option>
-					<Option value='price' style={{ fontSize: "0.75rem" }}>
+					<Option
+						value='price'
+						style={{
+							direction: chosenLanguage === "Arabic" ? "rtl" : "ltr",
+							textAlign: chosenLanguage === "Arabic" ? "right" : "left",
+						}}
+					>
 						{t.cheapest}
 					</Option>
 				</StyledSelect>
@@ -87,36 +95,45 @@ const SortDropdown = ({
 
 			{/* Currency Dropdown */}
 			<CurrencyWrapper
+				isArabic={chosenLanguage === "Arabic"}
 				style={{
-					textAlign: chosenLanguage === "Arabic" ? "right" : "",
+					direction: chosenLanguage === "Arabic" ? "rtl" : "ltr",
+					textAlign: chosenLanguage === "Arabic" ? "right" : "left",
 				}}
 			>
 				<StyledSelect
 					value={currency}
 					onChange={handleCurrencyChange}
 					placeholder={t.currency}
+					style={{
+						direction: chosenLanguage === "Arabic" ? "rtl" : "ltr",
+						textAlign: chosenLanguage === "Arabic" ? "right" : "left",
+					}}
 				>
 					<Option
-						style={{
-							textAlign: chosenLanguage === "Arabic" ? "right" : "",
-						}}
 						value='sar'
+						style={{
+							direction: chosenLanguage === "Arabic" ? "rtl" : "ltr",
+							textAlign: chosenLanguage === "Arabic" ? "right" : "left",
+						}}
 					>
 						{t.sar}
 					</Option>
 					<Option
-						style={{
-							textAlign: chosenLanguage === "Arabic" ? "right" : "",
-						}}
 						value='usd'
+						style={{
+							direction: chosenLanguage === "Arabic" ? "rtl" : "ltr",
+							textAlign: chosenLanguage === "Arabic" ? "right" : "left",
+						}}
 					>
 						{t.usd}
 					</Option>
 					<Option
-						style={{
-							textAlign: chosenLanguage === "Arabic" ? "right" : "",
-						}}
 						value='eur'
+						style={{
+							direction: chosenLanguage === "Arabic" ? "rtl" : "ltr",
+							textAlign: chosenLanguage === "Arabic" ? "right" : "left",
+						}}
 					>
 						{t.eur}
 					</Option>
@@ -131,53 +148,58 @@ export default SortDropdown;
 // Styled Components
 const DropdownRow = styled.div`
 	display: flex;
-	justify-content: flex-end;
-	gap: 20px; /* Adjust gap between dropdowns */
+	justify-content: ${({ isArabic }) => (isArabic ? "flex-end" : "flex-start")};
+	gap: 20px;
 	margin-bottom: 10px;
 
 	@media (max-width: 768px) {
 		align-items: flex-start;
-		gap: 10px; /* Smaller gap for mobile */
-		margin-left: 10px;
+		gap: 10px;
+		margin-left: ${({ isArabic }) => (isArabic ? "" : "30px")};
+		margin-left: ${({ isArabic }) => (isArabic ? "30px" : "")};
 	}
 `;
 
 const SortWrapper = styled.div`
-	text-align: right;
+	text-align: ${({ isArabic }) => (isArabic ? "right" : "left")};
 
 	@media (max-width: 768px) {
-		text-align: left;
+		text-align: ${({ isArabic }) => (isArabic ? "right" : "left")};
 	}
 `;
 
 const CurrencyWrapper = styled.div`
-	text-align: right;
+	text-align: ${({ isArabic }) => (isArabic ? "right" : "left")};
 
 	@media (max-width: 768px) {
-		text-align: left;
+		text-align: ${({ isArabic }) => (isArabic ? "right" : "left")};
 	}
 `;
 
 const StyledSelect = styled(Select)`
-	width: 250px; /* Increased width to fit longer text */
+	width: 250px;
 	font-size: 0.85rem !important;
+
 	.ant-select-selector {
 		display: flex;
 		align-items: center;
-		height: 40px; /* Ensure consistent height */
+		height: 40px;
 		padding: 0 15px;
+		text-align: ${({ isArabic }) => (isArabic ? "right" : "left")};
 	}
 
 	.ant-select-selection-item {
 		font-size: 14px;
+		text-align: ${({ isArabic }) => (isArabic ? "right" : "left")};
 	}
 
 	.ant-select-dropdown {
-		min-width: 250px; /* Ensure the dropdown menu is wide enough */
+		min-width: 250px;
+		text-align: ${({ isArabic }) => (isArabic ? "right" : "left")};
 	}
 
 	@media (max-width: 750px) {
-		width: 170px; /* Adjusted width for smaller screens */
+		width: 170px;
 		font-size: 0.85rem !important;
 
 		.ant-select-selector > span {

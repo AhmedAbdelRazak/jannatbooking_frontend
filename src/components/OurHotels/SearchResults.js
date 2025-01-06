@@ -1,24 +1,41 @@
 import React from "react";
 import styled from "styled-components";
+import { useCartContext } from "../../cart_context";
 
 const SearchResults = ({ initialSearchParams }) => {
 	const { dates, destination, roomType, adults, children } =
 		initialSearchParams;
 
+	const { chosenLanguage } = useCartContext();
+
 	// Format the date range
 	const formattedDates =
 		dates && dates.length === 2
-			? `Selected Range: ${dates[0].format("YYYY-MM-DD")} to ${dates[1].format("YYYY-MM-DD")}`
-			: "N/A";
+			? chosenLanguage === "Arabic"
+				? `النطاق المختار: ${dates[0].format("YYYY-MM-DD")} إلى ${dates[1].format("YYYY-MM-DD")}`
+				: `Selected Range: ${dates[0].format("YYYY-MM-DD")} to ${dates[1].format("YYYY-MM-DD")}`
+			: chosenLanguage === "Arabic"
+				? "غير متوفر"
+				: "N/A";
 
 	// Format the remainder parameters
-	const formattedDetails = `${destination || "N/A"}, Room Type: ${
-		roomType || "N/A"
-	}, Adults: ${adults || 0}, Children: ${children || 0}`;
+	const formattedDetails =
+		chosenLanguage === "Arabic"
+			? `${destination || "غير متوفر"}, نوع الغرفة: ${
+					roomType || "غير متوفر"
+				}, بالغين: ${adults || 0}, أطفال: ${children || 0}`
+			: `${destination || "N/A"}, Room Type: ${
+					roomType || "N/A"
+				}, Adults: ${adults || 0}, Children: ${children || 0}`;
 
 	return (
-		<SearchResultsWrapper>
-			<div className='header'>Search Results:</div>
+		<SearchResultsWrapper
+			isArabic={chosenLanguage === "Arabic"}
+			dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+		>
+			<div className='header'>
+				{chosenLanguage === "Arabic" ? "نتائج البحث:" : "Search Results:"}
+			</div>
 			<StyledDates>{formattedDates}</StyledDates>
 			<StyledDetails>{formattedDetails}</StyledDetails>
 		</SearchResultsWrapper>
@@ -29,37 +46,34 @@ const SearchResults = ({ initialSearchParams }) => {
 const SearchResultsWrapper = styled.div`
 	display: flex;
 	flex-direction: column; /* Stack the lines vertically */
-	/* align-items: center; */
 	justify-content: center;
 	margin: 20px 0;
 	gap: 5px; /* Add spacing between lines */
 	margin-top: -120px;
 	margin-bottom: 55px;
+	text-align: ${({ isArabic }) => (isArabic ? `right` : "")};
 
 	@media (min-width: 600px) {
 		display: none;
 	}
 
 	.header {
-		text-align: left !important;
 		font-weight: bold;
 		line-height: 0.7;
-
-		margin-left: 10px;
+		text-align: ${({ isArabic }) => (isArabic ? `right` : "")};
+		margin-right: ${({ isArabic }) => (isArabic ? `10px` : "")};
+		margin-left: ${({ isArabic }) => (isArabic ? `` : "10px")};
 	}
 `;
 
 const StyledDates = styled.div`
 	font-size: 1rem;
-	/* font-weight: bold; */
 	color: #333;
 	background-color: #f9f9f9;
 	padding: 8px 15px;
 	border-radius: 10px;
-	/* border: 1px solid #ddd; */
 	width: 100%;
 	max-width: 600px; /* Limit width for better responsiveness */
-	/* box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); */
 	line-height: 1;
 
 	@media (max-width: 768px) {
@@ -71,19 +85,17 @@ const StyledDates = styled.div`
 
 const StyledDetails = styled.div`
 	font-size: 0.9rem;
-	/* font-weight: bold; */
 	color: #555;
 	background-color: #f9f9f9;
 	padding: 8px 15px;
 	border-radius: 10px;
-	/* border: 1px solid #ddd; */
 	width: 100%;
 	max-width: 600px; /* Limit width for better responsiveness */
-	/* box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); */
 	white-space: nowrap; /* Prevent wrapping */
 	overflow: hidden; /* Hide overflowing text */
 	text-overflow: ellipsis; /* Add ellipsis for overflowing text */
-	line-height: 0;
+	line-height: 1;
+	text-transform: capitalize;
 
 	@media (max-width: 768px) {
 		font-size: 0.8rem;
