@@ -121,6 +121,7 @@ const SidebarCartDrawer = () => {
 	const [nightsCount, setNightsCount] = useState(0);
 	const [prevCheckIn, setPrevCheckIn] = useState(null);
 	const [prevCheckOut, setPrevCheckOut] = useState(null);
+	const [roomErrors, setRoomErrors] = useState({});
 
 	useEffect(() => {
 		const currency = localStorage.getItem("selectedCurrency") || "SAR";
@@ -174,29 +175,40 @@ const SidebarCartDrawer = () => {
 	}, [roomCart]);
 
 	useEffect(() => {
-		if (checkIn && checkOut) {
-			let isValid = true;
-			roomDetailsFromIds.forEach((room) => {
-				const selectedDates = room.pricingRate.filter(
-					(rate) =>
-						dayjs(rate.calendarDate).isSameOrAfter(checkIn) &&
-						dayjs(rate.calendarDate).isBefore(checkOut)
-				);
+		if (!roomCart || roomCart.length === 0 || !checkIn || !checkOut) return; // Skip validation if cart is empty or dates are not set
 
-				if (selectedDates.some((date) => Number(date.price) === 0)) {
-					isValid = false;
-				}
-			});
+		let isValid = true;
+		const newRoomErrors = {}; // Reset room-specific errors
+		let hasUnavailableRooms = false; // Flag to check if any room is unavailable
 
-			if (!isValid) {
-				toast.error(
+		roomDetailsFromIds.forEach((room) => {
+			const selectedDates = room.pricingRate.filter(
+				(rate) =>
+					dayjs(rate.calendarDate).isSameOrAfter(checkIn) &&
+					dayjs(rate.calendarDate).isBefore(checkOut)
+			);
+
+			if (selectedDates.some((date) => Number(date.price) === 0)) {
+				isValid = false;
+				hasUnavailableRooms = true; // Set the flag
+				newRoomErrors[room._id] =
 					chosenLanguage === "Arabic"
-						? "الغرفة غير متاحة في التواريخ المعدلة، يرجى تجربة نطاق تاريخ آخر"
-						: "Room is unavailable in the modified selected dates"
-				);
+						? "الغرفة غير متاحة في التواريخ المحددة."
+						: "This room is unavailable for the selected date range.";
 			}
+		});
+
+		if (hasUnavailableRooms && isValid === false) {
+			// Show toast.error only once
+			// toast.error(
+			// 	chosenLanguage === "Arabic"
+			// 		? "بعض الغرف غير متاحة في التواريخ المعدلة."
+			// 		: "Some rooms are unavailable for the modified selected dates."
+			// );
 		}
-	}, [checkIn, checkOut, roomDetailsFromIds, chosenLanguage]);
+
+		setRoomErrors(newRoomErrors); // Update state with room-specific errors
+	}, [checkIn, checkOut, roomDetailsFromIds, roomCart, chosenLanguage]);
 
 	const convertCurrency = (amount) => {
 		if (!amount || isNaN(amount)) return "0.00";
@@ -210,6 +222,8 @@ const SidebarCartDrawer = () => {
 
 	// Validate the dates before proceeding to checkout
 	const validateDates = () => {
+		if (!roomCart || roomCart.length === 0) return true; // Skip validation if cart is empty
+
 		if (!checkIn || !checkOut) {
 			toast.error(
 				chosenLanguage === "Arabic"
@@ -220,11 +234,6 @@ const SidebarCartDrawer = () => {
 		}
 
 		if (!checkIn.isBefore(checkOut)) {
-			toast.error(
-				chosenLanguage === "Arabic"
-					? "يجب أن يكون تاريخ تسجيل الوصول قبل تاريخ المغادرة"
-					: "Check-in date must be before check-out date"
-			);
 			return false;
 		}
 
@@ -464,6 +473,9 @@ const SidebarCartDrawer = () => {
 										src={room.photos[0] && room.photos[0].url}
 										alt={room.name}
 									/>
+									{roomErrors[room.id] && (
+										<ErrorMessage>{roomErrors[room.id]}</ErrorMessage>
+									)}
 									<ItemDetails
 										dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
 									>
@@ -519,8 +531,17 @@ const SidebarCartDrawer = () => {
 					<CheckoutButton
 						to='/checkout'
 						onClick={(e) => {
-							// Prevent navigation initially
 							e.preventDefault();
+
+							// Check if the cart is empty
+							if (!roomCart || roomCart.length === 0) {
+								toast.error(
+									chosenLanguage === "Arabic"
+										? "سلة الحجز فارغة. يرجى إضافة غرفة للحجز."
+										: "Your reservation cart is empty. Please add a room to proceed."
+								);
+								return;
+							}
 
 							// Check if all rooms belong to the same hotel
 							const uniqueHotelIds = [
@@ -535,15 +556,24 @@ const SidebarCartDrawer = () => {
 								return;
 							}
 
-							// Check if any room has a blocked date (price = 0)
-							const hasBlockedDates = roomCart.some((room) =>
+							// Check if any room has blocked dates (price = 0)
+							const blockedRooms = roomCart.filter((room) =>
 								room.pricingByDay.some((day) => Number(day.price) === 0)
 							);
-							if (hasBlockedDates) {
+
+							if (blockedRooms.length > 0) {
+								const blockedRoomNames = blockedRooms
+									.map((room) =>
+										chosenLanguage === "Arabic"
+											? room.nameOtherLanguage
+											: room.name
+									)
+									.join(", ");
+
 								toast.error(
 									chosenLanguage === "Arabic"
-										? "الغرفة غير متاحة في التواريخ المعدلة، يرجى تجربة نطاق تاريخ آخر"
-										: "Some selected dates are unavailable for booking. Please adjust the dates."
+										? `الغرفة/الغرف التالية غير متاحة في التواريخ المحددة: ${blockedRoomNames}. يرجى اختيار تواريخ أخرى.`
+										: `The following room(s) are unavailable for the selected dates: ${blockedRoomNames}. Please choose different dates.`
 								);
 								return;
 							}
@@ -562,7 +592,6 @@ const SidebarCartDrawer = () => {
 
 							closeSidebar2();
 							window.scrollTo({ top: 50, behavior: "smooth" });
-							// Navigate to checkout
 							window.location.href = "/checkout";
 						}}
 					>
@@ -823,5 +852,14 @@ const CheckoutButton = styled(Link)`
 const Label = styled.label`
 	display: block;
 	margin-bottom: 5px;
+	font-weight: bold;
+`;
+
+const ErrorMessage = styled.div`
+	color: red;
+	font-size: 12px;
+	margin-top: 5px;
+	text-align: center;
+	margin-bottom: 10px;
 	font-weight: bold;
 `;
