@@ -14,6 +14,7 @@ const PaymentOptions = ({
 	convertedAmounts,
 	selectedPaymentOption,
 	setSelectedPaymentOption,
+	fromPage,
 }) => {
 	const handlePaymentOptionChange = (option) => {
 		setSelectedPaymentOption(option);

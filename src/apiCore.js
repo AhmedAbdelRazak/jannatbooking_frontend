@@ -73,6 +73,24 @@ export const updateSupportCase = (caseId, data, token) => {
 		.catch((err) => console.log(err));
 };
 
+export const updateReservationDetailsClient = (reservationId, data) => {
+	return fetch(
+		`${process.env.REACT_APP_API_URL}/update-reservation-client/${reservationId}`,
+		{
+			method: "PUT",
+			headers: {
+				Accept: "application/json",
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(data),
+		}
+	)
+		.then((response) => {
+			return response.json();
+		})
+		.catch((err) => console.log(err));
+};
+
 // Fetch unseen messages by Super Admin or PMS Owner
 export const getUnseenMessagesByAdminOrOwner = async (hotelId) => {
 	return fetch(
@@ -315,6 +333,24 @@ export const gettingSingleHotel = (hotelSlug) => {
 			Accept: "application/json",
 		},
 	})
+		.then((response) => {
+			return response.json();
+		})
+		.catch((err) => console.log(err));
+};
+
+export const gettingSingleReservationById = (reservationId) => {
+	return fetch(
+		`${process.env.REACT_APP_API_URL}/reservations/single-reservation/${reservationId}`,
+		{
+			method: "GET",
+			headers: {
+				// content type?
+				"Content-Type": "application/json",
+				Accept: "application/json",
+			},
+		}
+	)
 		.then((response) => {
 			return response.json();
 		})

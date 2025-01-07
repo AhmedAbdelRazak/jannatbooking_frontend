@@ -29,6 +29,7 @@ import OurHotelRooms2 from "./pages/OurHotelRooms2";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import VerificationPage from "./pages/VerificationPage";
+import PaymentLink from "./pages/PaymentLink";
 
 const App = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
@@ -139,6 +140,12 @@ const App = () => {
 						path='/reservation-verification'
 						exact
 						component={VerificationPage}
+					/>
+
+					<Route
+						path='/client-payment/:reservationId/:confirmation'
+						exact
+						component={PaymentLink}
 					/>
 
 					<PrivateRoute path='/dashboard' exact component={UserDashboard} />
