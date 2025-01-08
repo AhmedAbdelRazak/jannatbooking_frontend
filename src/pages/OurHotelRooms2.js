@@ -167,6 +167,7 @@ const translations = {
 		receptionChat: "Reception Chat",
 		available: "Available",
 		drivingToHaram: "Driving to El Haram",
+		drivingToProphetMosque: "Driving to the Mosque",
 		showMore: "Show more...",
 		showLess: "Show less...",
 		pricePerNight: "/ NIGHT",
@@ -186,6 +187,7 @@ const translations = {
 		receptionChat: "تحدث مع الاستقبال",
 		available: "متاح",
 		drivingToHaram: "بالسيارة إلى الحرم",
+		drivingToProphetMosque: "الى المسجد النبوي الشريف",
 		showMore: "عرض المزيد...",
 		showLess: "عرض أقل...",
 		pricePerNight: "/ ليلة",
@@ -811,9 +813,30 @@ const RoomCard = ({
 									{showAllAmenities ? "Show less..." : "Show more..."}
 								</ShowMoreText>
 							)}
-							<Distances className='mt-1'>
-								<FaCar /> {distanceToElHaramDriving} <span>Driving</span> to El
-								Haram
+							<Distances
+								className='mt-1'
+								dir={chosenLanguage === "Arabic" ? "rtl" : ""}
+							>
+								<FaCar />
+								{hotel.hotelState?.toLowerCase().includes("madinah") ? (
+									<>
+										{distanceToElHaramDriving
+											? `${distanceToElHaramDriving.replace(
+													"Mins",
+													chosenLanguage === "Arabic" ? "دقائق" : "Mins"
+												)} ${t.drivingToProphetMosque}`
+											: `N/A ${t.drivingToProphetMosque}`}
+									</>
+								) : (
+									<>
+										{distanceToElHaramDriving
+											? `${distanceToElHaramDriving.replace(
+													"Mins",
+													chosenLanguage === "Arabic" ? "دقائق" : "Mins"
+												)} ${t.drivingToHaram}`
+											: `N/A ${t.drivingToHaram}`}
+									</>
+								)}
 							</Distances>
 						</RoomDetails>
 						<div className='habal'></div>

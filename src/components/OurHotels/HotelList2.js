@@ -42,6 +42,7 @@ const translations = {
 		pricePerNight: "/ NIGHT",
 		freeCancellation: "+ FREE CANCELLATION",
 		drivingToHaram: "Driving to El Haram",
+		drivingToProphetMosque: "Driving to the Mosque",
 		showMore: "Show more...",
 		showLess: "Show less...",
 		receptionChat: "Reception Chat",
@@ -55,6 +56,7 @@ const translations = {
 		pricePerNight: "/ ليلة",
 		freeCancellation: "+ إلغاء مجاني",
 		drivingToHaram: "بالسيارة إلى الحرم",
+		drivingToProphetMosque: "الى المسجد النبوي الشريف",
 		showMore: "عرض المزيد...",
 		showLess: "عرض أقل...",
 		receptionChat: "تحدث مباشرة مع الاستقبال",
@@ -160,6 +162,11 @@ const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 	const handleMouseLeave = () => {
 		if (mainSwiper) mainSwiper.autoplay.start();
 	};
+
+	console.log(
+		hotel.hotelState + " " + hotel.hotelName,
+		"hotel.hotelStatehotel.hotelState"
+	);
 
 	return (
 		<HotelCardWrapper isArabic={chosenLanguage === "Arabic"}>
@@ -325,9 +332,25 @@ const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 							{showAllAmenities ? t.showLess : t.showMore}
 						</ShowMoreText>
 					)}
-					<Distances className='mt-1'>
-						<FaCar /> {hotel.distances?.drivingToElHaram} <span>Driving</span>{" "}
-						to El Haram
+					<Distances
+						className='mt-1'
+						dir={chosenLanguage === "Arabic" ? "rtl" : ""}
+					>
+						{/* safa park */}
+						<FaCar />
+						{hotel.hotelState?.toLowerCase().includes("madinah") ? (
+							<>
+								{hotel.distances?.drivingToElHaram
+									? `${hotel.distances.drivingToElHaram} ${t.drivingToProphetMosque}`
+									: `N/A ${t.drivingToProphetMosque}`}
+							</>
+						) : (
+							<>
+								{hotel.distances?.drivingToElHaram
+									? `${hotel.distances.drivingToElHaram} ${t.drivingToHaram}`
+									: `N/A ${t.drivingToHaram}`}
+							</>
+						)}
 					</Distances>
 					{/* <Distances>
 						<FaWalking /> {hotel.distances?.walkingToElHaram} Walking to El
