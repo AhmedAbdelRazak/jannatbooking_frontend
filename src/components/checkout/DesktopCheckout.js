@@ -191,7 +191,24 @@ const DesktopCheckout = ({
 					</InputGroup>
 
 					<div>
-						<TermsWrapper>
+						<TermsWrapper
+							selected={guestAgreedOnTermsAndConditions}
+							onClick={() => {
+								setGuestAgreedOnTermsAndConditions(
+									!guestAgreedOnTermsAndConditions
+								);
+								ReactGA.event({
+									category: "User Accepted Terms And Cond",
+									action: "User Accepted Terms And Cond",
+									label: `User Accepted Terms And Cond`,
+								});
+
+								ReactPixel.track("Terms And Conditions Accepted", {
+									action: "User Accepted Terms And Conditions Accepted",
+									page: "checkout",
+								});
+							}}
+						>
 							<Checkbox
 								checked={guestAgreedOnTermsAndConditions}
 								onChange={(e) => {
@@ -617,6 +634,20 @@ const TermsWrapper = styled.div`
 	font-size: 1rem;
 	display: flex;
 	align-items: center;
+	padding: 12px;
+	border: 2px solid
+		${({ selected }) => (selected ? "#c4e2ff" : "var(--border-color-light)")};
+	background-color: ${({ selected }) =>
+		selected ? "#c4e2ff" : "var(--accent-color-2-dark)"};
+	border-radius: 8px;
+	margin-bottom: 2px;
+	cursor: pointer;
+	transition: var(--main-transition);
+
+	&:hover {
+		background-color: ${({ selected }) =>
+			selected ? "#c4e2ff" : "var(--accent-color-2-dark)"};
+	}
 
 	.ant-checkbox-wrapper {
 		margin-left: 10px;

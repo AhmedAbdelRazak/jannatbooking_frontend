@@ -14,6 +14,8 @@ import { Helmet } from "react-helmet";
 import favicon from "../favicon.ico";
 import { useCartContext } from "../cart_context";
 import SearchUpdate from "../components/Home/SearchUpdate";
+import Banner2 from "../components/Home/Banner2";
+import Banner3 from "../components/Home/Banner3";
 
 const Home = () => {
 	const [homePage, setHomePage] = useState("");
@@ -181,12 +183,27 @@ const Home = () => {
 					<Section2 />
 				</div>
 
+				{homePage &&
+					homePage.homeSecondBanner &&
+					homePage.homeSecondBanner.url && (
+						<div>
+							<Banner2 homePage={homePage} />
+						</div>
+					)}
+
 				{activeHotels && generalRoomTypes && !loading ? (
 					<div>
 						<PopularHotels
 							activeHotels={activeHotels}
 							generalRoomTypes={generalRoomTypes}
 						/>
+						{homePage &&
+							homePage.homeThirdBanner &&
+							homePage.homeThirdBanner.url && (
+								<div className='my-3'>
+									<Banner3 homePage={homePage} />
+								</div>
+							)}
 					</div>
 				) : (
 					<SpinWrapper>

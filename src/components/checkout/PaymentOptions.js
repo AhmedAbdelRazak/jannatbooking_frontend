@@ -1,8 +1,7 @@
 import React from "react";
-import { Checkbox } from "antd";
+import styled from "styled-components";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
-import styled from "styled-components";
 
 const PaymentOptions = ({
 	hotelDetails,
@@ -37,56 +36,50 @@ const PaymentOptions = ({
 		<div>
 			{/* Accept Deposit Option */}
 			{hotelDetails.guestPaymentAcceptance.acceptDeposit && (
-				<TermsWrapper>
-					<Checkbox
+				<StyledOption
+					selected={selectedPaymentOption === "acceptDeposit"}
+					onClick={() => handlePaymentOptionChange("acceptDeposit")}
+				>
+					<input
+						type='radio'
 						checked={selectedPaymentOption === "acceptDeposit"}
-						onChange={() => handlePaymentOptionChange("acceptDeposit")}
-					>
+						readOnly
+					/>
+					<label>
 						{chosenLanguage === "Arabic"
 							? "قبول دفع العربون"
 							: "Accept Deposit Online"}{" "}
 						({averageCommissionRate}%)
-						<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
-							<s style={{ color: "red" }}>
+						<span>
+							<s>
 								SAR{" "}
 								{(Number(depositAmount) + Number(depositAmount) * 0.1).toFixed(
 									2
 								)}
 							</s>{" "}
 							SAR {depositAmount}
-						</span>{" "}
-					</Checkbox>
-					{/* Note about the amount due */}
-					<NoteWrapper>
-						{chosenLanguage === "Arabic"
-							? `المبلغ المستحق هو ${(
-									Number(total_price_with_commission) - Number(depositAmount)
-								).toFixed(2)} SAR بدلاً من ${(
-									Number(total_price_with_commission * 1.1) -
-									Number(depositAmount)
-								).toFixed(2)}`
-							: `Amount due is SAR ${(
-									Number(total_price_with_commission) - Number(depositAmount)
-								).toFixed(2)} instead of ${(
-									Number(total_price_with_commission * 1.1) -
-									Number(depositAmount)
-								).toFixed(2)}`}
-					</NoteWrapper>
-				</TermsWrapper>
+						</span>
+					</label>
+				</StyledOption>
 			)}
 
 			{/* Pay Whole Amount Option */}
 			{hotelDetails.guestPaymentAcceptance.acceptPayWholeAmount && (
-				<TermsWrapper>
-					<Checkbox
+				<StyledOption
+					selected={selectedPaymentOption === "acceptPayWholeAmount"}
+					onClick={() => handlePaymentOptionChange("acceptPayWholeAmount")}
+				>
+					<input
+						type='radio'
 						checked={selectedPaymentOption === "acceptPayWholeAmount"}
-						onChange={() => handlePaymentOptionChange("acceptPayWholeAmount")}
-					>
+						readOnly
+					/>
+					<label>
 						{chosenLanguage === "Arabic"
-							? "دفع المبلغ الإجمالي"
+							? "دفع مبلغ الحجز بالكامل"
 							: "Pay Whole Amount Online"}{" "}
-						<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
-							<s style={{ color: "red" }}>
+						<span>
+							<s>
 								SAR{" "}
 								{(
 									Number(total_price_with_commission) +
@@ -94,32 +87,37 @@ const PaymentOptions = ({
 								).toFixed(2)}
 							</s>{" "}
 							SAR {Number(total_price_with_commission).toFixed(2)}
-						</span>{" "}
-					</Checkbox>
-				</TermsWrapper>
+						</span>
+					</label>
+				</StyledOption>
 			)}
 
 			{/* Reserve Now, Pay in Hotel Option */}
 			{hotelDetails.guestPaymentAcceptance.acceptReserveNowPayInHotel && (
-				<TermsWrapper>
-					<Checkbox
+				<StyledOption
+					selected={selectedPaymentOption === "acceptReserveNowPayInHotel"}
+					onClick={() =>
+						handlePaymentOptionChange("acceptReserveNowPayInHotel")
+					}
+				>
+					<input
+						type='radio'
 						checked={selectedPaymentOption === "acceptReserveNowPayInHotel"}
-						onChange={() =>
-							handlePaymentOptionChange("acceptReserveNowPayInHotel")
-						}
-					>
+						readOnly
+					/>
+					<label>
 						{chosenLanguage === "Arabic"
-							? "احجز الآن والدفع عند الوصول"
+							? "الدفع عند الوصول بالفندق"
 							: "Reserve Now, Pay in Hotel"}{" "}
-						<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
+						<span>
 							SAR{" "}
 							{(
 								Number(total_price_with_commission) +
 								Number(total_price_with_commission) * 0.1
 							).toFixed(2)}
-						</span>{" "}
-					</Checkbox>
-				</TermsWrapper>
+						</span>
+					</label>
+				</StyledOption>
 			)}
 		</div>
 	);
@@ -127,21 +125,72 @@ const PaymentOptions = ({
 
 export default PaymentOptions;
 
-const TermsWrapper = styled.div`
-	margin: 5px auto;
-	font-size: 1rem;
+const StyledOption = styled.div`
 	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
+	align-items: center;
+	padding: 12px;
+	border: 2px solid
+		${({ selected }) =>
+			selected ? "var(--text-color-secondary)" : "var(--border-color-light)"};
+	background-color: ${({ selected }) =>
+		selected ? "var(--background-accent)" : "var(--accent-color-2)"};
+	border-radius: 8px;
+	margin-bottom: 2px;
+	cursor: pointer;
+	transition: var(--main-transition);
 
-	.ant-checkbox-wrapper {
-		margin-left: 10px;
+	input[type="radio"] {
+		appearance: none;
+		width: 20px;
+		height: 20px;
+		border: 2px solid var(--border-color-light);
+		border-radius: 50%;
+		margin-right: 15px;
+		position: relative;
+		cursor: pointer;
+		outline: none;
+		background-color: var(--accent-color-2);
+		transition:
+			background-color 0.3s ease,
+			border-color 0.3s ease;
 	}
-`;
 
-const NoteWrapper = styled.div`
-	margin-top: 5px;
-	font-size: 0.9rem;
-	color: #007bff; /* Custom blue hex color */
-	font-weight: bold;
+	input[type="radio"]:checked {
+		background-color: var(--text-color-dark);
+		border-color: var(--text-color-dark);
+	}
+
+	label {
+		font-size: 16px;
+		font-weight: 500;
+		color: var(--text-color-primary);
+		display: flex;
+		flex-direction: column;
+	}
+
+	span {
+		font-weight: bold;
+		font-size: 12.5px;
+		color: var(--secondary-color-dark);
+		margin-top: 5px;
+	}
+
+	/* Responsive adjustments for smaller screens */
+	@media (max-width: 768px) {
+		padding: 3px 8px; /* Less padding for mobile screens */
+
+		input[type="radio"] {
+			width: 18px;
+			height: 18px;
+			margin-right: 10px;
+		}
+
+		/* label {
+			font-size: 14px;
+		}
+
+		span {
+			font-size: 11px;
+		} */
+	}
 `;
