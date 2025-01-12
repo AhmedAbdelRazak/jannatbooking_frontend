@@ -24,6 +24,7 @@ import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import PaymentOptions from "./PaymentOptions";
 
+// eslint-disable-next-line
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
 const { Option } = Select;
@@ -110,6 +111,7 @@ const CheckoutContent = ({
 	const [selectedCurrency, setSelectedCurrency] = useState("SAR");
 	const [currencyRates, setCurrencyRates] = useState({});
 	const [selectedPaymentOption, setSelectedPaymentOption] = useState("");
+	const [paymentClicked, setPaymentClicked] = useState("Not Clicked");
 	const [convertedAmounts, setConvertedAmounts] = useState({
 		depositUSD: null,
 		totalUSD: null,
@@ -520,7 +522,7 @@ const CheckoutContent = ({
 						<h2>{t.yourReservation}</h2>
 
 						{/* Ant Design Date Range Picker */}
-						<DateRangePickerWrapper>
+						{/* <DateRangePickerWrapper>
 							<RangePicker
 								format='YYYY-MM-DD'
 								disabledDate={disabledDate}
@@ -533,7 +535,17 @@ const CheckoutContent = ({
 								disabled
 								dropdownClassName='mobile-friendly-picker'
 							/>
-						</DateRangePickerWrapper>
+						</DateRangePickerWrapper> */}
+						<div
+							style={{
+								textAlign: "center",
+								marginBottom: "5px",
+								textTransform: "capitalize",
+								fontSize: "1.4rem",
+							}}
+						>
+							{roomCart[0] && roomCart[0].hotelName}
+						</div>
 
 						{roomCart.length > 0 ? (
 							roomCart.map((room) => {
@@ -717,7 +729,7 @@ const CheckoutContent = ({
 
 					{!user ? (
 						<div className='row'>
-							<div className='col-md-12 mt-1'>
+							{/* <div className='col-md-12 mt-1'>
 								<p style={{ fontWeight: "bold", fontSize: "13px" }}>
 									Already Have An Account?{" "}
 									<span
@@ -731,7 +743,7 @@ const CheckoutContent = ({
 										Please Click Here To Signin
 									</span>
 								</p>
-							</div>
+							</div> */}
 							<div className='col-md-6'>
 								<InputGroup>
 									<label>{t.password}</label>
@@ -794,7 +806,25 @@ const CheckoutContent = ({
 						</Select>
 					</InputGroup>
 
-					<div>
+					<div className='my-4'>
+						{hotelDetails && hotelDetails.hotelName ? (
+							<PaymentOptions
+								hotelDetails={hotelDetails}
+								chosenLanguage={chosenLanguage}
+								t={t}
+								depositAmount={depositAmount}
+								averageCommissionRate={averageCommissionRate}
+								total_price_with_commission={total_price_with_commission}
+								convertedAmounts={convertedAmounts}
+								selectedPaymentOption={selectedPaymentOption}
+								setSelectedPaymentOption={setSelectedPaymentOption}
+							/>
+						) : null}
+
+						<small onClick={() => window.open("/terms-conditions", "_blank")}>
+							{t.checkTerms}
+						</small>
+
 						<TermsWrapper
 							selected={guestAgreedOnTermsAndConditions}
 							onClick={() => {
@@ -833,57 +863,43 @@ const CheckoutContent = ({
 								{t.acceptTerms}
 							</Checkbox>
 						</TermsWrapper>
-						<small onClick={() => window.open("/terms-conditions", "_blank")}>
-							{t.checkTerms}
-						</small>
 
-						{hotelDetails && hotelDetails.hotelName ? (
-							<PaymentOptions
-								hotelDetails={hotelDetails}
-								chosenLanguage={chosenLanguage}
-								t={t}
-								depositAmount={depositAmount}
-								averageCommissionRate={averageCommissionRate}
+						{selectedPaymentOption === "acceptReserveNowPayInHotel" ? (
+							<Button
+								type='primary'
+								onClick={createNewReservation}
+								style={{ marginTop: "20px", width: "100%" }}
+							>
+								{chosenLanguage === "Arabic" ? "احجز الآن" : "Reserve Now"}
+							</Button>
+						) : (
+							<PaymentDetails
+								cardNumber={cardNumber}
+								setCardNumber={setCardNumber}
+								expiryDate={expiryDate}
+								setExpiryDate={setExpiryDate}
+								cvv={cvv}
+								setCvv={setCvv}
+								cardHolderName={cardHolderName}
+								setCardHolderName={setCardHolderName}
+								postalCode={postalCode}
+								setPostalCode={setPostalCode}
+								handleReservation={createNewReservation}
+								total={total_price}
 								total_price_with_commission={total_price_with_commission}
 								convertedAmounts={convertedAmounts}
+								depositAmount={depositAmount}
+								setCustomerDetails={setCustomerDetails}
+								nationality={nationality}
+								customerDetails={customerDetails}
 								selectedPaymentOption={selectedPaymentOption}
-								setSelectedPaymentOption={setSelectedPaymentOption}
+								guestAgreedOnTermsAndConditions={
+									guestAgreedOnTermsAndConditions
+								}
+								setPaymentClicked={setPaymentClicked}
+								paymentClicked={paymentClicked}
 							/>
-						) : null}
-
-						{guestAgreedOnTermsAndConditions && selectedPaymentOption ? (
-							selectedPaymentOption === "acceptReserveNowPayInHotel" ? (
-								<Button
-									type='primary'
-									onClick={createNewReservation}
-									style={{ marginTop: "20px", width: "100%" }}
-								>
-									{chosenLanguage === "Arabic" ? "احجز الآن" : "Reserve Now"}
-								</Button>
-							) : (
-								<PaymentDetails
-									cardNumber={cardNumber}
-									setCardNumber={setCardNumber}
-									expiryDate={expiryDate}
-									setExpiryDate={setExpiryDate}
-									cvv={cvv}
-									setCvv={setCvv}
-									cardHolderName={cardHolderName}
-									setCardHolderName={setCardHolderName}
-									postalCode={postalCode}
-									setPostalCode={setPostalCode}
-									handleReservation={createNewReservation}
-									total={total_price}
-									total_price_with_commission={total_price_with_commission}
-									convertedAmounts={convertedAmounts}
-									depositAmount={depositAmount}
-									setCustomerDetails={setCustomerDetails}
-									nationality={nationality}
-									customerDetails={customerDetails}
-									selectedPaymentOption={selectedPaymentOption}
-								/>
-							)
-						) : null}
+						)}
 					</div>
 				</form>
 			</MobileFormWrapper>
@@ -933,6 +949,8 @@ const CheckoutContent = ({
 				hotelDetails={hotelDetails}
 				selectedPaymentOption={selectedPaymentOption}
 				setSelectedPaymentOption={setSelectedPaymentOption}
+				setPaymentClicked={setPaymentClicked}
+				paymentClicked={paymentClicked}
 			/>
 		</CheckoutContentWrapper>
 	);
@@ -950,11 +968,25 @@ const CheckoutContentWrapper = styled.div`
 		padding: 25px 0px;
 	}
 
+	@media (max-width: 768px) {
+		h2 {
+			font-size: 1.4rem !important;
+			font-weight: bold !important;
+		}
+	}
+
 	small {
 		font-weight: bold;
 		font-size: 11px;
 		cursor: pointer;
-		color: darkred;
+		/* color: var(--primaryBlue); */
+		color: blue;
+		text-decoration: underline;
+	}
+
+	.ant-collapse-header-text {
+		color: blue !important;
+		text-decoration: underline;
 	}
 `;
 
@@ -1139,6 +1171,7 @@ const TotalsWrapper = styled.div`
 	}
 `;
 
+// eslint-disable-next-line
 const DateRangePickerWrapper = styled.div`
 	margin: 10px 0;
 

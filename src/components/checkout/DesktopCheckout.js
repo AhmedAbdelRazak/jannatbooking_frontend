@@ -59,6 +59,8 @@ const DesktopCheckout = ({
 	convertCurrency,
 	selectedPaymentOption,
 	setSelectedPaymentOption,
+	setPaymentClicked,
+	paymentClicked,
 }) => {
 	return (
 		<DesktopWrapper>
@@ -190,7 +192,21 @@ const DesktopCheckout = ({
 						</Select>
 					</InputGroup>
 
-					<div>
+					<div className='my-4'>
+						{hotelDetails && hotelDetails.hotelName ? (
+							<PaymentOptions
+								hotelDetails={hotelDetails}
+								chosenLanguage={chosenLanguage}
+								t={t}
+								depositAmount={depositAmount}
+								averageCommissionRate={averageCommissionRate}
+								total_price_with_commission={total_price_with_commission}
+								convertedAmounts={convertedAmounts}
+								selectedPaymentOption={selectedPaymentOption}
+								setSelectedPaymentOption={setSelectedPaymentOption}
+							/>
+						) : null}
+
 						<TermsWrapper
 							selected={guestAgreedOnTermsAndConditions}
 							onClick={() => {
@@ -231,53 +247,42 @@ const DesktopCheckout = ({
 							{t.checkTerms}
 						</small>
 
-						{hotelDetails && hotelDetails.hotelName ? (
-							<PaymentOptions
-								hotelDetails={hotelDetails}
-								chosenLanguage={chosenLanguage}
-								t={t}
-								depositAmount={depositAmount}
-								averageCommissionRate={averageCommissionRate}
+						{selectedPaymentOption === "acceptReserveNowPayInHotel" ? (
+							<Button
+								type='primary'
+								onClick={createNewReservation}
+								style={{ marginTop: "20px", width: "100%" }}
+							>
+								{chosenLanguage === "Arabic" ? "احجز الآن" : "Reserve Now"}
+							</Button>
+						) : (
+							<PaymentDetails
+								cardNumber={cardNumber}
+								setCardNumber={setCardNumber}
+								expiryDate={expiryDate}
+								setExpiryDate={setExpiryDate}
+								cvv={cvv}
+								setCvv={setCvv}
+								cardHolderName={cardHolderName}
+								setCardHolderName={setCardHolderName}
+								postalCode={postalCode}
+								setPostalCode={setPostalCode}
+								handleReservation={createNewReservation}
+								total={total_price}
 								total_price_with_commission={total_price_with_commission}
 								convertedAmounts={convertedAmounts}
+								depositAmount={depositAmount}
+								setCustomerDetails={setCustomerDetails}
+								nationality={nationality}
+								customerDetails={customerDetails}
 								selectedPaymentOption={selectedPaymentOption}
-								setSelectedPaymentOption={setSelectedPaymentOption}
+								guestAgreedOnTermsAndConditions={
+									guestAgreedOnTermsAndConditions
+								}
+								setPaymentClicked={setPaymentClicked}
+								paymentClicked={paymentClicked}
 							/>
-						) : null}
-
-						{guestAgreedOnTermsAndConditions && selectedPaymentOption ? (
-							selectedPaymentOption === "acceptReserveNowPayInHotel" ? (
-								<Button
-									type='primary'
-									onClick={createNewReservation}
-									style={{ marginTop: "20px", width: "100%" }}
-								>
-									{chosenLanguage === "Arabic" ? "احجز الآن" : "Reserve Now"}
-								</Button>
-							) : (
-								<PaymentDetails
-									cardNumber={cardNumber}
-									setCardNumber={setCardNumber}
-									expiryDate={expiryDate}
-									setExpiryDate={setExpiryDate}
-									cvv={cvv}
-									setCvv={setCvv}
-									cardHolderName={cardHolderName}
-									setCardHolderName={setCardHolderName}
-									postalCode={postalCode}
-									setPostalCode={setPostalCode}
-									handleReservation={createNewReservation}
-									total={total_price}
-									total_price_with_commission={total_price_with_commission}
-									convertedAmounts={convertedAmounts}
-									depositAmount={depositAmount}
-									setCustomerDetails={setCustomerDetails}
-									nationality={nationality}
-									customerDetails={customerDetails}
-									selectedPaymentOption={selectedPaymentOption}
-								/>
-							)
-						) : null}
+						)}
 					</div>
 				</form>
 			</LeftSection>
@@ -449,7 +454,9 @@ const DesktopWrapper = styled.div`
 		font-weight: bold;
 		font-size: 11px;
 		cursor: pointer;
-		color: darkred;
+		/* color: var(--primaryBlue); */
+		color: blue;
+		text-decoration: underline;
 	}
 `;
 

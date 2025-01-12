@@ -33,7 +33,8 @@ const PaymentOptions = ({
 	};
 
 	return (
-		<div>
+		<Wrapper>
+			<h2>{chosenLanguage === "Arabic" ? "طريقة الدفع" : "Payment Option"}</h2>
 			{/* Accept Deposit Option */}
 			{hotelDetails.guestPaymentAcceptance.acceptDeposit && (
 				<StyledOption
@@ -119,21 +120,29 @@ const PaymentOptions = ({
 					</label>
 				</StyledOption>
 			)}
-		</div>
+		</Wrapper>
 	);
 };
 
 export default PaymentOptions;
+
+const Wrapper = styled.div`
+	@media (max-width: 768px) {
+		h2 {
+			font-size: 1.4rem !important;
+			font-weight: bold !important;
+		}
+	}
+`;
 
 const StyledOption = styled.div`
 	display: flex;
 	align-items: center;
 	padding: 12px;
 	border: 2px solid
-		${({ selected }) =>
-			selected ? "var(--text-color-secondary)" : "var(--border-color-light)"};
+		${({ selected }) => (selected ? "#9dffce" : "var(--border-color-light)")};
 	background-color: ${({ selected }) =>
-		selected ? "var(--background-accent)" : "var(--accent-color-2)"};
+		selected ? "#d8ffeb" : "var(--accent-color-2)"};
 	border-radius: 8px;
 	margin-bottom: 2px;
 	cursor: pointer;
