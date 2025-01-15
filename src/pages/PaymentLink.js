@@ -11,6 +11,10 @@ import { useCartContext } from "../cart_context";
 import { currencyConversion } from "../apiCore"; // Import the currency conversion function
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
+import {
+	// eslint-disable-next-line
+	translations,
+} from "../Assets";
 
 const PaymentLink = () => {
 	const { reservationId } = useParams(); // Get reservationId from the route
@@ -25,10 +29,13 @@ const PaymentLink = () => {
 	const [cvv, setCvv] = useState("");
 	const [cardHolderName, setCardHolderName] = useState("");
 	const [postalCode, setPostalCode] = useState("");
+	const [guestAgreedOnTermsAndConditions, setGuestAgreedOnTermsAndConditions] =
+		useState(false);
 	const [selectedPaymentOption, setSelectedPaymentOption] =
 		useState("acceptDeposit");
 	const { chosenLanguage } = useCartContext();
 
+	const t = translations[chosenLanguage] || translations.English;
 	// Fetch the reservation data when the component mounts
 	useEffect(() => {
 		window.scrollTo({ top: 20, behavior: "smooth" });
@@ -64,6 +71,13 @@ const PaymentLink = () => {
 	const handleReservationUpdate = async () => {
 		if (!reservationData || !convertedAmounts) {
 			console.error("Reservation data or converted amounts are missing");
+			return;
+		}
+
+		if (!guestAgreedOnTermsAndConditions) {
+			message.error(
+				"You must accept the Terms & Conditions before proceeding."
+			);
 			return;
 		}
 
@@ -119,6 +133,7 @@ const PaymentLink = () => {
 			commissionPaid,
 			commission,
 			paymentDetails,
+			guestAgreedOnTermsAndConditions: guestAgreedOnTermsAndConditions,
 		};
 
 		try {
@@ -198,6 +213,45 @@ const PaymentLink = () => {
 						{new Date(reservationData.checkout_date).toLocaleDateString()}
 					</p>
 
+					<TermsWrapper
+						selected={guestAgreedOnTermsAndConditions}
+						onClick={() => {
+							setGuestAgreedOnTermsAndConditions(
+								!guestAgreedOnTermsAndConditions
+							);
+							ReactGA.event({
+								category: "User Accepted Terms And Cond From Email Link",
+								action: "User Accepted Terms And Cond From Email Link",
+								label: `User Accepted Terms And Cond From Email Link`,
+							});
+
+							ReactPixel.track("Terms And Conditions Accepted From Link", {
+								action: "User Accepted Terms And Conditions Accepted From Link",
+								page: "Email Link",
+							});
+						}}
+					>
+						<Checkbox
+							isChecked={guestAgreedOnTermsAndConditions}
+							checked={guestAgreedOnTermsAndConditions}
+							onChange={(e) => {
+								setGuestAgreedOnTermsAndConditions(e.target.checked);
+								ReactGA.event({
+									category: "User Accepted Terms And Cond",
+									action: "User Accepted Terms And Cond",
+									label: `User Accepted Terms And Cond`,
+								});
+
+								ReactPixel.track("Terms And Conditions Accepted", {
+									action: "User Accepted Terms And Conditions Accepted",
+									page: "checkout",
+								});
+							}}
+						>
+							{t.acceptTerms}
+						</Checkbox>
+					</TermsWrapper>
+
 					{reservationData &&
 						reservationData.hotelId &&
 						reservationData.hotelId.guestPaymentAcceptance.acceptDeposit && (
@@ -268,6 +322,7 @@ const PaymentLink = () => {
 							setSelectedPaymentOption={setSelectedPaymentOption}
 							convertedAmounts={convertedAmounts}
 							chosenLanguage={chosenLanguage}
+							guestAgreedOnTermsAndConditions={guestAgreedOnTermsAndConditions}
 						/>
 					)}
 				</div>
