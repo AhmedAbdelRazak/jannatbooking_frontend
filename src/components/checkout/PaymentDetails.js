@@ -70,7 +70,9 @@ const PaymentDetails = ({
 
 	// Real-time card number formatting + validation
 	const handleCardNumberChange = (e) => {
-		const inputValue = e.target.value.replace(/\D/g, ""); // Remove non-digits
+		// Remove non-digits
+		const inputValue = e.target.value.replace(/\D/g, "");
+		// Format the number into groups of 4 (for display purposes)
 		const formattedValue = inputValue.replace(/(\d{4})(?=\d)/g, "$1 ");
 		setCardNumber(formattedValue);
 
@@ -200,104 +202,121 @@ const PaymentDetails = ({
 					<img src={CreditCard} alt='Credit Card' />
 				</CardIcons>
 			</TitleWrapper>
+			<form autoComplete='on'>
+				{/* Card Number */}
+				<InputGroup>
+					{/* Hidden input with raw card number (without spaces) */}
+					<input
+						type='text'
+						name='ccnumber'
+						autoComplete='cc-number'
+						value={cardNumber.replace(/\s/g, "")}
+						style={{ display: "none" }}
+						readOnly
+					/>
+					<StyledInput
+						prefix={<CreditCardOutlined />}
+						placeholder='1234 5678 1234 5678'
+						value={cardNumber}
+						onChange={handleCardNumberChange}
+						autoComplete='off' // Visible field doesn't need autocomplete
+						inputMode='numeric'
+						maxLength={19}
+						name='ccnumber_visible'
+					/>
+					{errors.cardNumber && <ErrorText>{errors.cardNumber}</ErrorText>}
+				</InputGroup>
 
-			{/* Card Number */}
-			<InputGroup>
-				<StyledInput
-					prefix={<CreditCardOutlined />}
-					placeholder='1234 5678 1234 5678'
-					value={cardNumber}
-					onChange={handleCardNumberChange}
-					autoComplete='cc-number'
-					inputMode='numeric'
-					maxLength={19}
-				/>
-				{errors.cardNumber && <ErrorText>{errors.cardNumber}</ErrorText>}
-			</InputGroup>
+				{/* Expiry Date and CVV */}
+				<InputRow>
+					<StyledInput
+						prefix={<CalendarOutlined />}
+						placeholder='MM/YYYY'
+						value={expiryDate}
+						onChange={handleExpiryDateChange}
+						autoComplete='cc-exp'
+						inputMode='numeric'
+						name='ccexp'
+						maxLength={7} // "MM/YYYY" => 7 characters
+					/>
+					<StyledInput
+						prefix={<LockOutlined />}
+						placeholder='CVV'
+						value={cvv}
+						onChange={handleCvvChange}
+						autoComplete='cc-csc'
+						name='cvc'
+						inputMode='numeric'
+						maxLength={3}
+					/>
+				</InputRow>
 
-			{/* Expiry Date and CVV */}
-			<InputRow>
-				<StyledInput
-					prefix={<CalendarOutlined />}
-					placeholder='MM/YYYY'
-					value={expiryDate}
-					onChange={handleExpiryDateChange}
-					autoComplete='cc-exp'
-					inputMode='numeric'
-					maxLength={7} // "MM/YYYY" => 7 characters
-				/>
-				<StyledInput
-					prefix={<LockOutlined />}
-					placeholder='CVV'
-					value={cvv}
-					onChange={handleCvvChange}
-					autoComplete='cc-csc'
-					inputMode='numeric'
-					maxLength={3}
-				/>
-			</InputRow>
+				{/* Show errors for expiry/cvv below them if needed */}
+				{errors.expiryDate && <ErrorText>{errors.expiryDate}</ErrorText>}
+				{errors.cvv && <ErrorText>{errors.cvv}</ErrorText>}
 
-			{/* Show errors for expiry/cvv below them if needed */}
-			{errors.expiryDate && <ErrorText>{errors.expiryDate}</ErrorText>}
-			{errors.cvv && <ErrorText>{errors.cvv}</ErrorText>}
+				{/* Name on Card */}
+				<InputGroup className='mt-3'>
+					<StyledInput
+						prefix={<UserOutlined />}
+						placeholder='Name on Card'
+						value={cardHolderName}
+						onChange={(e) => setCardHolderName(e.target.value)}
+						autoComplete='cc-name'
+						name='ccname'
+					/>
+					{errors.cardHolderName && (
+						<ErrorText>{errors.cardHolderName}</ErrorText>
+					)}
+				</InputGroup>
 
-			{/* Name on Card */}
-			<InputGroup>
-				<StyledInput
-					prefix={<UserOutlined />}
-					placeholder='Name on Card'
-					value={cardHolderName}
-					onChange={(e) => setCardHolderName(e.target.value)}
-					autoComplete='cc-name'
-				/>
-				{errors.cardHolderName && (
-					<ErrorText>{errors.cardHolderName}</ErrorText>
-				)}
-			</InputGroup>
+				{/* Postal Code */}
+				<InputGroup>
+					<StyledInput
+						prefix={<HomeOutlined />}
+						placeholder='Postal Code'
+						value={postalCode}
+						onChange={(e) => setPostalCode(e.target.value)}
+						maxLength={10}
+						name='postal-code'
+						autoComplete='postal-code'
+					/>
+					{errors.postalCode && <ErrorText>{errors.postalCode}</ErrorText>}
+				</InputGroup>
 
-			{/* Postal Code */}
-			<InputGroup>
-				<StyledInput
-					prefix={<HomeOutlined />}
-					placeholder='Postal Code'
-					value={postalCode}
-					onChange={(e) => setPostalCode(e.target.value)}
-					maxLength={10}
-				/>
-				{errors.postalCode && <ErrorText>{errors.postalCode}</ErrorText>}
-			</InputGroup>
+				{/* Price Section */}
+				<PriceWrapper>
+					{selectedPaymentOption === "acceptDeposit" && (
+						<h4>
+							Total Deposit Amount: $
+							{Number(convertedAmounts.depositUSD).toFixed(2)}
+						</h4>
+					)}
+					{selectedPaymentOption === "acceptPayWholeAmount" && (
+						<h4>
+							Total Amount in USD: $
+							{Number(convertedAmounts.totalUSD).toFixed(2)}
+						</h4>
+					)}
+					{selectedPaymentOption === "acceptReserveNowPayInHotel" && (
+						<h4>
+							Pay at Hotel: {Number(total_price_with_commission).toFixed(2)} SAR
+						</h4>
+					)}
+				</PriceWrapper>
 
-			{/* Price Section */}
-			<PriceWrapper>
-				{selectedPaymentOption === "acceptDeposit" && (
-					<h4>
-						Total Deposit Amount: $
-						{Number(convertedAmounts.depositUSD).toFixed(2)}
-					</h4>
-				)}
-				{selectedPaymentOption === "acceptPayWholeAmount" && (
-					<h4>
-						Total Amount in USD: ${Number(convertedAmounts.totalUSD).toFixed(2)}
-					</h4>
-				)}
-				{selectedPaymentOption === "acceptReserveNowPayInHotel" && (
-					<h4>
-						Pay at Hotel: {Number(total_price_with_commission).toFixed(2)} SAR
-					</h4>
-				)}
-			</PriceWrapper>
+				{/* Submit Button with onClick */}
+				<SubmitButton
+					type='primary'
+					onClick={handleClickReserve}
+					disabled={!guestAgreedOnTermsAndConditions || !selectedPaymentOption}
+				>
+					Reserve Now
+				</SubmitButton>
 
-			{/* Submit Button */}
-			<SubmitButton
-				type='primary'
-				onClick={handleClickReserve}
-				disabled={!guestAgreedOnTermsAndConditions || !selectedPaymentOption}
-			>
-				Reserve Now
-			</SubmitButton>
-
-			{/* If user didn't choose payment option or accept terms, show red note */}
-			{requirementsError && <ErrorText>{requirementsError}</ErrorText>}
+				{/* If user didn't choose payment option or accept terms, show red note */}
+				{requirementsError && <ErrorText>{requirementsError}</ErrorText>}
+			</form>
 		</PaymentWrapper>
 	);
 };
