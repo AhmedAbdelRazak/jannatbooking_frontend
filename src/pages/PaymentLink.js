@@ -31,8 +31,9 @@ const PaymentLink = () => {
 	const [postalCode, setPostalCode] = useState("");
 	const [guestAgreedOnTermsAndConditions, setGuestAgreedOnTermsAndConditions] =
 		useState(false);
-	const [selectedPaymentOption, setSelectedPaymentOption] =
-		useState("acceptDeposit");
+	const [selectedPaymentOption, setSelectedPaymentOption] = useState(
+		"acceptPayWholeAmount"
+	);
 	const { chosenLanguage } = useCartContext();
 
 	const t = translations[chosenLanguage] || translations.English;
