@@ -274,7 +274,7 @@ const CheckoutContent = ({
 		}
 
 		// Phone number validation
-		const phoneRegex = /^[0-9]{6,}$/;
+		const phoneRegex = /^\+?[0-9\s\-]{6,}$/;
 		if (!phone || !phoneRegex.test(phone)) {
 			message.error("Please provide a valid phone number.");
 			return;
@@ -699,16 +699,19 @@ const CheckoutContent = ({
 					<InputGroup>
 						<label>{t.phone}</label>
 						<input
-							type='text'
+							type='tel'
 							name='phone'
 							placeholder={t.phoneNumber}
+							pattern='[0-9\s\+\-]*'
+							inputMode='numeric'
 							value={customerDetails.phone}
-							onChange={(e) =>
+							onChange={(e) => {
+								const inputValue = e.target.value.replace(/[^\d\s+\-]/g, ""); // Removes non-numeric, non-space, non-`+`, non-`-`
 								setCustomerDetails({
 									...customerDetails,
-									phone: e.target.value,
-								})
-							}
+									phone: inputValue,
+								});
+							}}
 						/>
 					</InputGroup>
 					<InputGroup>
