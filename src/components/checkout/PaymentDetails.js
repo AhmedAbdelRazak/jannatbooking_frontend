@@ -22,7 +22,7 @@ const translations = {
 		cvvError: "CVV must be 3 digits",
 		cardHolderNameError: "Name is required",
 		postalCodeRequired: "Postal code is required for this country.",
-		postalCodeLengthError: "Postal code must be at least 4 characters long.",
+		postalCodeLengthError: "Postal code must be at least 2 characters long.",
 		mustAgreeAndSelectOption:
 			"Please agree on terms and conditions and choose a payment option",
 	},
@@ -34,7 +34,7 @@ const translations = {
 		cardHolderNameError: "الاسم مطلوب",
 		postalCodeRequired: "الرمز البريدي مطلوب لهذه الدولة.",
 		postalCodeLengthError:
-			"يجب أن يكون الرمز البريدي مكونًا من 4 أحرف على الأقل.",
+			"يجب أن يكون الرمز البريدي مكونًا من 2 أحرف على الأقل.",
 		mustAgreeAndSelectOption:
 			"الرجاء الموافقة على الشروط والأحكام واختيار طريقة الدفع",
 	},
@@ -157,7 +157,7 @@ const PaymentDetails = ({
 			newErrors.expiryDate = t.expiryDateError;
 
 		// CVV -> at least 3 digits
-		if (cvv.length < 3) newErrors.cvv = t.cvvError;
+		if (cvv.length < 2) newErrors.cvv = t.cvvError;
 
 		// Cardholder name -> required
 		if (!cardHolderName) newErrors.cardHolderName = t.cardHolderNameError;
@@ -166,7 +166,7 @@ const PaymentDetails = ({
 		if (countriesWithPostalCodes.includes(nationality)) {
 			if (!postalCode) {
 				newErrors.postalCode = t.postalCodeRequired;
-			} else if (postalCode.length < 4) {
+			} else if (postalCode.length < 2) {
 				newErrors.postalCode = t.postalCodeLengthError;
 			}
 		}
