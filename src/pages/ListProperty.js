@@ -219,22 +219,6 @@ const ListProperty = () => {
 					</>
 				)}
 			</ListPropertyWrapper>
-			{loading ? (
-				<LoadingSpinner /> // Show spinner if loading is true
-			) : (
-				<>
-					<ListPropertyHero />
-					<CenteredContainer>
-						<StyledCard>
-							<ListYourProperty
-								handleChange={handleChange}
-								clickSubmit={clickSubmit}
-								values={values}
-							/>
-						</StyledCard>
-					</CenteredContainer>
-				</>
-			)}
 		</ListPropertyWrapper>
 	);
 };

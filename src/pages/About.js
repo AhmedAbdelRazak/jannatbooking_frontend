@@ -42,6 +42,7 @@ const About = () => {
 		<AboutWrapper
 			dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
 			isArabic={chosenLanguage === "Arabic"}
+			className='container py-5'
 		>
 			<Helmet>
 				<meta charSet='utf-8' />

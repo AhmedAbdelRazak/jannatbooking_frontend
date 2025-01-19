@@ -1,16 +1,13 @@
 import React, { useState } from "react";
 import { Form, Input, Button, Row, Col, Typography } from "antd";
-import {
-	MailOutlined,
-	PhoneOutlined,
-	ClockCircleOutlined,
-} from "@ant-design/icons";
+import { MailOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { contactUs } from "../auth";
 import { ToastContainer, toast } from "react-toastify";
 import { gettingJannatWebsiteData as getContacts } from "../apiCore";
 import styled from "styled-components";
 import { Helmet } from "react-helmet";
 import favicon from "../favicon.ico";
+import { FaWhatsapp } from "react-icons/fa";
 
 const { Title, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -79,10 +76,12 @@ const ContactUs = () => {
 		});
 	};
 
+	// WhatsApp support number (digits only, without special characters)
+	const supportWhatsAppNumber = "19092223374"; // corresponds to +1 (909) 222-3374
+
 	return (
 		<ContactUsWrapper>
 			{window.scrollTo({ top: 10, behavior: "smooth" })}
-
 			<Helmet>
 				<title>Contact Us | Jannat Booking - Haj & Omrah Support</title>
 				<meta
@@ -141,11 +140,32 @@ const ContactUs = () => {
 							{contact.email || "support@jannatbooking.com"}
 						</Paragraph>
 						<Paragraph>
-							<PhoneOutlined /> Phone: {contact.phone || "(+1909) 991-4386"}
+							{/* WhatsApp phone number – click to launch WhatsApp */}
+							<a
+								href={`https://wa.me/${supportWhatsAppNumber}`}
+								target='_blank'
+								rel='noreferrer'
+								style={{
+									textDecoration: "none",
+									color: "inherit",
+									display: "flex",
+									alignItems: "center",
+								}}
+							>
+								<FaWhatsapp
+									style={{
+										color: "#25D366",
+										marginRight: "8px",
+										fontSize: "20px",
+									}}
+								/>
+								+1 (909) 222-3374
+							</a>
 						</Paragraph>
 						<Paragraph>
 							Please allow us 24 hours to respond to your inquiry.
 						</Paragraph>
+
 						<FormWrapper>
 							<Form
 								layout='vertical'

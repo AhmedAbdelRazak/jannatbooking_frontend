@@ -24,6 +24,10 @@ const HeaderTopbar = () => {
 		window.location.href = "/terms-conditions";
 	};
 
+	// Replace with your actual support number (digits only for wa.me link)
+	// You can also remove special characters if needed.
+	const supportWhatsAppNumber = "19092223374"; // +1(909) 222-3374
+
 	return (
 		<HeaderTopbarWrapper>
 			<div className='container-fluid'>
@@ -35,7 +39,24 @@ const HeaderTopbar = () => {
 									<i className='fa fa-envelope'></i>support@jannatbooking.com
 								</li>
 								<li>
-									<i className='fa fa-phone'></i> +1909 (991) 4386
+									{/* Clicking on the phone number will redirect to WhatsApp */}
+									<a
+										href={`https://wa.me/${supportWhatsAppNumber}`}
+										target='_blank'
+										rel='noreferrer'
+										style={{ color: "white", textDecoration: "none" }}
+									>
+										<i
+											className='fa-brands fa-whatsapp'
+											style={{
+												color: "#25D366",
+												marginRight: "3px",
+												fontSize: "20px",
+												fontWeight: "bolder",
+											}}
+										></i>
+										+1 (909) 222-3374
+									</a>
 								</li>
 								<li>
 									<Link

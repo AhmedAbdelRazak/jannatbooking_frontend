@@ -445,6 +445,18 @@ const SidebarCartDrawer = () => {
 					</DatePickersWrapper>
 				)}
 
+				<div
+					style={{
+						textAlign: "center",
+						marginBottom: "5px",
+						textTransform: "capitalize",
+						fontSize: "1.4rem",
+						fontWeight: "bold",
+					}}
+				>
+					{roomCart[0] && roomCart[0].hotelName}
+				</div>
+
 				<DrawerContent>
 					{roomCart.length > 0 ? (
 						roomCart.map((room) => {

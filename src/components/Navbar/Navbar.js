@@ -8,6 +8,7 @@ import {
 	FaHome,
 	FaPhoneVolume,
 	FaRegBell,
+	FaWhatsapp,
 } from "react-icons/fa";
 import { RiLoginCircleLine } from "react-icons/ri";
 import SidebarCartDrawer from "./SidebarCartDrawer";
@@ -70,6 +71,9 @@ const Navbar = () => {
 	};
 
 	const getFirstName = (fullName) => fullName.split(" ")[0];
+
+	// WhatsApp number (digits only, without any special characters)
+	const supportWhatsAppNumber = "19092223374"; // for +1 (909) 222-3374
 
 	return (
 		<>
@@ -463,6 +467,22 @@ const Navbar = () => {
 						{total_rooms > 0 && <Badge>{total_rooms}</Badge>}
 					</CartIconWrapper>
 				</div>
+				<DrawerPhoneItem>
+					<a
+						href={`https://wa.me/${supportWhatsAppNumber}`}
+						target='_blank'
+						rel='noreferrer'
+						style={{
+							textDecoration: "none",
+							color: "white",
+							display: "flex",
+							alignItems: "center",
+						}}
+					>
+						<FaWhatsapp style={{ color: "#25D366", marginRight: "8px" }} />
+						+1 (909) 222-3374
+					</a>
+				</DrawerPhoneItem>
 			</SideDrawer>
 			<Backdrop isOpen={isDrawerOpen} onClick={closeDrawer} />
 			<SidebarCartDrawer from='Navbar' />
@@ -684,4 +704,15 @@ const Backdrop = styled.div`
 	background: rgba(0, 0, 0, 0.5);
 	backdrop-filter: blur(5px);
 	z-index: 40;
+`;
+
+const DrawerPhoneItem = styled.li`
+	margin-top: 20px;
+	width: 100%;
+	text-align: ${({ language }) => (language ? "right" : "left")};
+	padding: 20px;
+	border-top: 1px solid rgba(255, 255, 255, 0.1);
+	svg {
+		font-size: 25px;
+	}
 `;

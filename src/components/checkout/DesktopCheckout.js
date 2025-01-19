@@ -294,6 +294,18 @@ const DesktopCheckout = ({
 						: "Your Reservation Summary"}
 				</h2>
 
+				<div
+					style={{
+						textAlign: "center",
+						marginBottom: "5px",
+						textTransform: "capitalize",
+						fontSize: "1.4rem",
+						fontWeight: "bold",
+					}}
+				>
+					{roomCart[0] && roomCart[0].hotelName}
+				</div>
+
 				{/* Ant Design Date Range Picker */}
 				<DateRangePickerWrapper>
 					<RangePicker

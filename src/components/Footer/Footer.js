@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import styled from "styled-components";
 import { gettingJannatWebsiteData } from "../../apiCore";
+import { FaWhatsapp } from "react-icons/fa";
 
 const Footer = (props) => {
 	const [homePage, setHomePage] = useState({});
@@ -48,6 +49,9 @@ const Footer = (props) => {
 		calculateDates();
 		// eslint-disable-next-line
 	}, []);
+
+	// Set WhatsApp support number (digits only)
+	const supportWhatsAppNumber = "19092223374"; // corresponds to +1 (909) 222-3374
 
 	return (
 		<FooterWrapper className='wpo-site-footer'>
@@ -98,17 +102,31 @@ const Footer = (props) => {
 						<div className='col col-lg-3 col-md-6 col-sm-12 col-12'>
 							<div className='widget link-widget s1'>
 								<div className='widget-title'>
-									<h3>Our Hotels</h3>
+									<h3>Top Hotels</h3>
 								</div>
 								<ul>
 									<li>
-										<Link onClick={ClickHandler} to={`/hotel/zaer`}>
-											Zaer Plaza
+										<Link
+											onClick={ClickHandler}
+											to={`/single-hotel/kyona-al-hijra-hotel`}
+										>
+											Kyona al Hijra
 										</Link>
 									</li>
 									<li>
-										<Link onClick={ClickHandler} to={`/hotel/ayed`}>
-											Ayed Hotel
+										<Link
+											onClick={ClickHandler}
+											to={`/single-hotel/abraj-al-wehda-(-hussien-beyary-)`}
+										>
+											Abraj al Wehda
+										</Link>
+									</li>
+									<li>
+										<Link
+											onClick={ClickHandler}
+											to={`/single-hotel/mayer-moyasser`}
+										>
+											Mayer Moyasser
 										</Link>
 									</li>
 								</ul>
@@ -144,7 +162,10 @@ const Footer = (props) => {
 										</Link>
 									</li>
 									<li>
-										<Link onClick={ClickHandler} to='/pricing'>
+										<Link
+											onClick={ClickHandler}
+											to={`/our-hotels-rooms?destination=Makkah&startDate=${startDate}&endDate=${endDate}&roomType=all&adults=1&children=`}
+										>
 											Pricing Plan
 										</Link>
 									</li>
@@ -168,8 +189,28 @@ const Footer = (props) => {
 											<i className='fi flaticon-placeholder'></i>PO 322,
 											Crestline, CA 92325
 										</li>
-										<li>
-											<i className='fi flaticon-phone-call'></i>+1909 (991) 4386
+										<li style={{ fontSize: "14px", fontWeight: "bold" }}>
+											{/* Changed phone number display to use WhatsApp link with icon */}
+											<a
+												href={`https://wa.me/${supportWhatsAppNumber}`}
+												target='_blank'
+												rel='noreferrer'
+												style={{
+													textDecoration: "none",
+													color: "inherit",
+													display: "flex",
+													alignItems: "center",
+												}}
+											>
+												<FaWhatsapp
+													style={{
+														color: "#25D366",
+														marginRight: "2px",
+														fontWeight: "bolder",
+													}}
+												/>
+												+1 (909) 222-3374
+											</a>
 										</li>
 										<li>
 											<i className='fi flaticon-send'></i>
@@ -295,7 +336,6 @@ const FooterWrapper = styled.footer`
 	@media (max-width: 991px) {
 		.wpo-site-footer,
 		.widget-title h3 {
-			font-size: 20px;
 			font-size: 1.25rem;
 		}
 	}
@@ -459,7 +499,6 @@ const FooterWrapper = styled.footer`
 	.wpo-site-footer,
 	.wpo-lower-footer .copyright {
 		display: inline-block;
-		font-size: 15px;
 		font-size: 0.9375rem;
 		margin: 0;
 	}
