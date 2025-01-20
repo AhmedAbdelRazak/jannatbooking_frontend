@@ -3,6 +3,8 @@ import { Link, useHistory } from "react-router-dom";
 import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
 import { isAuthenticated, signout } from "../../auth";
+import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const HeaderTopbar = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
@@ -38,7 +40,23 @@ const HeaderTopbar = () => {
 								<li>
 									<i className='fa fa-envelope'></i>support@jannatbooking.com
 								</li>
-								<li>
+								<li
+									onClick={() => {
+										ReactGA.event({
+											category: "Whatsapp phone was clicked Navigation Menu",
+											action: "Whatsapp phone was clicked Navigation Menu",
+											label: `Whatsapp phone was clicked Navigation Menu`,
+										});
+
+										ReactPixel.track(
+											"Whatsapp phone was clicked Navigation Menu",
+											{
+												action: "User Clicked on Whatsapp phone",
+												page: "Home Page",
+											}
+										);
+									}}
+								>
 									{/* Clicking on the phone number will redirect to WhatsApp */}
 									<a
 										href={`https://wa.me/${supportWhatsAppNumber}`}

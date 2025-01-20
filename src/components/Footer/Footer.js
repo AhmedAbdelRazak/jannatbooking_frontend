@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import styled from "styled-components";
 import { gettingJannatWebsiteData } from "../../apiCore";
 import { FaWhatsapp } from "react-icons/fa";
+import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const Footer = (props) => {
 	const [homePage, setHomePage] = useState({});
@@ -189,7 +191,25 @@ const Footer = (props) => {
 											<i className='fi flaticon-placeholder'></i>PO 322,
 											Crestline, CA 92325
 										</li>
-										<li style={{ fontSize: "14px", fontWeight: "bold" }}>
+										<li
+											style={{ fontSize: "14px", fontWeight: "bold" }}
+											onClick={() => {
+												ReactGA.event({
+													category: "Whatsapp phone was clicked From Footer",
+													action: "Whatsapp phone was clicked From Footer",
+													label: `Whatsapp phone was clicked From Footer`,
+												});
+
+												ReactPixel.track(
+													"Whatsapp phone was clicked From Footer",
+													{
+														action:
+															"User Clicked on Whatsapp phone From Footer",
+														page: "Footer",
+													}
+												);
+											}}
+										>
 											{/* Changed phone number display to use WhatsApp link with icon */}
 											<a
 												href={`https://wa.me/${supportWhatsAppNumber}`}

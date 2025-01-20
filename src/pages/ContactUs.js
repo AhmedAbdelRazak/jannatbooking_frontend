@@ -8,6 +8,8 @@ import styled from "styled-components";
 import { Helmet } from "react-helmet";
 import favicon from "../favicon.ico";
 import { FaWhatsapp } from "react-icons/fa";
+import ReactGA from "react-ga4";
+import ReactPixel from "react-facebook-pixel";
 
 const { Title, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -139,7 +141,20 @@ const ContactUs = () => {
 							<MailOutlined /> Email:{" "}
 							{contact.email || "support@jannatbooking.com"}
 						</Paragraph>
-						<Paragraph>
+						<Paragraph
+							onClick={() => {
+								ReactGA.event({
+									category: "Whatsapp phone was clicked Contact Us Page",
+									action: "Whatsapp phone was clicked Contact Us Page",
+									label: `Whatsapp phone was clicked Contact Us Page`,
+								});
+
+								ReactPixel.track("Whatsapp phone was clicked Contact Us Page", {
+									action: "User Clicked on Whatsapp phone",
+									page: "Contact Us Page",
+								});
+							}}
+						>
 							{/* WhatsApp phone number – click to launch WhatsApp */}
 							<a
 								href={`https://wa.me/${supportWhatsAppNumber}`}

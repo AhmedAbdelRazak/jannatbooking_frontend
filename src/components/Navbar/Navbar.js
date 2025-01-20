@@ -467,7 +467,20 @@ const Navbar = () => {
 						{total_rooms > 0 && <Badge>{total_rooms}</Badge>}
 					</CartIconWrapper>
 				</div>
-				<DrawerPhoneItem>
+				<DrawerPhoneItem
+					onClick={() => {
+						ReactGA.event({
+							category: "Whatsapp phone was clicked Sidedrawer",
+							action: "Whatsapp phone was clicked Sidedrawer",
+							label: `Whatsapp phone was clicked Sidedrawer`,
+						});
+
+						ReactPixel.track("Whatsapp phone was clicked Sidedrawer", {
+							action: "User Clicked on Whatsapp phone",
+							page: "Home Page",
+						});
+					}}
+				>
 					<a
 						href={`https://wa.me/${supportWhatsAppNumber}`}
 						target='_blank'
