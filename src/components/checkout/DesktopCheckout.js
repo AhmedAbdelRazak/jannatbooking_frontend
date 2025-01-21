@@ -61,6 +61,8 @@ const DesktopCheckout = ({
 	setSelectedPaymentOption,
 	setPaymentClicked,
 	paymentClicked,
+	overallAverageCommissionRate,
+	totalRoomsPricePerNight,
 }) => {
 	return (
 		<DesktopWrapper>
@@ -204,6 +206,8 @@ const DesktopCheckout = ({
 								convertedAmounts={convertedAmounts}
 								selectedPaymentOption={selectedPaymentOption}
 								setSelectedPaymentOption={setSelectedPaymentOption}
+								overallAverageCommissionRate={overallAverageCommissionRate}
+								totalRoomsPricePerNight={totalRoomsPricePerNight}
 							/>
 						) : null}
 
@@ -281,6 +285,8 @@ const DesktopCheckout = ({
 								}
 								setPaymentClicked={setPaymentClicked}
 								paymentClicked={paymentClicked}
+								overallAverageCommissionRate={overallAverageCommissionRate}
+								totalRoomsPricePerNight={totalRoomsPricePerNight}
 							/>
 						)}
 					</div>

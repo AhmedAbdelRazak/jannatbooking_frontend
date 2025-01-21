@@ -13,6 +13,8 @@ const PaymentOptions = ({
 	convertedAmounts,
 	selectedPaymentOption,
 	setSelectedPaymentOption,
+	overallAverageCommissionRate,
+	totalRoomsPricePerNight,
 	fromPage,
 }) => {
 	const handlePaymentOptionChange = (option) => {
@@ -46,7 +48,7 @@ const PaymentOptions = ({
 						checked={selectedPaymentOption === "acceptDeposit"}
 						readOnly
 					/>
-					<label>
+					{/* <label>
 						{chosenLanguage === "Arabic"
 							? "قبول دفع العربون"
 							: "Accept Deposit Online"}{" "}
@@ -59,6 +61,25 @@ const PaymentOptions = ({
 								)}
 							</s>{" "}
 							SAR {depositAmount}
+						</span>
+					</label> */}
+
+					<label>
+						{chosenLanguage === "Arabic"
+							? "قبول دفع العربون"
+							: "Accept Deposit Online"}{" "}
+						({overallAverageCommissionRate}%)
+						<span>
+							<s>
+								SAR{" "}
+								{(
+									Number(totalRoomsPricePerNight) +
+									Number(depositAmount) +
+									(Number(totalRoomsPricePerNight) + Number(depositAmount)) *
+										0.1
+								).toFixed(2)}
+							</s>{" "}
+							SAR {Number(totalRoomsPricePerNight) + Number(depositAmount)}
 						</span>
 					</label>
 				</StyledOption>

@@ -5,10 +5,10 @@ import { Checkbox, message } from "antd";
 import {
 	gettingSingleReservationById,
 	updateReservationDetailsClient,
+	currencyConversion,
 } from "../apiCore";
 import PaymentDetails from "../components/checkout/PaymentDetails";
 import { useCartContext } from "../cart_context";
-import { currencyConversion } from "../apiCore"; // Import the currency conversion function
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import {
@@ -16,46 +16,109 @@ import {
 	translations,
 } from "../Assets";
 
+/**
+ * Calculate Commission & OneNight per your PaymentTrigger logic:
+ *  1) totalCommission = sum((day.price - day.rootPrice) * room.count)
+ *  2) oneNightCost    = sum(day[0].totalPriceWithoutCommission * room.count)
+ *  3) depositWithOneNight = totalCommission + oneNightCost
+ */
+function computeCommissionAndDeposit(pickedRoomsType = []) {
+	let totalCommission = 0;
+	let oneNightCost = 0;
+
+	pickedRoomsType.forEach((room) => {
+		if (room.pricingByDay && room.pricingByDay.length > 0) {
+			// Commission across all days
+			let commissionForRoom = room.pricingByDay.reduce((acc, day) => {
+				return acc + (Number(day.price) - Number(day.rootPrice));
+			}, 0);
+			commissionForRoom *= Number(room.count);
+			totalCommission += commissionForRoom;
+
+			// For the deposit, just the first day cost
+			const firstDayCost = Number(
+				room.pricingByDay[0].totalPriceWithoutCommission
+			);
+			oneNightCost += firstDayCost * Number(room.count);
+		} else {
+			// fallback if no pricingByDay
+			oneNightCost += Number(room.chosenPrice) * Number(room.count);
+		}
+	});
+
+	const depositWithOneNight = totalCommission + oneNightCost;
+
+	return {
+		totalCommission: Number(totalCommission.toFixed(2)),
+		oneNightCost: Number(oneNightCost.toFixed(2)),
+		depositWithOneNight: Number(depositWithOneNight.toFixed(2)),
+	};
+}
+
 const PaymentLink = () => {
-	const { reservationId } = useParams(); // Get reservationId from the route
+	const { reservationId } = useParams();
+	const { chosenLanguage } = useCartContext();
+	const t = translations[chosenLanguage] || translations.English;
+
+	// Reservation + Payment logic states
 	const [reservationData, setReservationData] = useState(null);
-	const [convertedAmounts, setConvertedAmounts] = useState({
-		depositUSD: null,
-		totalUSD: null,
-	}); // Added for currency conversion // State for converted amounts
+	const [commission, setCommission] = useState(0);
+	// eslint-disable-next-line
+	const [oneNightCost, setOneNightCost] = useState(0);
+	const [depositWithOneNight, setDepositWithOneNight] = useState(0);
 	const [loading, setLoading] = useState(true);
+
+	// Payment option: either "acceptDeposit" or "fullAmount"
+	const [selectedOption, setSelectedOption] = useState(null);
+
+	// USD conversions
+	const [commissionUSD, setCommissionUSD] = useState("0.00");
+	const [depositUSD, setDepositUSD] = useState("0.00");
+	const [totalUSD, setTotalUSD] = useState("0.00");
+
+	// Payment details
 	const [cardNumber, setCardNumber] = useState("");
 	const [expiryDate, setExpiryDate] = useState("");
 	const [cvv, setCvv] = useState("");
 	const [cardHolderName, setCardHolderName] = useState("");
 	const [postalCode, setPostalCode] = useState("");
+
+	// Terms
 	const [guestAgreedOnTermsAndConditions, setGuestAgreedOnTermsAndConditions] =
 		useState(false);
-	const [selectedPaymentOption, setSelectedPaymentOption] = useState(
-		"acceptPayWholeAmount"
-	);
-	const { chosenLanguage } = useCartContext();
 
-	const t = translations[chosenLanguage] || translations.English;
-	// Fetch the reservation data when the component mounts
+	// 1) On mount, fetch reservation & compute deposit logic
 	useEffect(() => {
-		window.scrollTo({ top: 20, behavior: "smooth" });
 		const fetchReservation = async () => {
 			try {
 				const data = await gettingSingleReservationById(reservationId);
 				if (data) {
 					setReservationData(data);
 
-					// Dynamically calculate converted amounts
-					const { total_amount, commission } = data;
-					const amounts = [commission, total_amount];
-					const conversions = await currencyConversion(amounts);
-					setConvertedAmounts({
-						depositUSD: Number(conversions[0]?.amountInUSD.toFixed(2)) || 0,
-						totalUSD: Number(conversions[1]?.amountInUSD.toFixed(2)) || 0,
-					});
-				} else {
-					console.error("Failed to fetch reservation data");
+					if (data.pickedRoomsType && data.pickedRoomsType.length > 0) {
+						const { totalCommission, oneNightCost, depositWithOneNight } =
+							computeCommissionAndDeposit(data.pickedRoomsType);
+
+						setCommission(totalCommission);
+						setOneNightCost(oneNightCost);
+						setDepositWithOneNight(depositWithOneNight);
+
+						// Convert [fullAmount, totalCommission, depositWithOneNight] to USD
+						const amounts = [
+							data.total_amount || 0,
+							totalCommission,
+							depositWithOneNight,
+						];
+						const conversions = await currencyConversion(amounts);
+						// matches array order: [fullAmt, comm, deposit]
+						const fullAmtUSD = conversions[0]?.amountInUSD || 0;
+						const commUSD = conversions[1]?.amountInUSD || 0;
+						const depUSD = conversions[2]?.amountInUSD || 0;
+
+						setTotalUSD(Number(fullAmtUSD).toFixed(2));
+						setCommissionUSD(Number(commUSD).toFixed(2));
+						setDepositUSD(Number(depUSD).toFixed(2));
+					}
 				}
 			} catch (error) {
 				console.error("Error fetching reservation:", error);
@@ -66,61 +129,57 @@ const PaymentLink = () => {
 
 		if (reservationId) {
 			fetchReservation();
+			window.scrollTo({ top: 20, behavior: "smooth" });
 		}
 	}, [reservationId]);
 
+	// 2) handleOptionChange: styled approach
+	const handleOptionChange = (optionValue) => {
+		setSelectedOption(optionValue);
+
+		ReactGA.event({
+			category: "User Selected Payment Option From Link",
+			action: `User Selected ${optionValue}`,
+			label: `User Selected ${optionValue}`,
+		});
+		ReactPixel.track("Selected Payment Option From Link", {
+			action: `User Selected ${optionValue}`,
+			page: "generatedLink",
+		});
+	};
+
+	// 3) Final Payment update
 	const handleReservationUpdate = async () => {
-		if (!reservationData || !convertedAmounts) {
-			console.error("Reservation data or converted amounts are missing");
-			return;
+		if (!reservationData) {
+			return console.error("No reservation loaded");
 		}
-
 		if (!guestAgreedOnTermsAndConditions) {
-			message.error(
-				"You must accept the Terms & Conditions before proceeding."
-			);
-			return;
+			return message.error("You must accept the Terms & Conditions first.");
+		}
+		if (!selectedOption) {
+			return message.error("Please choose a payment option.");
 		}
 
+		let paid_amount = 0;
 		let payment = "Not Paid";
 		let commissionPaid = false;
-		let commission = 0;
-		let depositAmount = reservationData.commission || 0;
-		let paid_amount = 0;
-		let adjustedTotalAmount = reservationData.total_amount; // Default total amount
+		let finalCommission = commission; // entire stay
+		const totalAmount = reservationData.total_amount || 0;
+		let amountInUSD = "0.00";
 
-		if (selectedPaymentOption === "acceptDeposit") {
+		if (selectedOption === "acceptDeposit") {
+			// deposit
+			paid_amount = depositWithOneNight;
 			payment = "Deposit Paid";
 			commissionPaid = true;
-			commission = depositAmount;
-			paid_amount = depositAmount;
-		} else if (selectedPaymentOption === "acceptPayWholeAmount") {
+			amountInUSD = depositUSD;
+		} else if (selectedOption === "acceptPayWholeAmount") {
+			paid_amount = totalAmount;
 			payment = "Paid Online";
 			commissionPaid = true;
-			commission = depositAmount;
-			paid_amount = adjustedTotalAmount;
-		} else if (selectedPaymentOption === "acceptReserveNowPayInHotel") {
-			payment = "Not Paid";
-			commissionPaid = false;
-			commission = depositAmount;
-			adjustedTotalAmount *= 1.1; // Increase total by 10%
-			paid_amount = 0; // No payment made upfront
+			amountInUSD = totalUSD;
 		}
 
-		const paymentDetails = {
-			cardNumber,
-			cardExpiryDate: expiryDate,
-			cardCVV: cvv,
-			cardHolderName,
-			amount:
-				selectedPaymentOption === "acceptDeposit"
-					? convertedAmounts.depositUSD // Use deposit amount in USD
-					: selectedPaymentOption === "acceptPayWholeAmount"
-						? convertedAmounts.totalUSD // Use total amount in USD
-						: 0, // No upfront payment for "acceptReserveNowPayInHotel"
-		};
-
-		// Prepare the updated data
 		const updatedData = {
 			customer_details: {
 				cardNumber,
@@ -129,12 +188,22 @@ const PaymentLink = () => {
 				cardHolderName,
 			},
 			payment,
-			convertedAmounts,
-			paid_amount,
 			commissionPaid,
-			commission,
-			paymentDetails,
-			guestAgreedOnTermsAndConditions: guestAgreedOnTermsAndConditions,
+			commission: finalCommission,
+			paid_amount,
+			guestAgreedOnTermsAndConditions,
+			paymentDetails: {
+				cardNumber,
+				cardExpiryDate: expiryDate,
+				cardCVV: cvv,
+				cardHolderName,
+				amount: amountInUSD, // in USD
+			},
+			convertedAmounts: {
+				commissionUSD,
+				depositUSD,
+				totalUSD,
+			},
 		};
 
 		try {
@@ -143,192 +212,171 @@ const PaymentLink = () => {
 				updatedData
 			);
 			if (response?.success) {
-				message.success("Successful Payment");
 				setTimeout(() => {
-					window.location.reload(false);
+					window.location.reload();
 				}, 2000);
-				console.log("Reservation updated successfully");
-				// Add success handling (e.g., redirect or show a message)
+
+				message.success("Payment triggered successfully!");
+				setTimeout(() => {
+					window.location.reload();
+				}, 2000);
 			} else {
+				setTimeout(() => {
+					window.location.reload();
+				}, 2000);
 				console.error("Failed to update reservation", response?.message);
+				message.error(response?.message || "Failed to update reservation.");
 			}
 		} catch (error) {
+			setTimeout(() => {
+				window.location.reload();
+			}, 2000);
 			console.error("Error updating reservation:", error);
+			message.error("An error occurred updating the reservation.");
 		}
 	};
 
-	const handlePaymentOptionChange = (option) => {
-		setSelectedPaymentOption(option);
-
-		// Google Analytics Event Tracking
-		ReactGA.event({
-			category: "User Selected Payment Option From Link",
-			action: `User Selected ${option} From Link`,
-			label: `User Selected ${option} From Link`,
-		});
-
-		// Facebook Pixel Tracking
-		ReactPixel.track(`Selected Payment Option From Link`, {
-			action: `User Selected ${option} From Link`,
-			page: "generatedLink",
-		});
-	};
+	// 4) Render
+	if (loading) return <div>Loading...</div>;
+	if (!reservationData) return <div>No reservation found</div>;
 
 	return (
 		<PaymentLinkWrapper
 			className='container'
 			dir={chosenLanguage === "Arabic" ? "rtl" : ""}
 		>
-			{loading ? (
-				<div>Loading...</div>
-			) : reservationData && convertedAmounts ? (
-				<div>
-					<h2>Reservation Details</h2>
-					<p>
-						<strong>Hotel Name:</strong> {reservationData.hotelId?.hotelName}
-					</p>
-					<p>
-						<strong>Confirmation Number:</strong>{" "}
-						{reservationData.confirmation_number}
-					</p>
-					<p>
-						<strong>Guest Name:</strong>{" "}
-						{reservationData.customer_details?.name}
-					</p>
-					<p>
-						<strong>Email:</strong> {reservationData.customer_details?.email}
-					</p>
-					<p>
-						<strong>Nationality:</strong>{" "}
-						{reservationData.customer_details?.nationality}
-					</p>
-					<p>
-						<strong>Total Amount:</strong> {reservationData.total_amount} SAR
-					</p>
-					<p>
-						<strong>Check-in Date:</strong>{" "}
-						{new Date(reservationData.checkin_date).toLocaleDateString()}
-					</p>
-					<p>
-						<strong>Check-out Date:</strong>{" "}
-						{new Date(reservationData.checkout_date).toLocaleDateString()}
-					</p>
+			<h2>Reservation Details</h2>
+			<p>
+				<strong>Hotel Name:</strong> {reservationData.hotelId?.hotelName}
+			</p>
+			<p>
+				<strong>Confirmation Number:</strong>{" "}
+				{reservationData.confirmation_number}
+			</p>
+			<p>
+				<strong>Guest Name:</strong> {reservationData.customer_details?.name}
+			</p>
+			<p>
+				<strong>Email:</strong> {reservationData.customer_details?.email}
+			</p>
+			<p>
+				<strong>Nationality:</strong>{" "}
+				{reservationData.customer_details?.nationality}
+			</p>
+			<p>
+				<strong>Total Amount:</strong> {reservationData.total_amount} SAR
+			</p>
 
+			{/* Payment Already Done? */}
+			{["deposit paid", "paid online"].includes(
+				reservationData.payment?.toLowerCase()
+			) ? (
+				<div className='my-4 text-center'>
+					<h3 dir='ltr' style={{ fontSize: "1.5rem", fontWeight: "bold" }}>
+						Thank you for your payment {reservationData.customer_details?.name}!
+					</h3>
+				</div>
+			) : (
+				<>
+					{/* Show commission / deposit for clarity */}
+					{/* <AmountsWrapper>
+						<p>
+							<strong>Commission (Entire Stay):</strong>{" "}
+							{commission.toLocaleString()} SAR
+						</p>
+						<p>
+							<strong>One Night Cost:</strong> {oneNightCost.toLocaleString()}{" "}
+							SAR
+						</p>
+						<p>
+							<strong>Deposit = Commission + One Night:</strong>{" "}
+							{depositWithOneNight.toLocaleString()} SAR
+						</p>
+					</AmountsWrapper> */}
+					{/* Payment Option Buttons (just like PaymentOptions style) */}
+					<h3 style={{ marginTop: "1rem" }}>Choose Payment Option</h3>
+
+					<StyledOption
+						selected={selectedOption === "acceptDeposit"}
+						onClick={() => handleOptionChange("acceptDeposit")}
+					>
+						<input
+							type='radio'
+							readOnly
+							checked={selectedOption === "acceptDeposit"}
+						/>
+						<label>
+							Deposit:{" "}
+							<strong>
+								{depositUSD} USD ({depositWithOneNight.toLocaleString()} SAR)
+							</strong>
+						</label>
+					</StyledOption>
+
+					<StyledOption
+						selected={selectedOption === "acceptPayWholeAmount"}
+						onClick={() => handleOptionChange("acceptPayWholeAmount")}
+					>
+						<input
+							type='radio'
+							readOnly
+							checked={selectedOption === "acceptPayWholeAmount"}
+						/>
+						<label>
+							Full Amount:{" "}
+							<strong>
+								{totalUSD} USD ({reservationData.total_amount.toLocaleString()}{" "}
+								SAR)
+							</strong>
+						</label>
+					</StyledOption>
+
+					{/* Terms acceptance */}
 					<TermsWrapper
 						selected={guestAgreedOnTermsAndConditions}
-						onClick={() => {
+						onClick={() =>
 							setGuestAgreedOnTermsAndConditions(
 								!guestAgreedOnTermsAndConditions
-							);
-							ReactGA.event({
-								category: "User Accepted Terms And Cond From Email Link",
-								action: "User Accepted Terms And Cond From Email Link",
-								label: `User Accepted Terms And Cond From Email Link`,
-							});
-
-							ReactPixel.track("Terms And Conditions Accepted From Link", {
-								action: "User Accepted Terms And Conditions Accepted From Link",
-								page: "Email Link",
-							});
-						}}
+							)
+						}
 					>
 						<Checkbox
-							isChecked={guestAgreedOnTermsAndConditions}
 							checked={guestAgreedOnTermsAndConditions}
-							onChange={(e) => {
-								setGuestAgreedOnTermsAndConditions(e.target.checked);
-								ReactGA.event({
-									category: "User Accepted Terms And Cond",
-									action: "User Accepted Terms And Cond",
-									label: `User Accepted Terms And Cond`,
-								});
-
-								ReactPixel.track("Terms And Conditions Accepted", {
-									action: "User Accepted Terms And Conditions Accepted",
-									page: "checkout",
-								});
-							}}
+							onChange={(e) =>
+								setGuestAgreedOnTermsAndConditions(e.target.checked)
+							}
 						>
 							{t.acceptTerms}
 						</Checkbox>
 					</TermsWrapper>
 
-					{reservationData &&
-						reservationData.hotelId &&
-						reservationData.hotelId.guestPaymentAcceptance.acceptDeposit && (
-							<TermsWrapper>
-								<Checkbox
-									checked={selectedPaymentOption === "acceptDeposit"}
-									onChange={() => handlePaymentOptionChange("acceptDeposit")}
-								>
-									{chosenLanguage === "Arabic"
-										? "قبول دفع العربون"
-										: "Accept Deposit Online"}{" "}
-									<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
-										SAR {reservationData.commission}
-									</span>{" "}
-								</Checkbox>
-								{/* Note about the amount due */}
-							</TermsWrapper>
-						)}
-
-					{/* Pay Whole Amount Option */}
-					{reservationData &&
-						reservationData.hotelId &&
-						reservationData.hotelId.guestPaymentAcceptance
-							.acceptPayWholeAmount && (
-							<TermsWrapper>
-								<Checkbox
-									checked={selectedPaymentOption === "acceptPayWholeAmount"}
-									onChange={() =>
-										handlePaymentOptionChange("acceptPayWholeAmount")
-									}
-								>
-									{chosenLanguage === "Arabic"
-										? "دفع المبلغ الإجمالي"
-										: "Pay Whole Amount Online"}{" "}
-									<span style={{ fontWeight: "bold", fontSize: "12.5px" }}>
-										SAR {Number(reservationData.total_amount).toFixed(2)}
-									</span>{" "}
-								</Checkbox>
-							</TermsWrapper>
-						)}
-
-					{reservationData.payment === "deposit paid" ||
-					reservationData.payment === "paid online" ? (
-						<div className='my-4 text-center'>
-							<h3 dir='ltr' style={{ fontSize: "1.5rem", fontWeight: "bold" }}>
-								Thank you for your payment{" "}
-								{reservationData.customer_details.name}!
-							</h3>
-						</div>
-					) : (
-						<PaymentDetails
-							cardNumber={cardNumber}
-							setCardNumber={setCardNumber}
-							expiryDate={expiryDate}
-							setExpiryDate={setExpiryDate}
-							cvv={cvv}
-							setCvv={setCvv}
-							cardHolderName={cardHolderName}
-							setCardHolderName={setCardHolderName}
-							postalCode={postalCode}
-							setPostalCode={setPostalCode}
-							handleReservation={handleReservationUpdate}
-							nationality={reservationData.customer_details?.nationality || ""}
-							total={reservationData.total_amount - reservationData.commission}
-							total_price_with_commission={reservationData.total_amount}
-							depositAmount={reservationData.commission || 0}
-							selectedPaymentOption={selectedPaymentOption}
-							setSelectedPaymentOption={setSelectedPaymentOption}
-							convertedAmounts={convertedAmounts}
-							chosenLanguage={chosenLanguage}
-							guestAgreedOnTermsAndConditions={guestAgreedOnTermsAndConditions}
-						/>
-					)}
-				</div>
-			) : (
-				<div>No reservation found</div>
+					<PaymentDetails
+						cardNumber={cardNumber}
+						setCardNumber={setCardNumber}
+						expiryDate={expiryDate}
+						setExpiryDate={setExpiryDate}
+						cvv={cvv}
+						setCvv={setCvv}
+						cardHolderName={cardHolderName}
+						setCardHolderName={setCardHolderName}
+						postalCode={postalCode}
+						setPostalCode={setPostalCode}
+						handleReservation={handleReservationUpdate}
+						total={reservationData.total_amount - commission} // for reference if needed
+						total_price_with_commission={reservationData.total_amount}
+						depositAmount={commission}
+						selectedPaymentOption={selectedOption}
+						setSelectedPaymentOption={setSelectedOption}
+						convertedAmounts={{
+							commissionUSD,
+							depositUSD,
+							totalUSD,
+						}}
+						chosenLanguage={chosenLanguage}
+						guestAgreedOnTermsAndConditions={guestAgreedOnTermsAndConditions}
+						totalRoomsPricePerNight={oneNightCost}
+					/>
+				</>
 			)}
 		</PaymentLinkWrapper>
 	);
@@ -336,6 +384,7 @@ const PaymentLink = () => {
 
 export default PaymentLink;
 
+/* ------------- Styled Components ------------- */
 const PaymentLinkWrapper = styled.div`
 	min-height: 700px;
 	padding: 20px;
@@ -362,23 +411,106 @@ const PaymentLinkWrapper = styled.div`
 	}
 `;
 
+// eslint-disable-next-line
+const AmountsWrapper = styled.div`
+	margin: 20px 0;
+	padding: 10px;
+	border: 1px solid #ccc;
+	background-color: #f7f7f7;
+`;
+
 const TermsWrapper = styled.div`
 	margin: 5px auto;
 	font-size: 1rem;
 	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	background-color: #363636;
-	padding: 10px;
-	width: 50%;
+	align-items: center;
+	padding: 12px;
+	border: 2px solid
+		${({ selected }) => (selected ? "#c4e2ff" : "var(--border-color-light)")};
+	background-color: ${({ selected }) =>
+		selected ? "#c4e2ff" : "var(--accent-color-2-dark)"};
+	border-radius: 8px;
+	margin-bottom: 2px;
+	cursor: pointer;
+	transition: var(--main-transition);
+
+	&:hover {
+		background-color: ${({ selected }) =>
+			selected ? "#c4e2ff" : "var(--accent-color-2-dark)"};
+	}
 
 	.ant-checkbox-wrapper {
 		margin-left: 10px;
-		color: white !important;
-		font-weight: bold;
+	}
+`;
+
+/**
+ * This replicates the styling from "StyledOption" in PaymentOptions:
+ */
+const StyledOption = styled.div`
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 12px;
+	border: 2px solid
+		${({ selected }) => (selected ? "#9dffce" : "var(--border-color-light)")};
+	background-color: ${({ selected }) =>
+		selected ? "#d8ffeb" : "var(--accent-color-2)"};
+	border-radius: 8px;
+	margin-bottom: 8px;
+	cursor: pointer;
+	transition: var(--main-transition);
+
+	input[type="radio"] {
+		appearance: none;
+		width: 20px;
+		height: 20px;
+		border: 2px solid var(--border-color-light);
+		border-radius: 50%;
+		margin-right: 15px;
+		position: relative;
+		cursor: pointer;
+		outline: none;
+		background-color: var(--accent-color-2);
+		transition:
+			background-color 0.3s ease,
+			border-color 0.3s ease;
 	}
 
-	@media (max-width: 1000px) {
-		width: 100%;
+	input[type="radio"]:checked {
+		background-color: var(--text-color-dark);
+		border-color: var(--text-color-dark);
+	}
+
+	label {
+		font-size: 16px;
+		font-weight: 500;
+		color: var(--text-color-primary);
+		display: flex;
+		flex-direction: column;
+	}
+
+	label strong {
+		font-weight: 600;
+		font-size: 14px;
+		color: var(--secondary-color-dark);
+		margin-top: 3px;
+	}
+
+	@media (max-width: 768px) {
+		padding: 6px 10px;
+
+		input[type="radio"] {
+			width: 18px;
+			height: 18px;
+			margin-right: 10px;
+		}
+
+		label {
+			font-size: 14px;
+		}
+		label strong {
+			font-size: 12.5px;
+		}
 	}
 `;

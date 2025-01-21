@@ -31,9 +31,15 @@ const { Option } = Select;
 
 const calculateDepositDetails = (roomCart) => {
 	if (!roomCart || roomCart.length === 0) {
-		return { averageCommissionRate: 0, depositAmount: 0 };
+		return {
+			averageCommissionRate: 0,
+			depositAmount: 0,
+			totalRoomsPricePerNight: 0,
+			overallAverageCommissionRate: 0,
+		};
 	}
 
+	// Calculate the average commission rate (for one night) using pricingByDayWithCommission data:
 	const totalCommissionRate = roomCart.reduce((total, room) => {
 		const roomCommissionRate = room.pricingByDayWithCommission?.reduce(
 			(sum, day) => sum + (day.commissionRate || 0),
@@ -45,6 +51,7 @@ const calculateDepositDetails = (roomCart) => {
 
 	const averageCommissionRate = totalCommissionRate / roomCart.length;
 
+	// Calculate the deposit amount using pricingByDayWithCommission:
 	const depositAmount = roomCart.reduce((total, room) => {
 		return (
 			total +
@@ -53,15 +60,61 @@ const calculateDepositDetails = (roomCart) => {
 					sum +
 					day.totalPriceWithCommission *
 						(day.commissionRate || 0.1) *
-						room.amount,
+						Number(room.amount),
 				0
 			)
 		);
 	}, 0);
 
+	// Calculate totalRoomsPricePerNight as the sum (over all rooms) of (average price per night × room amount).
+	const totalRoomsPricePerNight = roomCart.reduce((total, room) => {
+		let averagePrice = 0;
+		if (room.pricingByDay && room.pricingByDay.length > 0) {
+			const sumPrices = room.pricingByDay.reduce(
+				(sum, day) => sum + Number(day.price),
+				0
+			);
+			averagePrice = sumPrices / room.pricingByDay.length;
+		} else {
+			averagePrice = Number(room.chosenPrice);
+		}
+		return total + averagePrice * Number(room.amount);
+	}, 0);
+
+	// NEW: Compute overallTotalAmount as the sum of each room's total amount with commission.
+	const overallTotalAmount = roomCart.reduce((total, room) => {
+		let roomTotal = 0;
+		if (
+			room.pricingByDayWithCommission &&
+			room.pricingByDayWithCommission.length > 0
+		) {
+			// Sum totalPriceWithCommission for each day and multiply by room.amount
+			roomTotal =
+				room.pricingByDayWithCommission.reduce(
+					(sum, day) => sum + Number(day.totalPriceWithCommission),
+					0
+				) * Number(room.amount);
+		} else {
+			roomTotal = Number(room.chosenPrice) * Number(room.amount);
+		}
+		return total + roomTotal;
+	}, 0);
+
+	// NEW: overallAverageCommissionRate: (depositAmount + totalRoomsPricePerNight) divided by overallTotalAmount, times 100
+	const overallAverageCommissionRate =
+		overallTotalAmount !== 0
+			? ((Number(depositAmount) + Number(totalRoomsPricePerNight)) /
+					overallTotalAmount) *
+				100
+			: 0;
+
 	return {
-		averageCommissionRate: Number(averageCommissionRate * 100).toFixed(2), // Percentage
-		depositAmount: Number(depositAmount).toFixed(2), // Total deposit amount
+		averageCommissionRate: Number(averageCommissionRate * 100).toFixed(2), // As percentage of average commission rate (if needed)
+		depositAmount: Number(depositAmount).toFixed(2), // In SAR (kept as is)
+		totalRoomsPricePerNight: Number(totalRoomsPricePerNight).toFixed(2), // In SAR
+		overallAverageCommissionRate: Number(overallAverageCommissionRate).toFixed(
+			2
+		), // Overall percentage
 	};
 };
 
@@ -115,12 +168,15 @@ const CheckoutContent = ({
 	const [convertedAmounts, setConvertedAmounts] = useState({
 		depositUSD: null,
 		totalUSD: null,
+		totalRoomsPricePerNightUSD: null,
 	});
 
-	const { averageCommissionRate, depositAmount } = useMemo(
-		() => calculateDepositDetails(roomCart),
-		[roomCart]
-	);
+	const {
+		averageCommissionRate,
+		depositAmount,
+		totalRoomsPricePerNight,
+		overallAverageCommissionRate,
+	} = useMemo(() => calculateDepositDetails(roomCart), [roomCart]);
 
 	useEffect(() => {
 		const fetchHotel = async () => {
@@ -167,13 +223,15 @@ const CheckoutContent = ({
 		const fetchConversion = async () => {
 			const deposit = depositAmount;
 			const total = total_price_with_commission;
-			const amounts = [deposit, total];
+			const totalRoomsPricePerNight_SAR = totalRoomsPricePerNight;
+			const amounts = [deposit, total, totalRoomsPricePerNight_SAR];
 
 			try {
 				const conversions = await currencyConversion(amounts);
 				setConvertedAmounts({
 					depositUSD: conversions[0]?.amountInUSD.toFixed(2),
 					totalUSD: conversions[1]?.amountInUSD.toFixed(2),
+					totalRoomsPricePerNightUSD: conversions[2]?.amountInUSD.toFixed(2),
 				});
 			} catch (error) {
 				console.error("Currency conversion failed", error);
@@ -352,7 +410,7 @@ const CheckoutContent = ({
 			payment = "Deposit Paid";
 			commissionPaid = true;
 			commission = depositAmount;
-			paid_amount = depositAmount;
+			paid_amount = Number(depositAmount) + Number(totalRoomsPricePerNight);
 		} else if (selectedPaymentOption === "acceptPayWholeAmount") {
 			payment = "Paid Online";
 			commissionPaid = true;
@@ -821,6 +879,8 @@ const CheckoutContent = ({
 								convertedAmounts={convertedAmounts}
 								selectedPaymentOption={selectedPaymentOption}
 								setSelectedPaymentOption={setSelectedPaymentOption}
+								overallAverageCommissionRate={overallAverageCommissionRate}
+								totalRoomsPricePerNight={totalRoomsPricePerNight}
 							/>
 						) : null}
 
@@ -901,6 +961,8 @@ const CheckoutContent = ({
 								}
 								setPaymentClicked={setPaymentClicked}
 								paymentClicked={paymentClicked}
+								overallAverageCommissionRate={overallAverageCommissionRate}
+								totalRoomsPricePerNight={totalRoomsPricePerNight}
 							/>
 						)}
 					</div>
@@ -954,6 +1016,8 @@ const CheckoutContent = ({
 				setSelectedPaymentOption={setSelectedPaymentOption}
 				setPaymentClicked={setPaymentClicked}
 				paymentClicked={paymentClicked}
+				overallAverageCommissionRate={overallAverageCommissionRate}
+				totalRoomsPricePerNight={totalRoomsPricePerNight}
 			/>
 		</CheckoutContentWrapper>
 	);

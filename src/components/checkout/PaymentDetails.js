@@ -289,7 +289,12 @@ const PaymentDetails = ({
 					{selectedPaymentOption === "acceptDeposit" && (
 						<h4>
 							Total Deposit Amount: $
-							{Number(convertedAmounts.depositUSD).toFixed(2)}
+							{convertedAmounts.totalRoomsPricePerNightUSD
+								? Number(
+										Number(convertedAmounts.depositUSD) +
+											Number(convertedAmounts.totalRoomsPricePerNightUSD)
+									).toFixed(2)
+								: Number(Number(convertedAmounts.depositUSD)).toFixed(2)}
 						</h4>
 					)}
 					{selectedPaymentOption === "acceptPayWholeAmount" && (

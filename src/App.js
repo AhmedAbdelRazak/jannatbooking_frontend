@@ -31,6 +31,12 @@ import ReactPixel from "react-facebook-pixel";
 import VerificationPage from "./pages/VerificationPage";
 import PaymentLink from "./pages/PaymentLink";
 
+// Deposit should be the commission + one night from each room
+// Capturing payment deposit always the commission + one night from each room
+// ReceiptPDF should be in the email as PDF
+// Another ReceiptPDF with the rootPrice and change the total (B2B) "Operation Order"
+// Supplier No & Supplier Booking No in the database.
+
 const App = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
 
