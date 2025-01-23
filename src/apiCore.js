@@ -22,6 +22,42 @@ export const PropertySignup = (userData) => {
 		});
 };
 
+export const triggerPaymentClient = (
+	userId,
+	token,
+	reservationId,
+	amountUSD,
+	paymentOption,
+	customUSD,
+	amountSAR
+) => {
+	return fetch(`${process.env.REACT_APP_API_URL}/create-payment-client`, {
+		method: "POST",
+		headers: {
+			Accept: "application/json",
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${token}`,
+		},
+		body: JSON.stringify({
+			reservationId,
+			// The final USD amount to charge via Authorize.Net
+			amount: amountUSD,
+			paymentOption,
+			// If customAmount chosen, original custom USD typed by user
+			customUSD,
+			// The matching SAR amount for your own records
+			amountSAR,
+		}),
+	})
+		.then((response) => {
+			if (!response.ok) {
+				throw new Error(`HTTP error! Status: ${response.status}`);
+			}
+			return response.json();
+		})
+		.catch((err) => console.error("Error triggering payment:", err));
+};
+
 export const createNewSupportCase = async (data) => {
 	return fetch(`${process.env.REACT_APP_API_URL}/support-cases/new`, {
 		method: "POST",
