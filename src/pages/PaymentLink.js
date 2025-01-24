@@ -264,7 +264,8 @@ const PaymentLink = () => {
 				{reservationData.customer_details?.nationality}
 			</p>
 			<p>
-				<strong>Total Amount:</strong> {reservationData.total_amount} SAR
+				<strong>Total Amount:</strong>{" "}
+				{Number(reservationData.total_amount).toFixed(2)} SAR
 			</p>
 
 			{/* Payment Already Done? */}

@@ -163,11 +163,6 @@ const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 		if (mainSwiper) mainSwiper.autoplay.start();
 	};
 
-	console.log(
-		hotel.hotelState + " " + hotel.hotelName,
-		"hotel.hotelStatehotel.hotelState"
-	);
-
 	return (
 		<HotelCardWrapper isArabic={chosenLanguage === "Arabic"}>
 			{/* Image section with Swiper */}
