@@ -44,43 +44,45 @@ const calculateDepositDetails = (roomCart) => {
 		};
 	}
 
-	let depositSum = 0; // Summation of differences
-	let totalOneNightAllRooms = 0; // Summation of each room's one-night cost
+	let depositSum = 0; // Sum of differences (commission).
+	let totalOneNightAllRooms = 0; // Sum of each room's one-night cost (rootPrice).
+	let overallTotalWithCommission = 0; // Sum of all final daily prices for all rooms.
 
 	roomCart.forEach((room) => {
 		const count = safeParseFloat(room.amount, 1);
 
-		// 1) Calculate Commission = sum of (day.totalPriceWithCommission - day.rootPrice)
-		//    for each day, multiplied by room.count (and effectively # of nights is the
-		//    number of days in pricingByDayWithCommission).
+		// 1) DEPOSIT (difference approach):
+		//    Sum (day.totalPriceWithCommission - day.rootPrice) for all days,
+		//    multiplied by room.count.
 		if (
 			room.pricingByDayWithCommission &&
 			room.pricingByDayWithCommission.length > 0
 		) {
 			let roomDiffSum = 0;
+			let roomTotalWithComm = 0;
 			room.pricingByDayWithCommission.forEach((day) => {
 				const wc = safeParseFloat(day.totalPriceWithCommission, 0);
 				const rp = safeParseFloat(day.rootPrice, 0);
-				const diff = wc - rp; // e.g. 80 - 70 = 10
-				roomDiffSum += diff; // sum across all days in that room
+				roomDiffSum += wc - rp;
+				roomTotalWithComm += wc;
 			});
-			// Multiply by the quantity of that room:
-			// e.g. if we have 4 rooms, each day difference sum is 60 => 240 total
 			depositSum += roomDiffSum * count;
+			overallTotalWithCommission += roomTotalWithComm * count;
 		} else {
-			// If no pricingByDayWithCommission, default to 0 difference for deposit.
+			// If missing pricingByDayWithCommission, fallback to 0 difference
+			//  but also fallback for overall total
+			// (meaning we only have a "chosenPrice"?)
 			depositSum += 0;
+			const fallback = safeParseFloat(room.chosenPrice, 0);
+			overallTotalWithCommission += fallback * count;
 		}
 
-		// 2) Calculate One-Night Cost for this room => average rootPrice * room.amount
-		//    from the same logic you do in PDF for "oneNightCost".
-		//    We consider the first day or average rootPrice across the days.
-		//    For simplicity, let's do the "average rootPrice" approach:
+		// 2) One‐Night cost: average rootPrice or just rootPrice of first day
 		if (
 			room.pricingByDayWithCommission &&
 			room.pricingByDayWithCommission.length > 0
 		) {
-			// average of rootPrices for that room
+			// average rootPrice
 			const sumRootPrices = room.pricingByDayWithCommission.reduce(
 				(acc, d) => acc + safeParseFloat(d.rootPrice, 0),
 				0
@@ -94,22 +96,29 @@ const calculateDepositDetails = (roomCart) => {
 		}
 	});
 
-	// depositAmount = total difference across all days/rooms
-	// oneNightCost = totalOneNightAllRooms
-	// For your example => deposit = 240, totalOneNightAllRooms = 280
+	// Convert numeric to string w/ 2 decimals
 	const depositAmount = depositSum.toFixed(2);
 	const totalRoomsPricePerNight = totalOneNightAllRooms.toFixed(2);
 
-	// If you want averageCommissionRate or overallAverageCommissionRate,
-	// you can compute them here or leave them as placeholders:
-	const averageCommissionRate = "0.00"; // optional
-	const overallAverageCommissionRate = "0.00"; // optional
+	// Compute an “overall average rate” =
+	//  ( deposit + oneNightCost ) / ( sum of all final daily w/comm ) × 100
+	let overallAvgRate = 0;
+	if (overallTotalWithCommission > 0) {
+		const numerator =
+			safeParseFloat(depositAmount, 0) +
+			safeParseFloat(totalRoomsPricePerNight, 0);
+		overallAvgRate = (numerator / overallTotalWithCommission) * 100;
+	}
+	const overallAverageCommissionRate = overallAvgRate.toFixed(0);
+
+	// If you wish, set averageCommissionRate to something else, or keep “0.00”
+	const averageCommissionRate = "0.00";
 
 	return {
 		averageCommissionRate,
-		depositAmount,
-		totalRoomsPricePerNight,
-		overallAverageCommissionRate,
+		depositAmount, // e.g. "240.00"
+		totalRoomsPricePerNight, // e.g. "280.00"
+		overallAverageCommissionRate, // e.g. "48.00"
 	};
 };
 
