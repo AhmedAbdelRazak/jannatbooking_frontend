@@ -338,6 +338,10 @@ const SingleHotel = ({ selectedHotel }) => {
 	return (
 		<SingleHotelWrapper>
 			{/* Hero Section */}
+			{(selectedHotel && selectedHotel.activateHotel === false) ||
+			!selectedHotel
+				? (window.location.href = "/our-hotels")
+				: null}
 
 			<HeroSection dir='ltr'>
 				<Swiper

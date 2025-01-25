@@ -152,7 +152,11 @@ const SingleHotelMain = () => {
 					<Spin size='large' />
 				</SpinWrapper>
 			) : (
-				<SingleHotel selectedHotel={selectedHotel} />
+				<>
+					{selectedHotel && selectedHotel.hotelName ? (
+						<SingleHotel selectedHotel={selectedHotel} />
+					) : null}
+				</>
 			)}
 		</SingleHotelMainWrapper>
 	);

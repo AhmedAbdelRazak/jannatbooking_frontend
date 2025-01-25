@@ -33,6 +33,7 @@ const safeParseFloat = (value, fallback = 0) => {
 	const parsed = parseFloat(value);
 	return isNaN(parsed) ? fallback : parsed;
 };
+//Create user account with no password
 
 const calculateDepositDetails = (roomCart) => {
 	if (!roomCart || roomCart.length === 0) {
@@ -77,7 +78,7 @@ const calculateDepositDetails = (roomCart) => {
 			overallTotalWithCommission += fallback * count;
 		}
 
-		// 2) One‐Night cost: average rootPrice or just rootPrice of first day
+		// 2) One‐Night cost: average rootPrice across all days
 		if (
 			room.pricingByDayWithCommission &&
 			room.pricingByDayWithCommission.length > 0
@@ -316,7 +317,7 @@ const CheckoutContent = ({
 			passport,
 			passportExpiry,
 			password,
-			confirmPassword,
+			// confirmPassword,
 		} = customerDetails;
 
 		// Check if terms and conditions are agreed
@@ -334,7 +335,7 @@ const CheckoutContent = ({
 		}
 
 		// Phone number validation
-		const phoneRegex = /^\+?[0-9\s-]{6,}$/;
+		const phoneRegex = /^\+?[0-9\s-]{5,}$/;
 		if (!phone || !phoneRegex.test(phone)) {
 			message.error("Please provide a valid phone number.");
 			return;
@@ -348,25 +349,25 @@ const CheckoutContent = ({
 		}
 
 		// Password validation (only for non-authenticated users)
-		if (!user) {
-			if (!password || !confirmPassword) {
-				message.error("Please enter your password and confirm it.");
-				return;
-			}
+		// if (!user) {
+		// 	if (!password || !confirmPassword) {
+		// 		message.error("Please enter your password and confirm it.");
+		// 		return;
+		// 	}
 
-			if (password !== confirmPassword) {
-				message.error("Passwords do not match.");
-				return;
-			}
+		// 	if (password !== confirmPassword) {
+		// 		message.error("Passwords do not match.");
+		// 		return;
+		// 	}
 
-			const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
-			if (!passwordRegex.test(password)) {
-				message.error(
-					"Password must be at least 6 characters long and include both letters and numbers."
-				);
-				return;
-			}
-		}
+		// 	const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
+		// 	if (!passwordRegex.test(password)) {
+		// 		message.error(
+		// 			"Password must be at least 6 characters long and include both letters and numbers."
+		// 		);
+		// 		return;
+		// 	}
+		// }
 
 		// Passport validation
 		if (!passport) {
@@ -799,6 +800,8 @@ const CheckoutContent = ({
 								setCustomerDetails({
 									...customerDetails,
 									phone: inputValue,
+									password: inputValue,
+									confirmPassword: inputValue,
 								});
 							}}
 						/>
@@ -818,61 +821,6 @@ const CheckoutContent = ({
 							}
 						/>
 					</InputGroup>
-
-					{!user ? (
-						<div className='row'>
-							{/* <div className='col-md-12 mt-1'>
-								<p style={{ fontWeight: "bold", fontSize: "13px" }}>
-									Already Have An Account?{" "}
-									<span
-										onClick={redirectToSignin}
-										style={{
-											color: "blue",
-											cursor: "pointer",
-											textDecoration: "underline",
-										}}
-									>
-										Please Click Here To Signin
-									</span>
-								</p>
-							</div> */}
-							<div className='col-md-6'>
-								<InputGroup>
-									<label>{t.password}</label>
-									<input
-										type='password'
-										name='password'
-										placeholder={t.enterPassword}
-										value={customerDetails.password}
-										onChange={(e) =>
-											setCustomerDetails({
-												...customerDetails,
-												password: e.target.value,
-											})
-										}
-									/>
-								</InputGroup>
-							</div>
-
-							<div className='col-md-6'>
-								<InputGroup>
-									<label>{t.confirmPassword}</label>
-									<input
-										type='password'
-										name='confirmPassword'
-										placeholder={t.confirmPassword}
-										value={customerDetails.confirmPassword}
-										onChange={(e) =>
-											setCustomerDetails({
-												...customerDetails,
-												confirmPassword: e.target.value,
-											})
-										}
-									/>
-								</InputGroup>
-							</div>
-						</div>
-					) : null}
 
 					<InputGroup>
 						<label>{t.nationality}</label>
