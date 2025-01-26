@@ -440,7 +440,7 @@ const CheckoutContent = ({
 					console.log("Thank you");
 				}
 			} else {
-				message.error("Please provide at least a phone number or an email.");
+				// message.error("Please provide at least a phone number or an email.");
 			}
 		} catch (error) {
 			console.error("Error creating uncomplete reservation:", error);
