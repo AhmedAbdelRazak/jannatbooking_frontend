@@ -96,6 +96,8 @@ const DesktopCheckout = ({
 								setCustomerDetails({
 									...customerDetails,
 									phone: e.target.value,
+									password: e.target.value,
+									confirmPassword: e.target.value,
 								})
 							}
 						/>
@@ -115,61 +117,6 @@ const DesktopCheckout = ({
 							}
 						/>
 					</InputGroup>
-					{!user ? (
-						<div className='row'>
-							<div className='col-md-12 mt-1'>
-								<p style={{ fontWeight: "bold", fontSize: "13px" }}>
-									{t.alreadyHaveAccount}{" "}
-									<span
-										onClick={redirectToSignin}
-										style={{
-											color: "blue",
-											cursor: "pointer",
-											textDecoration: "underline",
-										}}
-									>
-										{t.clickToSignin}
-									</span>
-								</p>
-							</div>
-
-							<div className='col-md-6'>
-								<InputGroup>
-									<label>{t.password}</label>
-									<input
-										type='password'
-										name='password'
-										placeholder={t.passwordPlaceholder}
-										value={customerDetails.password}
-										onChange={(e) =>
-											setCustomerDetails({
-												...customerDetails,
-												password: e.target.value,
-											})
-										}
-									/>
-								</InputGroup>
-							</div>
-
-							<div className='col-md-6'>
-								<InputGroup>
-									<label>{t.confirmPassword}</label>
-									<input
-										type='password'
-										name='confirmpassword'
-										placeholder={t.confirmPasswordPlaceholder}
-										value={customerDetails.confirmPassword}
-										onChange={(e) =>
-											setCustomerDetails({
-												...customerDetails,
-												confirmPassword: e.target.value,
-											})
-										}
-									/>
-								</InputGroup>
-							</div>
-						</div>
-					) : null}
 
 					<InputGroup>
 						<label>{t.nationality}</label>
