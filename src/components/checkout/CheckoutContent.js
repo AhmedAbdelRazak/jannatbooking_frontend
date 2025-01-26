@@ -13,6 +13,7 @@ import {
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import {
 	createNewReservationClient,
+	createNewUncompletedReservationClient,
 	currencyConversion,
 	gettingSingleHotel,
 } from "../../apiCore";
@@ -308,6 +309,146 @@ const CheckoutContent = ({
 
 	// Disable past dates
 	const disabledDate = (current) => current && current < dayjs().endOf("day");
+
+	const createUncompletedDocument = async (from) => {
+		try {
+			const { phone, email } = customerDetails;
+
+			if (phone || email) {
+				// Hotel name consistency validation
+				const hotelNames = roomCart.map((room) => room.hotelName);
+				const uniqueHotelNames = [...new Set(hotelNames)];
+
+				// Dynamically set payment-related fields based on selectedPaymentOption
+				let payment = "Not Paid";
+				let commissionPaid = false;
+				let commission = safeParseFloat(depositAmount, 0);
+				let paid_amount = 0;
+				let totalAmount = safeParseFloat(total_price_with_commission, 0); // Default total amount
+
+				if (selectedPaymentOption === "acceptDeposit") {
+					payment = "Deposit Paid";
+					commissionPaid = true;
+					commission = safeParseFloat(depositAmount, 0);
+					paid_amount =
+						safeParseFloat(depositAmount, 0) +
+						safeParseFloat(totalRoomsPricePerNight, 0);
+				} else if (selectedPaymentOption === "acceptPayWholeAmount") {
+					payment = "Paid Online";
+					commissionPaid = true;
+					commission = safeParseFloat(depositAmount, 0);
+					paid_amount = safeParseFloat(total_price_with_commission, 0);
+				} else if (selectedPaymentOption === "acceptReserveNowPayInHotel") {
+					payment = "Not Paid";
+					commissionPaid = false;
+					commission = safeParseFloat(depositAmount, 0); // Same calculation as in PaymentOptions
+					totalAmount = safeParseFloat(total_price_with_commission, 0) * 1.1; // Increase total by 10%
+					paid_amount = 0; // No payment made upfront
+				}
+
+				// Prepare payment details
+				const paymentDetails = {
+					cardNumber,
+					cardExpiryDate: expiryDate,
+					cardCVV: cvv,
+					cardHolderName,
+				};
+
+				// Adjust pickedRoomsType to reflect changes for "Pay in Hotel"
+				const pickedRoomsType = transformRoomCartToPickedRoomsType(
+					roomCart,
+					selectedPaymentOption === "acceptReserveNowPayInHotel" // Pass a flag
+				);
+
+				// Validate pickedRoomsType to ensure data integrity
+				const isValidPickedRoomsType = pickedRoomsType.every((room) => {
+					return (
+						room.room_type &&
+						room.displayName &&
+						!isNaN(parseFloat(room.chosenPrice)) &&
+						typeof room.count === "number" &&
+						Array.isArray(room.pricingByDay) &&
+						room.pricingByDay.every(
+							(day) =>
+								day.date &&
+								typeof day.price === "number" &&
+								typeof day.rootPrice === "number" &&
+								typeof day.commissionRate === "number" &&
+								typeof day.totalPriceWithCommission === "number" &&
+								typeof day.totalPriceWithoutCommission === "number"
+						)
+					);
+				});
+
+				if (!isValidPickedRoomsType) {
+					message.error(
+						"Invalid room pricing details. Please review your selection."
+					);
+					return;
+				}
+
+				const reservationDataUncompleted = {
+					guestAgreedOnTermsAndConditions: guestAgreedOnTermsAndConditions,
+					userId: user ? user._id : null,
+					hotelId: roomCart[0].hotelId, // Assuming hotelId is a string
+					hotelName: roomCart[0].hotelName || "",
+					belongsTo: roomCart[0].belongsTo || "",
+					customerDetails: {
+						...customerDetails,
+						nationality,
+						postalCode,
+					},
+					paymentDetails,
+					total_rooms: safeParseFloat(total_rooms, 0),
+					total_guests:
+						safeParseFloat(roomCart[0].adults, 0) +
+						safeParseFloat(roomCart[0].children, 0),
+					adults: safeParseFloat(roomCart[0].adults, 0),
+					children: safeParseFloat(roomCart[0].children, 0),
+					total_amount: safeParseFloat(totalAmount, 0), // Adjusted if "Pay in Hotel"
+					payment,
+					paid_amount: safeParseFloat(paid_amount, 0),
+					commission: commission
+						? safeParseFloat(commission, 0)
+						: depositAmount,
+					commissionPaid,
+					checkin_date: roomCart[0].startDate || "",
+					checkout_date: roomCart[0].endDate || "",
+					days_of_residence: dayjs(roomCart[0].endDate).diff(
+						dayjs(roomCart[0].startDate),
+						"days"
+					),
+					booking_source: "Online Jannat Booking",
+					pickedRoomsType, // Ensure this is correctly set
+					convertedAmounts,
+					rootCause:
+						uniqueHotelNames.length > 1
+							? "User added more than one hotel to the cart"
+							: from,
+				};
+
+				// Send the uncomplete reservation to the backend
+				const response = await createNewUncompletedReservationClient(
+					reservationDataUncompleted
+				);
+
+				// Handle API response
+				if (response && response.message) {
+					// message.success(response.message);
+					console.log("Thank you");
+				} else {
+					console.log("Thank you");
+				}
+			} else {
+				message.error("Please provide at least a phone number or an email.");
+			}
+		} catch (error) {
+			console.error("Error creating uncomplete reservation:", error);
+			message.error(
+				"An error occurred while tracking your uncomplete reservation."
+			);
+		}
+	};
 
 	const createNewReservation = async () => {
 		const {
@@ -860,6 +1001,7 @@ const CheckoutContent = ({
 								setSelectedPaymentOption={setSelectedPaymentOption}
 								overallAverageCommissionRate={overallAverageCommissionRate}
 								totalRoomsPricePerNight={totalRoomsPricePerNight}
+								createUncompletedDocument={createUncompletedDocument}
 							/>
 						) : null}
 
@@ -873,6 +1015,8 @@ const CheckoutContent = ({
 								setGuestAgreedOnTermsAndConditions(
 									!guestAgreedOnTermsAndConditions
 								);
+
+								createUncompletedDocument("User Accepted Terms And Conditions");
 								ReactGA.event({
 									category: "User Accepted Terms And Cond",
 									action: "User Accepted Terms And Cond",
@@ -942,6 +1086,7 @@ const CheckoutContent = ({
 								paymentClicked={paymentClicked}
 								overallAverageCommissionRate={overallAverageCommissionRate}
 								totalRoomsPricePerNight={totalRoomsPricePerNight}
+								createUncompletedDocument={createUncompletedDocument}
 							/>
 						)}
 					</div>
@@ -997,6 +1142,7 @@ const CheckoutContent = ({
 				paymentClicked={paymentClicked}
 				overallAverageCommissionRate={overallAverageCommissionRate}
 				totalRoomsPricePerNight={totalRoomsPricePerNight}
+				createUncompletedDocument={createUncompletedDocument}
 			/>
 		</CheckoutContentWrapper>
 	);

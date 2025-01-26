@@ -63,6 +63,7 @@ const DesktopCheckout = ({
 	paymentClicked,
 	overallAverageCommissionRate,
 	totalRoomsPricePerNight,
+	createUncompletedDocument,
 }) => {
 	return (
 		<DesktopWrapper>
@@ -208,6 +209,7 @@ const DesktopCheckout = ({
 								setSelectedPaymentOption={setSelectedPaymentOption}
 								overallAverageCommissionRate={overallAverageCommissionRate}
 								totalRoomsPricePerNight={totalRoomsPricePerNight}
+								createUncompletedDocument={createUncompletedDocument}
 							/>
 						) : null}
 
@@ -217,6 +219,7 @@ const DesktopCheckout = ({
 								setGuestAgreedOnTermsAndConditions(
 									!guestAgreedOnTermsAndConditions
 								);
+								createUncompletedDocument("User Accepted Terms And Conditions");
 								ReactGA.event({
 									category: "User Accepted Terms And Cond",
 									action: "User Accepted Terms And Cond",
@@ -287,6 +290,7 @@ const DesktopCheckout = ({
 								paymentClicked={paymentClicked}
 								overallAverageCommissionRate={overallAverageCommissionRate}
 								totalRoomsPricePerNight={totalRoomsPricePerNight}
+								createUncompletedDocument={createUncompletedDocument}
 							/>
 						)}
 					</div>

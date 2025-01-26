@@ -63,6 +63,7 @@ const PaymentDetails = ({
 	guestAgreedOnTermsAndConditions,
 	setPaymentClicked,
 	paymentClicked,
+	createUncompletedDocument,
 }) => {
 	const [errors, setErrors] = useState({});
 	const [requirementsError, setRequirementsError] = useState(""); // For the red note
@@ -182,6 +183,7 @@ const PaymentDetails = ({
 	const handleClickReserve = () => {
 		const t = translations[chosenLanguage] || translations.English;
 		if (!guestAgreedOnTermsAndConditions || !selectedPaymentOption) {
+			createUncompletedDocument("User Didn't Accept User Terms and Conditions");
 			setRequirementsError(t.mustAgreeAndSelectOption);
 			setPaymentClicked(false);
 		} else {

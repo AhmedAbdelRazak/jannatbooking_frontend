@@ -16,10 +16,11 @@ const PaymentOptions = ({
 	overallAverageCommissionRate,
 	totalRoomsPricePerNight,
 	fromPage,
+	createUncompletedDocument,
 }) => {
 	const handlePaymentOptionChange = (option) => {
 		setSelectedPaymentOption(option);
-
+		createUncompletedDocument(`User Selected ${option}`);
 		// Google Analytics Event Tracking
 		ReactGA.event({
 			category: "User Selected Payment Option",
