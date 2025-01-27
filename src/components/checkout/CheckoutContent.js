@@ -450,6 +450,8 @@ const CheckoutContent = ({
 		}
 	};
 
+	console.log(roomCart, "roomCart");
+
 	const createNewReservation = async () => {
 		const {
 			name,

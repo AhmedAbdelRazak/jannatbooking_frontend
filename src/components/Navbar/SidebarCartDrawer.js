@@ -421,6 +421,7 @@ const SidebarCartDrawer = () => {
 								onChange={(date) => handleDateChange(date, "checkIn")}
 								disabledDate={disabledCheckInDate}
 								inputReadOnly
+								disabled
 								placeholder={
 									chosenLanguage === "Arabic"
 										? "اختر تاريخ الوصول"
@@ -432,6 +433,7 @@ const SidebarCartDrawer = () => {
 							<Label>{chosenLanguage === "Arabic" ? "إلى" : "Check-Out"}</Label>
 							<DatePicker
 								value={checkOut}
+								disabled
 								onChange={(date) => handleDateChange(date, "checkOut")}
 								disabledDate={disabledCheckOutDate}
 								inputReadOnly

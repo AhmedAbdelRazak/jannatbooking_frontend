@@ -135,6 +135,42 @@ const translations = {
 	},
 };
 
+const calculatePricingByDayWithCommission = (
+	pricingRate,
+	startDate,
+	endDate,
+	basePrice,
+	defaultCost,
+	commissionRate
+) => {
+	const pricingByDay = calculatePricingByDay(
+		pricingRate,
+		startDate,
+		endDate,
+		basePrice,
+		defaultCost,
+		commissionRate
+	);
+
+	return pricingByDay.map((day) => ({
+		...day,
+		totalPriceWithCommission: Number(
+			(
+				Number(day.price) +
+				Number(day.rootPrice) * Number(day.commissionRate)
+			).toFixed(2)
+		),
+		totalPriceWithoutCommission: Number(day.price),
+	}));
+};
+
+const getCommissionRate = (roomCommission, hotelCommission) => {
+	if (roomCommission) return parseFloat(roomCommission) / 100;
+	if (hotelCommission) return parseFloat(hotelCommission) / 100;
+	const envCommission = parseFloat(process.env.REACT_APP_COMMISSIONRATE);
+	return isNaN(envCommission) ? 0.1 : envCommission - 1; // Default to 10% if undefined
+};
+
 // Main SingleHotel component
 const SingleHotel = ({ selectedHotel }) => {
 	// eslint-disable-next-line
@@ -240,17 +276,31 @@ const SingleHotel = ({ selectedHotel }) => {
 		const startDate = dateRange[0].format("YYYY-MM-DD");
 		const endDate = dateRange[1].format("YYYY-MM-DD");
 
+		// Calculate commission rate using utility function
+		const commissionRate = getCommissionRate(
+			room.roomCommission,
+			selectedHotel.commission
+		);
+
 		// Calculate pricing by day
 		const pricingByDay = calculatePricingByDay(
-			room.pricingRate || [], // Use room-specific pricing rate
+			room.pricingRate || [],
 			startDate,
 			endDate,
-			room.price.basePrice, // Default base price
-			room.defaultCost, // Fallback cost
-			room.roomCommission ||
-				selectedHotel.commission ||
-				parseFloat(process.env.REACT_APP_COMMISSIONRATE) ||
-				0 // Commission rate fallback
+			room.price.basePrice,
+			room.defaultCost,
+			commissionRate * 100 // Convert back to percentage for consistency
+		);
+
+		// Calculate pricing by day with commission
+		// eslint-disable-next-line
+		const pricingByDayWithCommission = calculatePricingByDayWithCommission(
+			room.pricingRate || [],
+			startDate,
+			endDate,
+			room.price.basePrice,
+			room.defaultCost,
+			commissionRate * 100
 		);
 
 		// Calculate total nights
@@ -261,20 +311,14 @@ const SingleHotel = ({ selectedHotel }) => {
 			(total, day) => total + day.price,
 			0
 		);
-
 		const totalCommission = pricingByDay.reduce(
 			(total, day) => total + day.rootPrice * (day.commissionRate || 0),
 			0
 		);
 
-		// Calculate per-night price with commission
+		// Calculate price per night with commission
 		const pricePerNightWithCommission =
-			totalPrice / numberOfNights + totalCommission / numberOfNights;
-
-		// Calculate total price with commission
-
-		// eslint-disable-next-line
-		const totalPriceWithCommission = totalPrice + totalCommission;
+			(totalPrice + totalCommission) / numberOfNights;
 
 		// Prepare room details for cart
 		const roomDetails = {
@@ -284,7 +328,7 @@ const SingleHotel = ({ selectedHotel }) => {
 				? room.displayName_OtherLanguage
 				: room.displayName,
 			roomType: room.roomType,
-			price: pricePerNightWithCommission.toFixed(2), // Average nightly price with commission
+			price: parseFloat(pricePerNightWithCommission.toFixed(2)), // Ensure number type
 			defaultCost: room.defaultCost || room.price.basePrice, // Fallback cost
 			photos: room.photos || [], // Room photos
 			hotelName: selectedHotel.hotelName,
@@ -301,15 +345,24 @@ const SingleHotel = ({ selectedHotel }) => {
 			selectedHotel.belongsTo, // Hotel group/chain (if applicable)
 			pricingByDay, // Pricing breakdown by day
 			room.roomColor, // Room color (if applicable)
-			1, // Default adults count
-			0, // Default children count
-			room.roomCommission ||
-				selectedHotel.commission ||
-				parseFloat(process.env.REACT_APP_COMMISSIONRATE) // Commission rate
+			1, // Dynamic adults count
+			0, // Dynamic children count
+			commissionRate // Commission rate
 		);
 
 		// Open sidebar to show cart
 		openSidebar2();
+
+		// Track events for analytics
+		ReactGA.event({
+			category: "User Added Reservation To Cart From Single Hotel",
+			action: "User Added Reservation To Cart From Single Hotel",
+			label: `User Added Reservation To Cart From Single Hotel`,
+		});
+		ReactPixel.track("Add_To_Reservation", {
+			action: "User Added A Room To The Cart",
+			page: "Single Hotel Page",
+		});
 	};
 
 	const handleTabClick = (sectionId) => {
