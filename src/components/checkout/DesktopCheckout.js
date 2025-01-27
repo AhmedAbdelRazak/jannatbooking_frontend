@@ -1,5 +1,6 @@
 import React from "react";
 import styled from "styled-components";
+// eslint-disable-next-line
 import dayjs from "dayjs";
 import { DatePicker, Button, Collapse, Select, Checkbox } from "antd";
 import PaymentDetails from "./PaymentDetails";
@@ -9,6 +10,7 @@ import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import PaymentOptions from "./PaymentOptions";
 
+// eslint-disable-next-line
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
 const { Option } = Select;
@@ -64,6 +66,10 @@ const DesktopCheckout = ({
 	overallAverageCommissionRate,
 	totalRoomsPricePerNight,
 	createUncompletedDocument,
+	checkIn,
+	disabledCheckInDate,
+	checkOut,
+	disabledCheckOutDate,
 }) => {
 	return (
 		<DesktopWrapper>
@@ -265,18 +271,47 @@ const DesktopCheckout = ({
 
 				{/* Ant Design Date Range Picker */}
 				<DateRangePickerWrapper>
-					<RangePicker
-						format='YYYY-MM-DD'
-						disabledDate={disabledDate}
-						onChange={handleDateChange}
-						disabled
-						defaultValue={[
-							dayjs(roomCart[0]?.startDate),
-							dayjs(roomCart[0]?.endDate),
-						]}
-						style={{ width: "100%" }}
-						dropdownClassName='mobile-friendly-picker'
-					/>
+					<div className='row'>
+						<div className='col-md-6'>
+							<InputGroup>
+								<Label>{chosenLanguage === "Arabic" ? "من" : "Check-In"}</Label>
+								<DatePicker
+									value={checkIn}
+									onChange={(date) => handleDateChange(date, "checkIn")}
+									disabledDate={disabledCheckInDate}
+									inputReadOnly
+									placeholder={
+										chosenLanguage === "Arabic"
+											? "اختر تاريخ الوصول"
+											: "Select check-in"
+									}
+									style={{ width: "100%" }}
+								/>
+							</InputGroup>
+						</div>
+
+						<div className='col-md-6'>
+							<InputGroup>
+								<Label>
+									{chosenLanguage === "Arabic" ? "إلى" : "Check-Out"}
+								</Label>
+								<DatePicker
+									value={checkOut}
+									onChange={(date) => handleDateChange(date, "checkOut")}
+									disabledDate={disabledCheckOutDate}
+									inputReadOnly
+									placeholder={
+										chosenLanguage === "Arabic"
+											? "اختر تاريخ المغادرة"
+											: "Select check-out"
+									}
+									style={{ width: "100%" }}
+								/>
+							</InputGroup>
+						</div>
+					</div>
+
+					{/* Check-Out Date Picker */}
 				</DateRangePickerWrapper>
 
 				{roomCart.length > 0 ? (
@@ -628,4 +663,11 @@ const TermsWrapper = styled.div`
 	.ant-checkbox-wrapper {
 		margin-left: 10px;
 	}
+`;
+
+const Label = styled.label`
+	font-size: 0.7rem;
+	font-weight: 500;
+	margin-bottom: 4px;
+	color: #000;
 `;

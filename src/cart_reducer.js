@@ -244,7 +244,8 @@ const cart_reducer = (state, action) => {
 	}
 
 	if (action.type === UPDATE_ROOM_DATES) {
-		const { id, startDate, endDate, pricingByDay } = action.payload;
+		const { id, startDate, endDate, pricingByDay, pricingByDayWithCommission } =
+			action.payload;
 
 		const updatedCart = state.roomCart.map((room) => {
 			if (room.id === id) {
@@ -255,7 +256,7 @@ const cart_reducer = (state, action) => {
 				const defaultCommissionRate =
 					Number(process.env.REACT_APP_COMMISSIONRATE || 1.1) - 1;
 
-				// Calculate pricing by day and pricing by day with commission
+				// Use provided pricingByDay and pricingByDayWithCommission if available
 				const newPricingByDay =
 					pricingByDay ||
 					calculatePricingByDay2(
@@ -268,7 +269,7 @@ const cart_reducer = (state, action) => {
 					);
 
 				const newPricingByDayWithCommission =
-					pricingByDay ||
+					pricingByDayWithCommission ||
 					calculatePricingByDayWithCommission2(
 						room.priceRating,
 						startDate,

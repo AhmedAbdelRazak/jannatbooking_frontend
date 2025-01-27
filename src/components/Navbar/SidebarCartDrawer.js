@@ -242,6 +242,16 @@ const SidebarCartDrawer = () => {
 
 	const handleDateChange = (date, type) => {
 		if (type === "checkIn") {
+			if (!date) {
+				// Handle clearing the check-in date
+				setCheckIn(null);
+				setCheckOut(null);
+				setPrevCheckIn(null);
+				setPrevCheckOut(null);
+				// Optionally, clear the cart or notify the user
+				return;
+			}
+
 			const newCheckOut = date.add(nightsCount, "day");
 
 			// Validate the new date range
@@ -305,6 +315,13 @@ const SidebarCartDrawer = () => {
 		}
 
 		if (type === "checkOut") {
+			if (!date) {
+				// Handle clearing the check-out date
+				setCheckOut(null);
+				// Optionally, notify the user or adjust the cart
+				return;
+			}
+
 			if (!checkIn) {
 				toast.error(
 					chosenLanguage === "Arabic"
@@ -421,7 +438,7 @@ const SidebarCartDrawer = () => {
 								onChange={(date) => handleDateChange(date, "checkIn")}
 								disabledDate={disabledCheckInDate}
 								inputReadOnly
-								disabled
+								// disabled
 								placeholder={
 									chosenLanguage === "Arabic"
 										? "اختر تاريخ الوصول"
@@ -433,7 +450,7 @@ const SidebarCartDrawer = () => {
 							<Label>{chosenLanguage === "Arabic" ? "إلى" : "Check-Out"}</Label>
 							<DatePicker
 								value={checkOut}
-								disabled
+								// disabled
 								onChange={(date) => handleDateChange(date, "checkOut")}
 								disabledDate={disabledCheckOutDate}
 								inputReadOnly

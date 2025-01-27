@@ -16,6 +16,7 @@ import {
 	createNewUncompletedReservationClient,
 	currencyConversion,
 	gettingSingleHotel,
+	gettingRoomByIds,
 } from "../../apiCore";
 import { FaMinus, FaPlus } from "react-icons/fa";
 import { authenticate, isAuthenticated, signin } from "../../auth";
@@ -24,6 +25,7 @@ import DesktopCheckout from "./DesktopCheckout";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import PaymentOptions from "./PaymentOptions";
+import { toast } from "react-toastify";
 
 // eslint-disable-next-line
 const { RangePicker } = DatePicker;
@@ -124,6 +126,53 @@ const calculateDepositDetails = (roomCart) => {
 	};
 };
 
+const generateDateRange = (startDate, endDate) => {
+	const start = dayjs(startDate);
+	const end = dayjs(endDate);
+	const dateArray = [];
+
+	let currentDate = start;
+	while (currentDate.isBefore(end)) {
+		// Exclude end date
+		dateArray.push(currentDate.format("YYYY-MM-DD"));
+		currentDate = currentDate.add(1, "day");
+	}
+
+	return dateArray;
+};
+
+const calculatePricingByDay = (
+	pricingRate,
+	startDate,
+	endDate,
+	basePrice,
+	defaultCost,
+	roomCommission
+) => {
+	const dateRange = generateDateRange(startDate, endDate);
+
+	return dateRange.map((date) => {
+		const rateForDate = pricingRate?.find((rate) => rate.calendarDate === date);
+		const selectedCommissionRate = rateForDate?.commissionRate
+			? rateForDate.commissionRate / 100
+			: roomCommission
+				? roomCommission / 100
+				: parseFloat(process.env.REACT_APP_COMMISSIONRATE || "0.10"); // Default to 10%
+
+		return {
+			date,
+			price: rateForDate
+				? parseFloat(rateForDate.price) || 0 // Use `price` if available
+				: parseFloat(basePrice || 0), // Fallback to `basePrice`
+			rootPrice: rateForDate
+				? parseFloat(rateForDate.rootPrice) ||
+					parseFloat(defaultCost || basePrice || 0)
+				: parseFloat(defaultCost || basePrice || 0),
+			commissionRate: selectedCommissionRate,
+		};
+	});
+};
+
 const CheckoutContent = ({
 	verificationEmailSent,
 	setVerificationEmailSent,
@@ -157,6 +206,7 @@ const CheckoutContent = ({
 	const [cardHolderName, setCardHolderName] = useState("");
 	const [postalCode, setPostalCode] = useState("");
 	const [nationality, setNationality] = useState("");
+	const [roomDetailsFromIds, setRoomDetailsFromIds] = useState([]);
 	const [customerDetails, setCustomerDetails] = useState({
 		name: user ? user.name : "",
 		phone: user ? user.phone : "",
@@ -177,12 +227,43 @@ const CheckoutContent = ({
 		totalRoomsPricePerNightUSD: null,
 	});
 
+	// Define state for check-in and check-out dates
+	const [checkIn, setCheckIn] = useState(null);
+	const [checkOut, setCheckOut] = useState(null);
+
+	// Store previous dates for rollback
+	const [prevCheckIn, setPrevCheckIn] = useState(null);
+	const [prevCheckOut, setPrevCheckOut] = useState(null);
+
+	// Calculate the number of nights based on check-in and check-out
+	const nightsCount = useMemo(() => {
+		if (checkIn && checkOut) {
+			return checkOut.diff(checkIn, "day");
+		}
+		return 0;
+	}, [checkIn, checkOut]);
+
 	const {
 		averageCommissionRate,
 		depositAmount,
 		totalRoomsPricePerNight,
 		overallAverageCommissionRate,
 	} = useMemo(() => calculateDepositDetails(roomCart), [roomCart]);
+
+	// Initialize checkIn and checkOut from roomCart on component mount
+	useEffect(() => {
+		if (roomCart && roomCart.length > 0) {
+			const firstRoom = roomCart[0];
+			if (firstRoom.startDate && firstRoom.endDate) {
+				setCheckIn(dayjs(firstRoom.startDate));
+				setCheckOut(dayjs(firstRoom.endDate));
+				setPrevCheckIn(dayjs(firstRoom.startDate));
+				setPrevCheckOut(dayjs(firstRoom.endDate));
+			}
+		}
+	}, [roomCart]);
+
+	console.log(roomCart, "roomCart");
 
 	useEffect(() => {
 		const fetchHotel = async () => {
@@ -294,17 +375,219 @@ const CheckoutContent = ({
 		});
 	};
 
-	// Handle Date Range change
-	const handleDateChange = (dates) => {
-		if (dates && dates[0] && dates[1]) {
-			const startDate = dates[0].format("YYYY-MM-DD");
-			const endDate = dates[1].format("YYYY-MM-DD");
+	useEffect(() => {
+		const fetchRoomDetails = async () => {
+			try {
+				const roomIds = roomCart && roomCart.map((i) => i.id);
 
-			// Ensure that roomCart is properly updated before re-rendering
+				if (!roomIds || roomIds.length === 0) {
+					console.warn("No room IDs found in the cart.");
+					return;
+				}
+
+				const data = await gettingRoomByIds(roomIds);
+
+				if (data && data.success) {
+					setRoomDetailsFromIds(data.rooms);
+				} else {
+					console.error(
+						"Failed to fetch room details:",
+						data.error || "Unknown error"
+					);
+				}
+			} catch (error) {
+				console.error("An error occurred while fetching room details:", error);
+			}
+		};
+
+		fetchRoomDetails();
+
+		if (roomCart.length > 0) {
+			const initialCheckIn = dayjs(roomCart[0].startDate);
+			const initialCheckOut = dayjs(roomCart[0].endDate);
+			setCheckIn(initialCheckIn);
+			setCheckOut(initialCheckOut);
+			setPrevCheckIn(initialCheckIn);
+			setPrevCheckOut(initialCheckOut);
+		}
+	}, [roomCart]);
+
+	// Validate the dates before proceeding to checkout
+	const validateDates = (startDate, endDate) => {
+		if (!startDate || !endDate) {
+			toast.error(
+				chosenLanguage === "Arabic"
+					? "يرجى اختيار تواريخ تسجيل الوصول والمغادرة"
+					: "Please select check-in and check-out dates"
+			);
+			return false;
+		}
+
+		if (!startDate.isBefore(endDate)) {
+			toast.error(
+				chosenLanguage === "Arabic"
+					? "يجب أن يكون تاريخ المغادرة بعد تاريخ الوصول."
+					: "Check-out date must be after check-in date."
+			);
+			return false;
+		}
+
+		// Additional validations can be added here (e.g., room availability)
+
+		return true;
+	};
+
+	// Handle Date Range change
+	const handleDateChange = (date, type) => {
+		if (!date) return; // Handle cases where date is cleared
+
+		console.log(`handleDateChange called with type: ${type}, date: ${date}`);
+		if (type === "checkIn") {
+			const newCheckOut = date.add(nightsCount, "day");
+
+			// Validate the new date range
+			const isValid = validateDates(date, newCheckOut);
+
+			if (!isValid) {
+				// Reset to previous dates if invalid
+				if (prevCheckIn && prevCheckOut) {
+					setCheckIn(prevCheckIn);
+					setCheckOut(prevCheckOut);
+				}
+				return;
+			}
+
+			setCheckIn(date);
+			setCheckOut(newCheckOut);
+
+			// Update previous dates
+			setPrevCheckIn(date);
+			setPrevCheckOut(newCheckOut);
+
+			// Automatically update the cart
 			roomCart.forEach((room) => {
-				updateRoomDates(room.id, startDate, endDate);
+				const roomDetails = roomDetailsFromIds.find(
+					(detail) => detail._id === room.id
+				);
+
+				if (roomDetails) {
+					const updatedPricingByDay = calculatePricingByDay(
+						roomDetails.pricingRate || [],
+						date.format("YYYY-MM-DD"),
+						newCheckOut.format("YYYY-MM-DD"),
+						roomDetails.price.basePrice,
+						roomDetails.defaultCost,
+						roomDetails.roomCommission
+					);
+
+					const updatedPricingByDayWithCommission = updatedPricingByDay.map(
+						(day) => ({
+							...day,
+							totalPriceWithCommission: Number(
+								(
+									Number(day.price) +
+									Number(day.rootPrice) * Number(day.commissionRate)
+								).toFixed(2)
+							),
+						})
+					);
+
+					updateRoomDates(
+						room.id,
+						date.format("YYYY-MM-DD"),
+						newCheckOut.format("YYYY-MM-DD"),
+						updatedPricingByDay,
+						updatedPricingByDayWithCommission
+					);
+				}
 			});
 		}
+
+		if (type === "checkOut") {
+			if (!checkIn) {
+				toast.error(
+					chosenLanguage === "Arabic"
+						? "يرجى اختيار تاريخ الوصول أولاً."
+						: "Please select a check-in date first."
+				);
+				return;
+			}
+
+			if (!checkIn.isBefore(date)) {
+				toast.error(
+					chosenLanguage === "Arabic"
+						? "يجب أن يكون تاريخ المغادرة بعد تاريخ الوصول."
+						: "Check-out date must be after check-in date."
+				);
+				return;
+			}
+
+			// Validate the new date range
+			const isValid = validateDates(checkIn, date);
+
+			if (!isValid) {
+				// Reset to previous dates if invalid
+				if (prevCheckIn && prevCheckOut) {
+					setCheckIn(prevCheckIn);
+					setCheckOut(prevCheckOut);
+				}
+				return;
+			}
+
+			setCheckOut(date);
+
+			// Update previous dates
+			setPrevCheckOut(date);
+
+			// Automatically update the cart
+			roomCart.forEach((room) => {
+				const roomDetails = roomDetailsFromIds.find(
+					(detail) => detail._id === room.id
+				);
+
+				if (roomDetails) {
+					const updatedPricingByDay = calculatePricingByDay(
+						roomDetails.pricingRate || [],
+						checkIn.format("YYYY-MM-DD"),
+						date.format("YYYY-MM-DD"),
+						roomDetails.price.basePrice,
+						roomDetails.defaultCost,
+						roomDetails.roomCommission
+					);
+
+					const updatedPricingByDayWithCommission = updatedPricingByDay.map(
+						(day) => ({
+							...day,
+							totalPriceWithCommission: Number(
+								(
+									Number(day.price) +
+									Number(day.rootPrice) * Number(day.commissionRate)
+								).toFixed(2)
+							),
+						})
+					);
+
+					updateRoomDates(
+						room.id,
+						checkIn.format("YYYY-MM-DD"),
+						date.format("YYYY-MM-DD"),
+						updatedPricingByDay,
+						updatedPricingByDayWithCommission
+					);
+				}
+			});
+		}
+	};
+
+	// Disable past dates for Check-In
+	const disabledCheckInDate = (current) => {
+		return current && current < dayjs().endOf("day");
+	};
+
+	// Disable dates before Check-In for Check-Out
+	const disabledCheckOutDate = (current) => {
+		if (!checkIn) return current && current < dayjs().endOf("day");
+		return current && current <= checkIn.endOf("day");
 	};
 
 	// Disable past dates
@@ -449,8 +732,6 @@ const CheckoutContent = ({
 			);
 		}
 	};
-
-	console.log(roomCart, "roomCart");
 
 	const createNewReservation = async () => {
 		const {
@@ -755,20 +1036,38 @@ const CheckoutContent = ({
 						<h2>{t.yourReservation}</h2>
 
 						{/* Ant Design Date Range Picker */}
-						{/* <DateRangePickerWrapper>
-							<RangePicker
-								format='YYYY-MM-DD'
-								disabledDate={disabledDate}
-								onChange={handleDateChange}
-								defaultValue={[
-									dayjs(roomCart[0]?.startDate),
-									dayjs(roomCart[0]?.endDate),
-								]}
+						<InputGroup>
+							<Label>{chosenLanguage === "Arabic" ? "من" : "Check-In"}</Label>
+							<DatePicker
+								value={checkIn}
+								onChange={(date) => handleDateChange(date, "checkIn")}
+								disabledDate={disabledCheckInDate}
+								inputReadOnly
+								placeholder={
+									chosenLanguage === "Arabic"
+										? "اختر تاريخ الوصول"
+										: "Select check-in"
+								}
 								style={{ width: "100%" }}
-								disabled
-								dropdownClassName='mobile-friendly-picker'
 							/>
-						</DateRangePickerWrapper> */}
+						</InputGroup>
+
+						{/* Check-Out Date Picker */}
+						<InputGroup>
+							<Label>{chosenLanguage === "Arabic" ? "إلى" : "Check-Out"}</Label>
+							<DatePicker
+								value={checkOut}
+								onChange={(date) => handleDateChange(date, "checkOut")}
+								disabledDate={disabledCheckOutDate}
+								inputReadOnly
+								placeholder={
+									chosenLanguage === "Arabic"
+										? "اختر تاريخ المغادرة"
+										: "Select check-out"
+								}
+								style={{ width: "100%" }}
+							/>
+						</InputGroup>
 						<div
 							style={{
 								textAlign: "center",
@@ -1145,6 +1444,10 @@ const CheckoutContent = ({
 				overallAverageCommissionRate={overallAverageCommissionRate}
 				totalRoomsPricePerNight={totalRoomsPricePerNight}
 				createUncompletedDocument={createUncompletedDocument}
+				checkIn={checkIn}
+				disabledCheckInDate={disabledCheckInDate}
+				checkOut={checkOut}
+				disabledCheckOutDate={disabledCheckOutDate}
 			/>
 		</CheckoutContentWrapper>
 	);
@@ -1407,4 +1710,11 @@ const TermsWrapper = styled.div`
 	.ant-checkbox-wrapper {
 		margin-left: 10px;
 	}
+`;
+
+const Label = styled.label`
+	font-size: 0.7rem;
+	font-weight: 500;
+	margin-bottom: 4px;
+	color: #000;
 `;
