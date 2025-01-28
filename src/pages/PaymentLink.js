@@ -18,8 +18,8 @@ import {
 
 /**
  * Calculate Commission & OneNight per your PaymentTrigger logic:
- *  1) totalCommission = sum((day.price - day.rootPrice) * room.count)
- *  2) oneNightCost    = sum(day[0].totalPriceWithoutCommission * room.count)
+ *  1) totalCommission = sum((rootPrice * commissionRate + (totalPriceWithoutCommission - rootPrice)) * room.count)
+ *  2) oneNightCost    = sum(firstDay.rootPrice * room.count)
  *  3) depositWithOneNight = totalCommission + oneNightCost
  */
 function computeCommissionAndDeposit(pickedRoomsType = []) {
@@ -28,20 +28,30 @@ function computeCommissionAndDeposit(pickedRoomsType = []) {
 
 	pickedRoomsType.forEach((room) => {
 		if (room.pricingByDay && room.pricingByDay.length > 0) {
-			// Commission across all days
+			// Commission across all days using ReceiptPDF's formula
 			let commissionForRoom = room.pricingByDay.reduce((acc, day) => {
-				return acc + (Number(day.price) - Number(day.rootPrice));
+				const rootPrice = Number(day.rootPrice);
+				const commissionRate = Number(day.commissionRate) / 100; // Convert percentage to decimal
+				const totalPriceWithoutCommission = Number(
+					day.totalPriceWithoutCommission
+				);
+
+				// Commission per day
+				const commission =
+					rootPrice * commissionRate +
+					(totalPriceWithoutCommission - rootPrice);
+
+				return acc + commission;
 			}, 0);
+
 			commissionForRoom *= Number(room.count);
 			totalCommission += commissionForRoom;
 
-			// For the deposit, just the first day cost
-			const firstDayCost = Number(
-				room.pricingByDay[0].totalPriceWithoutCommission
-			);
-			oneNightCost += firstDayCost * Number(room.count);
+			// One night cost: first day's rootPrice * count
+			const firstDayRootPrice = Number(room.pricingByDay[0].rootPrice);
+			oneNightCost += firstDayRootPrice * Number(room.count);
 		} else {
-			// fallback if no pricingByDay
+			// Fallback if no pricingByDay
 			oneNightCost += Number(room.chosenPrice) * Number(room.count);
 		}
 	});
@@ -212,27 +222,23 @@ const PaymentLink = () => {
 				updatedData
 			);
 			if (response?.success) {
-				setTimeout(() => {
-					window.location.reload();
-				}, 2000);
-
 				message.success("Payment triggered successfully!");
 				setTimeout(() => {
 					window.location.reload();
 				}, 2000);
 			} else {
+				console.error("Failed to update reservation", response?.message);
+				message.error(response?.message || "Failed to update reservation.");
 				setTimeout(() => {
 					window.location.reload();
 				}, 2000);
-				console.error("Failed to update reservation", response?.message);
-				message.error(response?.message || "Failed to update reservation.");
 			}
 		} catch (error) {
+			console.error("Error updating reservation:", error);
+			message.error("An error occurred updating the reservation.");
 			setTimeout(() => {
 				window.location.reload();
 			}, 2000);
-			console.error("Error updating reservation:", error);
-			message.error("An error occurred updating the reservation.");
 		}
 	};
 
@@ -279,21 +285,6 @@ const PaymentLink = () => {
 				</div>
 			) : (
 				<>
-					{/* Show commission / deposit for clarity */}
-					{/* <AmountsWrapper>
-						<p>
-							<strong>Commission (Entire Stay):</strong>{" "}
-							{commission.toLocaleString()} SAR
-						</p>
-						<p>
-							<strong>One Night Cost:</strong> {oneNightCost.toLocaleString()}{" "}
-							SAR
-						</p>
-						<p>
-							<strong>Deposit = Commission + One Night:</strong>{" "}
-							{depositWithOneNight.toLocaleString()} SAR
-						</p>
-					</AmountsWrapper> */}
 					{/* Payment Option Buttons (just like PaymentOptions style) */}
 					<h3 style={{ marginTop: "1rem" }}>Choose Payment Option</h3>
 
@@ -375,7 +366,7 @@ const PaymentLink = () => {
 						}}
 						chosenLanguage={chosenLanguage}
 						guestAgreedOnTermsAndConditions={guestAgreedOnTermsAndConditions}
-						totalRoomsPricePerNight={oneNightCost}
+						depositWithOneNight={depositWithOneNight} // Updated prop name for clarity
 					/>
 				</>
 			)}
