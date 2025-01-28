@@ -74,16 +74,12 @@ const PaymentOptions = ({
 							<s>
 								SAR{" "}
 								{(
-									Number(totalRoomsPricePerNight) +
 									Number(depositAmount) +
 									(Number(totalRoomsPricePerNight) + Number(depositAmount)) *
 										0.1
 								).toFixed(2)}
 							</s>{" "}
-							SAR{" "}
-							{Number(
-								Number(totalRoomsPricePerNight) + Number(depositAmount)
-							).toFixed(2)}
+							SAR {Number(Number(depositAmount)).toFixed(2)}
 						</span>
 					</label>
 				</StyledOption>

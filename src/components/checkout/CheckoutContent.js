@@ -48,80 +48,76 @@ const calculateDepositDetails = (roomCart) => {
 		};
 	}
 
-	let depositSum = 0; // Sum of differences (commission).
-	let totalOneNightAllRooms = 0; // Sum of each room's one-night cost (rootPrice).
-	let overallTotalWithCommission = 0; // Sum of all final daily prices for all rooms.
+	let totalCommission = 0; // Total Commission across all rooms
+	let rootPriceFirstDaySum = 0; // Sum of Root Price of the First Day across all rooms
+	let overallTotalWithCommission = 0; // Sum of all final daily prices for all rooms
 
 	roomCart.forEach((room) => {
 		const count = safeParseFloat(room.amount, 1);
 
-		// 1) DEPOSIT (difference approach):
-		//    Sum (day.totalPriceWithCommission - day.rootPrice) for all days,
-		//    multiplied by room.count.
+		// Calculate Total Commission for the room
 		if (
 			room.pricingByDayWithCommission &&
 			room.pricingByDayWithCommission.length > 0
 		) {
-			let roomDiffSum = 0;
-			let roomTotalWithComm = 0;
-			room.pricingByDayWithCommission.forEach((day) => {
-				const wc = safeParseFloat(day.totalPriceWithCommission, 0);
-				const rp = safeParseFloat(day.rootPrice, 0);
-				roomDiffSum += wc - rp;
-				roomTotalWithComm += wc;
-			});
-			depositSum += roomDiffSum * count;
-			overallTotalWithCommission += roomTotalWithComm * count;
-		} else {
-			// If missing pricingByDayWithCommission, fallback to 0 difference
-			//  but also fallback for overall total
-			// (meaning we only have a "chosenPrice"?)
-			depositSum += 0;
-			const fallback = safeParseFloat(room.chosenPrice, 0);
-			overallTotalWithCommission += fallback * count;
-		}
+			room.pricingByDayWithCommission.forEach((day, index) => {
+				const rootPrice = safeParseFloat(day.rootPrice, 0);
+				const commissionRate = safeParseFloat(day.commissionRate, 0);
+				const totalPriceWithoutCommission = safeParseFloat(day.price, 0);
 
-		// 2) One‐Night cost: average rootPrice across all days
-		if (
-			room.pricingByDayWithCommission &&
-			room.pricingByDayWithCommission.length > 0
-		) {
-			// average rootPrice
-			const sumRootPrices = room.pricingByDayWithCommission.reduce(
-				(acc, d) => acc + safeParseFloat(d.rootPrice, 0),
-				0
-			);
-			const avgRoot = sumRootPrices / room.pricingByDayWithCommission.length;
-			totalOneNightAllRooms += avgRoot * count;
+				// Commission per day
+				const commission =
+					rootPrice * commissionRate +
+					(totalPriceWithoutCommission - rootPrice);
+				totalCommission += commission * count;
+
+				// If it's the first day, add the root price
+				if (index === 0) {
+					rootPriceFirstDaySum += rootPrice * count;
+				}
+
+				// Sum up the total with commission
+				const totalPriceWithCommission = safeParseFloat(
+					day.totalPriceWithCommission,
+					0
+				);
+				overallTotalWithCommission += totalPriceWithCommission * count;
+			});
 		} else {
-			// fallback to chosenPrice if missing
+			// Fallback if pricingByDayWithCommission is missing
+			// Assuming chosenPrice is equivalent to rootPrice for deposit purposes
 			const fallbackPrice = safeParseFloat(room.chosenPrice, 0);
-			totalOneNightAllRooms += fallbackPrice * count;
+			rootPriceFirstDaySum += fallbackPrice * count;
+			overallTotalWithCommission += fallbackPrice * count;
+			// No commission in this case
 		}
 	});
 
-	// Convert numeric to string w/ 2 decimals
-	const depositAmount = depositSum.toFixed(2);
-	const totalRoomsPricePerNight = totalOneNightAllRooms.toFixed(2);
+	// Calculate Final Deposit
+	const finalDeposit = totalCommission + rootPriceFirstDaySum;
+	const depositAmount = finalDeposit.toFixed(2);
+
+	// Optional: Calculate totalRoomsPricePerNight as the rootPriceFirstDaySum
+	const totalRoomsPricePerNight = rootPriceFirstDaySum.toFixed(2);
 
 	// Compute an “overall average rate” =
 	//  ( deposit + oneNightCost ) / ( sum of all final daily w/comm ) × 100
+	// Since "oneNightCost" here refers to rootPriceFirstDaySum, which is already included in the deposit,
+	// the formula simplifies to:
+	// (depositAmount) / (overallTotalWithCommission) * 100
 	let overallAvgRate = 0;
 	if (overallTotalWithCommission > 0) {
-		const numerator =
-			safeParseFloat(depositAmount, 0) +
-			safeParseFloat(totalRoomsPricePerNight, 0);
-		overallAvgRate = (numerator / overallTotalWithCommission) * 100;
+		overallAvgRate = (finalDeposit / overallTotalWithCommission) * 100;
 	}
 	const overallAverageCommissionRate = overallAvgRate.toFixed(0);
 
-	// If you wish, set averageCommissionRate to something else, or keep “0.00”
+	// Set averageCommissionRate as needed (keeping "0.00" as per original)
 	const averageCommissionRate = "0.00";
 
 	return {
 		averageCommissionRate,
-		depositAmount, // e.g. "240.00"
-		totalRoomsPricePerNight, // e.g. "280.00"
+		depositAmount, // e.g. "94.60"
+		totalRoomsPricePerNight, // e.g. "70.00"
 		overallAverageCommissionRate, // e.g. "48.00"
 	};
 };
@@ -262,8 +258,6 @@ const CheckoutContent = ({
 			}
 		}
 	}, [roomCart]);
-
-	console.log(roomCart, "roomCart");
 
 	useEffect(() => {
 		const fetchHotel = async () => {
