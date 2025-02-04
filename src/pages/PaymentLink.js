@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+// eslint-disable-next-line
+import React, { useEffect, useState, useMemo } from "react";
 import styled from "styled-components";
 import { useParams } from "react-router-dom";
 import { Checkbox, message } from "antd";
@@ -17,10 +18,10 @@ import {
 } from "../Assets";
 
 /**
- * Calculate Commission & OneNight per your PaymentTrigger logic:
+ * Calculate Commission & OneNight:
  *  1) totalCommission = sum((rootPrice * commissionRate + (totalPriceWithoutCommission - rootPrice)) * room.count)
  *  2) oneNightCost    = sum(firstDay.rootPrice * room.count)
- *  3) depositWithOneNight = totalCommission + oneNightCost
+ *  3) defaultDeposit  = totalCommission + oneNightCost
  */
 function computeCommissionAndDeposit(pickedRoomsType = []) {
 	let totalCommission = 0;
@@ -28,20 +29,20 @@ function computeCommissionAndDeposit(pickedRoomsType = []) {
 
 	pickedRoomsType.forEach((room) => {
 		if (room.pricingByDay && room.pricingByDay.length > 0) {
-			// Commission across all days using ReceiptPDF's formula
+			// Commission across all days
 			let commissionForRoom = room.pricingByDay.reduce((acc, day) => {
 				const rootPrice = Number(day.rootPrice);
-				const commissionRate = Number(day.commissionRate) / 100; // Convert percentage to decimal
+				const commissionRate = Number(day.commissionRate) / 100; // e.g. 10% => 0.1
 				const totalPriceWithoutCommission = Number(
 					day.totalPriceWithoutCommission
 				);
 
-				// Commission per day
-				const commission =
+				// Commission for that day, as per your ReceiptPDF logic
+				const dayCommission =
 					rootPrice * commissionRate +
 					(totalPriceWithoutCommission - rootPrice);
 
-				return acc + commission;
+				return acc + dayCommission;
 			}, 0);
 
 			commissionForRoom *= Number(room.count);
@@ -56,12 +57,12 @@ function computeCommissionAndDeposit(pickedRoomsType = []) {
 		}
 	});
 
-	const depositWithOneNight = totalCommission + oneNightCost;
+	const defaultDeposit = totalCommission + oneNightCost;
 
 	return {
 		totalCommission: Number(totalCommission.toFixed(2)),
 		oneNightCost: Number(oneNightCost.toFixed(2)),
-		depositWithOneNight: Number(depositWithOneNight.toFixed(2)),
+		defaultDeposit: Number(defaultDeposit.toFixed(2)),
 	};
 }
 
@@ -72,18 +73,25 @@ const PaymentLink = () => {
 
 	// Reservation + Payment logic states
 	const [reservationData, setReservationData] = useState(null);
-	const [commission, setCommission] = useState(0);
+
+	const [commission, setCommission] = useState(0); // total Commission
 	// eslint-disable-next-line
-	const [oneNightCost, setOneNightCost] = useState(0);
-	const [depositWithOneNight, setDepositWithOneNight] = useState(0);
+	const [oneNightCost, setOneNightCost] = useState(0); // cost of one night
+	const [defaultDeposit, setDefaultDeposit] = useState(0); // commission + one night
+
+	// The deposit that we actually present to the user after factoring in `advancePayment`
+	const [effectiveDeposit, setEffectiveDeposit] = useState(0);
+
 	const [loading, setLoading] = useState(true);
 
-	// Payment option: either "acceptDeposit" or "fullAmount"
+	// Payment option: "acceptDeposit" or "acceptPayWholeAmount"
 	const [selectedOption, setSelectedOption] = useState(null);
 
 	// USD conversions
 	const [commissionUSD, setCommissionUSD] = useState("0.00");
-	const [depositUSD, setDepositUSD] = useState("0.00");
+	// eslint-disable-next-line
+	const [defaultDepositUSD, setDefaultDepositUSD] = useState("0.00"); // for the default deposit
+	const [effectiveDepositUSD, setEffectiveDepositUSD] = useState("0.00"); // for the final deposit after overrides
 	const [totalUSD, setTotalUSD] = useState("0.00");
 
 	// Payment details
@@ -93,11 +101,13 @@ const PaymentLink = () => {
 	const [cardHolderName, setCardHolderName] = useState("");
 	const [postalCode, setPostalCode] = useState("");
 
-	// Terms
+	// Terms acceptance
 	const [guestAgreedOnTermsAndConditions, setGuestAgreedOnTermsAndConditions] =
 		useState(false);
 
-	// 1) On mount, fetch reservation & compute deposit logic
+	// -------------------------------
+	// 1) On mount, fetch reservation
+	// -------------------------------
 	useEffect(() => {
 		const fetchReservation = async () => {
 			try {
@@ -106,28 +116,13 @@ const PaymentLink = () => {
 					setReservationData(data);
 
 					if (data.pickedRoomsType && data.pickedRoomsType.length > 0) {
-						const { totalCommission, oneNightCost, depositWithOneNight } =
+						// Compute defaults
+						const { totalCommission, oneNightCost, defaultDeposit } =
 							computeCommissionAndDeposit(data.pickedRoomsType);
 
 						setCommission(totalCommission);
 						setOneNightCost(oneNightCost);
-						setDepositWithOneNight(depositWithOneNight);
-
-						// Convert [fullAmount, totalCommission, depositWithOneNight] to USD
-						const amounts = [
-							data.total_amount || 0,
-							totalCommission,
-							depositWithOneNight,
-						];
-						const conversions = await currencyConversion(amounts);
-						// matches array order: [fullAmt, comm, deposit]
-						const fullAmtUSD = conversions[0]?.amountInUSD || 0;
-						const commUSD = conversions[1]?.amountInUSD || 0;
-						const depUSD = conversions[2]?.amountInUSD || 0;
-
-						setTotalUSD(Number(fullAmtUSD).toFixed(2));
-						setCommissionUSD(Number(commUSD).toFixed(2));
-						setDepositUSD(Number(depUSD).toFixed(2));
+						setDefaultDeposit(defaultDeposit);
 					}
 				}
 			} catch (error) {
@@ -143,7 +138,77 @@ const PaymentLink = () => {
 		}
 	}, [reservationId]);
 
-	// 2) handleOptionChange: styled approach
+	// -------------------------------
+	// 2) Recalculate "effectiveDeposit"
+	//    factoring in reservationData.advancePayment
+	// -------------------------------
+	useEffect(() => {
+		if (!reservationData) return;
+
+		// Start from the default deposit
+		let depositToUse = defaultDeposit;
+
+		if (reservationData.advancePayment) {
+			const { paymentPercentage, finalAdvancePayment } =
+				reservationData.advancePayment;
+
+			const pct = parseFloat(paymentPercentage) || 0;
+			const adv = parseFloat(finalAdvancePayment) || 0;
+			const totalAmount = parseFloat(reservationData.total_amount) || 0;
+
+			// If there's a paymentPercentage > 0 => override deposit
+			if (pct > 0) {
+				depositToUse = totalAmount * (pct / 100);
+			}
+			// Else if there's a finalAdvancePayment > 0 => override deposit
+			else if (adv > 0) {
+				depositToUse = adv;
+			}
+		}
+
+		// Update local state
+		setEffectiveDeposit(Number(depositToUse.toFixed(2)));
+	}, [reservationData, defaultDeposit]);
+
+	// -------------------------------
+	// 3) Once we know the deposit, do currency conversion for all relevant amounts
+	//    (full total, commission, default deposit, and the "effective" deposit)
+	// -------------------------------
+	useEffect(() => {
+		const doConversion = async () => {
+			if (!reservationData) return;
+
+			const fullTotal = parseFloat(reservationData.total_amount || 0);
+			const amounts = [
+				fullTotal, // index 0 => total
+				commission, // index 1 => totalCommission
+				defaultDeposit, // index 2 => default deposit
+				effectiveDeposit, // index 3 => override deposit if any
+			];
+
+			try {
+				const conversions = await currencyConversion(amounts);
+				// conversions[i].amountInUSD
+				const fullAmtUSD = conversions[0]?.amountInUSD || 0;
+				const commUSD = conversions[1]?.amountInUSD || 0;
+				const defDepUSD = conversions[2]?.amountInUSD || 0;
+				const effDepUSD = conversions[3]?.amountInUSD || 0;
+
+				setTotalUSD(Number(fullAmtUSD).toFixed(2));
+				setCommissionUSD(Number(commUSD).toFixed(2));
+				setDefaultDepositUSD(Number(defDepUSD).toFixed(2));
+				setEffectiveDepositUSD(Number(effDepUSD).toFixed(2));
+			} catch (err) {
+				console.error("Error converting currency:", err);
+			}
+		};
+
+		doConversion();
+	}, [reservationData, commission, defaultDeposit, effectiveDeposit]);
+
+	// -------------------------------
+	// 4) handleOptionChange
+	// -------------------------------
 	const handleOptionChange = (optionValue) => {
 		setSelectedOption(optionValue);
 
@@ -158,7 +223,9 @@ const PaymentLink = () => {
 		});
 	};
 
-	// 3) Final Payment update
+	// -------------------------------
+	// 5) Final Payment update
+	// -------------------------------
 	const handleReservationUpdate = async () => {
 		if (!reservationData) {
 			return console.error("No reservation loaded");
@@ -173,16 +240,20 @@ const PaymentLink = () => {
 		let paid_amount = 0;
 		let payment = "Not Paid";
 		let commissionPaid = false;
-		let finalCommission = commission; // entire stay
-		const totalAmount = reservationData.total_amount || 0;
+		const finalCommission = commission;
+		const totalAmount = parseFloat(reservationData.total_amount || 0);
+
+		// We'll need the correct deposit in SAR (the "effective" deposit)
+		const depositSar = parseFloat(effectiveDeposit || 0);
+
+		// And the "effectiveDepositUSD" for the USD
 		let amountInUSD = "0.00";
 
 		if (selectedOption === "acceptDeposit") {
-			// deposit
-			paid_amount = depositWithOneNight;
+			paid_amount = depositSar;
 			payment = "Deposit Paid";
 			commissionPaid = true;
-			amountInUSD = depositUSD;
+			amountInUSD = effectiveDepositUSD;
 		} else if (selectedOption === "acceptPayWholeAmount") {
 			paid_amount = totalAmount;
 			payment = "Paid Online";
@@ -211,7 +282,7 @@ const PaymentLink = () => {
 			},
 			convertedAmounts: {
 				commissionUSD,
-				depositUSD,
+				depositUSD: effectiveDepositUSD,
 				totalUSD,
 			},
 		};
@@ -242,7 +313,9 @@ const PaymentLink = () => {
 		}
 	};
 
-	// 4) Render
+	// -------------------------------
+	// 6) Render
+	// -------------------------------
 	if (loading) return <div>Loading...</div>;
 	if (!reservationData) return <div>No reservation found</div>;
 
@@ -285,9 +358,9 @@ const PaymentLink = () => {
 				</div>
 			) : (
 				<>
-					{/* Payment Option Buttons (just like PaymentOptions style) */}
 					<h3 style={{ marginTop: "1rem" }}>Choose Payment Option</h3>
 
+					{/* Pay the deposit (effectiveDeposit) */}
 					<StyledOption
 						selected={selectedOption === "acceptDeposit"}
 						onClick={() => handleOptionChange("acceptDeposit")}
@@ -300,11 +373,13 @@ const PaymentLink = () => {
 						<label>
 							Deposit:{" "}
 							<strong>
-								{depositUSD} USD ({depositWithOneNight.toLocaleString()} SAR)
+								{effectiveDepositUSD} USD (
+								{Number(effectiveDeposit).toLocaleString()} SAR)
 							</strong>
 						</label>
 					</StyledOption>
 
+					{/* Pay the entire amount */}
 					<StyledOption
 						selected={selectedOption === "acceptPayWholeAmount"}
 						onClick={() => handleOptionChange("acceptPayWholeAmount")}
@@ -317,8 +392,8 @@ const PaymentLink = () => {
 						<label>
 							Full Amount:{" "}
 							<strong>
-								{totalUSD} USD ({reservationData.total_amount.toLocaleString()}{" "}
-								SAR)
+								{totalUSD} USD (
+								{Number(reservationData.total_amount).toLocaleString()} SAR)
 							</strong>
 						</label>
 					</StyledOption>
@@ -342,6 +417,7 @@ const PaymentLink = () => {
 						</Checkbox>
 					</TermsWrapper>
 
+					{/* Payment Details Form */}
 					<PaymentDetails
 						cardNumber={cardNumber}
 						setCardNumber={setCardNumber}
@@ -354,19 +430,19 @@ const PaymentLink = () => {
 						postalCode={postalCode}
 						setPostalCode={setPostalCode}
 						handleReservation={handleReservationUpdate}
-						total={reservationData.total_amount - commission} // for reference if needed
+						total={reservationData.total_amount - commission}
 						total_price_with_commission={reservationData.total_amount}
-						depositAmount={commission}
+						depositAmount={commission} // this is your "pure commission" if needed
 						selectedPaymentOption={selectedOption}
 						setSelectedPaymentOption={setSelectedOption}
 						convertedAmounts={{
 							commissionUSD,
-							depositUSD,
+							depositUSD: effectiveDepositUSD,
 							totalUSD,
 						}}
 						chosenLanguage={chosenLanguage}
 						guestAgreedOnTermsAndConditions={guestAgreedOnTermsAndConditions}
-						depositWithOneNight={depositWithOneNight} // Updated prop name for clarity
+						depositWithOneNight={defaultDeposit} // just for reference
 					/>
 				</>
 			)}
@@ -403,14 +479,6 @@ const PaymentLinkWrapper = styled.div`
 	}
 `;
 
-// eslint-disable-next-line
-const AmountsWrapper = styled.div`
-	margin: 20px 0;
-	padding: 10px;
-	border: 1px solid #ccc;
-	background-color: #f7f7f7;
-`;
-
 const TermsWrapper = styled.div`
 	margin: 5px auto;
 	font-size: 1rem;
@@ -436,9 +504,6 @@ const TermsWrapper = styled.div`
 	}
 `;
 
-/**
- * This replicates the styling from "StyledOption" in PaymentOptions:
- */
 const StyledOption = styled.div`
 	display: flex;
 	flex-direction: row;
