@@ -23,37 +23,29 @@ import {
  *  2) oneNightCost    = sum(firstDay.rootPrice * room.count)
  *  3) defaultDeposit  = totalCommission + oneNightCost
  */
-function computeCommissionAndDeposit(pickedRoomsType = []) {
+function computeCommissionAndDeposit(
+	pickedRoomsType = [],
+	hasAdvancePayment = false
+) {
 	let totalCommission = 0;
 	let oneNightCost = 0;
 
 	pickedRoomsType.forEach((room) => {
 		if (room.pricingByDay && room.pricingByDay.length > 0) {
-			// Commission across all days
-			let commissionForRoom = room.pricingByDay.reduce((acc, day) => {
-				const rootPrice = Number(day.rootPrice);
-				const commissionRate = Number(day.commissionRate) / 100; // e.g. 10% => 0.1
-				const totalPriceWithoutCommission = Number(
-					day.totalPriceWithoutCommission
-				);
+			// ALWAYS use the new logic from MoreDetails:
+			const commissionForRoom =
+				room.pricingByDay.reduce((acc, day) => {
+					return acc + (Number(day.price) - Number(day.rootPrice));
+				}, 0) * room.count;
 
-				// Commission for that day, as per your ReceiptPDF logic
-				const dayCommission =
-					rootPrice * commissionRate +
-					(totalPriceWithoutCommission - rootPrice);
-
-				return acc + dayCommission;
-			}, 0);
-
-			commissionForRoom *= Number(room.count);
 			totalCommission += commissionForRoom;
 
-			// One night cost: first day's rootPrice * count
+			// One-night cost => first day's rootPrice
 			const firstDayRootPrice = Number(room.pricingByDay[0].rootPrice);
-			oneNightCost += firstDayRootPrice * Number(room.count);
+			oneNightCost += firstDayRootPrice * room.count;
 		} else {
-			// Fallback if no pricingByDay
-			oneNightCost += Number(room.chosenPrice) * Number(room.count);
+			// If no pricingByDay, fallback to chosenPrice
+			oneNightCost += Number(room.chosenPrice) * room.count;
 		}
 	});
 
@@ -109,6 +101,9 @@ const PaymentLink = () => {
 	// 1) On mount, fetch reservation
 	// -------------------------------
 	useEffect(() => {
+		setTimeout(() => {
+			window.scrollTo({ top: 14, behavior: "smooth" });
+		}, 700);
 		const fetchReservation = async () => {
 			try {
 				const data = await gettingSingleReservationById(reservationId);
@@ -116,9 +111,12 @@ const PaymentLink = () => {
 					setReservationData(data);
 
 					if (data.pickedRoomsType && data.pickedRoomsType.length > 0) {
-						// Compute defaults
+						// If there is NO advancePayment => use the MoreDetails logic
+						// If there IS an advancePayment => use old logic
+						const hasAdvance = !!data.advancePayment; // true if advancePayment is present
+
 						const { totalCommission, oneNightCost, defaultDeposit } =
-							computeCommissionAndDeposit(data.pickedRoomsType);
+							computeCommissionAndDeposit(data.pickedRoomsType, hasAdvance);
 
 						setCommission(totalCommission);
 						setOneNightCost(oneNightCost);
@@ -134,7 +132,6 @@ const PaymentLink = () => {
 
 		if (reservationId) {
 			fetchReservation();
-			window.scrollTo({ top: 20, behavior: "smooth" });
 		}
 	}, [reservationId]);
 
@@ -443,6 +440,7 @@ const PaymentLink = () => {
 						chosenLanguage={chosenLanguage}
 						guestAgreedOnTermsAndConditions={guestAgreedOnTermsAndConditions}
 						depositWithOneNight={defaultDeposit} // just for reference
+						nationality={reservationData?.customer_details?.nationality}
 					/>
 				</>
 			)}

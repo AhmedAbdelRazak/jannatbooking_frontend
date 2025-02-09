@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { Input, Button } from "antd";
 import {
@@ -66,53 +66,11 @@ const PaymentDetails = ({
 	createUncompletedDocument,
 }) => {
 	const [errors, setErrors] = useState({});
-	const [requirementsError, setRequirementsError] = useState(""); // For the red note
+	const [requirementsError, setRequirementsError] = useState("");
 	const { chosenLanguage } = useCartContext();
 
-	// Real-time card number formatting + validation
-	const handleCardNumberChange = (e) => {
-		// Remove non-digits
-		const inputValue = e.target.value.replace(/\D/g, "");
-		// Format the number into groups of 4 (for display purposes)
-		const formattedValue = inputValue.replace(/(\d{4})(?=\d)/g, "$1 ");
-		setCardNumber(formattedValue);
-
-		if (inputValue.length < 16) {
-			setErrors((prev) => ({
-				...prev,
-				cardNumber: "Card number must be 16 digits",
-			}));
-		} else {
-			setErrors((prev) => ({ ...prev, cardNumber: "" }));
-		}
-	};
-
-	const handleExpiryDateChange = (e) => {
-		let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
-		// Add leading zero for months 1-9
-		if (value.length === 1 && value !== "0" && value !== "1") {
-			value = "0" + value;
-		}
-		// Ensure slash remains at the right position
-		if (value.length >= 2) {
-			// After 2 digits for month, add slash
-			value = value.slice(0, 2) + "/" + value.slice(2, 6);
-		}
-		setExpiryDate(value);
-	};
-
-	const handleCvvChange = (e) => {
-		const val = e.target.value.replace(/\D/g, "").slice(0, 3);
-		setCvv(val);
-		if (val.length < 3) {
-			setErrors((prev) => ({ ...prev, cvv: "CVV must be 3 digits" }));
-		} else {
-			setErrors((prev) => ({ ...prev, cvv: "" }));
-		}
-	};
-
-	// Countries that require a postal code
-	const countriesWithPostalCodes = [
+	// ——— Arrays of countries with postal codes ———
+	const westernCountriesWithPostal = [
 		"US",
 		"CA",
 		"UK",
@@ -137,34 +95,85 @@ const PaymentDetails = ({
 		"HU",
 		"SK",
 		"HR",
-		"SA", // Saudi Arabia
-		"AE", // United Arab Emirates
-		"KW",
-		"OM",
-		"BH",
-		"QA",
 	];
+	const nonWesternCountriesWithPostal = ["SA", "AE", "KW", "OM", "BH", "QA"];
 
+	// 1) Should we SHOW the postal code input?
+	const showPostalCodeInput =
+		westernCountriesWithPostal.includes(nationality) ||
+		nonWesternCountriesWithPostal.includes(nationality);
+
+	// 2) Is postal code required? (only for Western countries)
+	const postalCodeIsRequired = westernCountriesWithPostal.includes(nationality);
+
+	// If user's country is in neither array, hide field & force "0000"
+	useEffect(() => {
+		if (!showPostalCodeInput) {
+			setPostalCode("0000");
+		}
+		// eslint-disable-next-line
+	}, [nationality]);
+
+	// ---------- Handlers ----------
+	const handleCardNumberChange = (e) => {
+		const inputValue = e.target.value.replace(/\D/g, "");
+		const formattedValue = inputValue.replace(/(\d{4})(?=\d)/g, "$1 ");
+		setCardNumber(formattedValue);
+
+		if (inputValue.length < 16) {
+			setErrors((prev) => ({
+				...prev,
+				cardNumber: "Card number must be 16 digits",
+			}));
+		} else {
+			setErrors((prev) => ({ ...prev, cardNumber: "" }));
+		}
+	};
+
+	const handleExpiryDateChange = (e) => {
+		let value = e.target.value.replace(/\D/g, "");
+		if (value.length === 1 && value !== "0" && value !== "1") {
+			value = "0" + value;
+		}
+		if (value.length >= 2) {
+			value = value.slice(0, 2) + "/" + value.slice(2, 6);
+		}
+		setExpiryDate(value);
+	};
+
+	const handleCvvChange = (e) => {
+		const val = e.target.value.replace(/\D/g, "").slice(0, 3);
+		setCvv(val);
+		if (val.length < 3) {
+			setErrors((prev) => ({ ...prev, cvv: "CVV must be 3 digits" }));
+		} else {
+			setErrors((prev) => ({ ...prev, cvv: "" }));
+		}
+	};
+
+	// Validate form
 	const validateForm = () => {
 		const newErrors = {};
 		const t = translations[chosenLanguage] || translations.English;
 
-		// Card number (16 digits)
-		if (cardNumber.replace(/\s/g, "").length < 16)
+		// Card number
+		if (cardNumber.replace(/\s/g, "").length < 16) {
 			newErrors.cardNumber = t.cardNumberError;
-
-		// Expiry date -> "MM/YYYY"
-		if (!/^(0[1-9]|1[0-2])\/\d{4}$/.test(expiryDate))
+		}
+		// Expiry date => MM/YYYY
+		if (!/^(0[1-9]|1[0-2])\/\d{4}$/.test(expiryDate)) {
 			newErrors.expiryDate = t.expiryDateError;
-
-		// CVV -> at least 3 digits
-		if (cvv.length < 2) newErrors.cvv = t.cvvError;
-
-		// Cardholder name -> required
-		if (!cardHolderName) newErrors.cardHolderName = t.cardHolderNameError;
-
-		// Postal code for certain countries
-		if (countriesWithPostalCodes.includes(nationality)) {
+		}
+		// CVV => exactly 3 digits
+		if (cvv.length < 3) {
+			newErrors.cvv = t.cvvError;
+		}
+		// Name => required
+		if (!cardHolderName) {
+			newErrors.cardHolderName = t.cardHolderNameError;
+		}
+		// Postal code => required if western country
+		if (postalCodeIsRequired) {
 			if (!postalCode) {
 				newErrors.postalCode = t.postalCodeRequired;
 			} else if (postalCode.length < 2) {
@@ -173,13 +182,21 @@ const PaymentDetails = ({
 		}
 
 		setErrors(newErrors);
+
 		// If no errors, proceed
 		if (Object.keys(newErrors).length === 0) {
-			handleReservation();
+			// If user is in nonWestern list & typed nothing, default to "0000"
+			if (nonWesternCountriesWithPostal.includes(nationality) && !postalCode) {
+				setPostalCode("0000");
+				// Wait a moment so state updates
+				setTimeout(() => handleReservation(), 0);
+			} else {
+				handleReservation();
+			}
 		}
 	};
 
-	// Check if terms and payment option are selected. If not, show error message.
+	// Check if T&C + payment option
 	const handleClickReserve = () => {
 		const t = translations[chosenLanguage] || translations.English;
 		if (!guestAgreedOnTermsAndConditions || !selectedPaymentOption) {
@@ -187,7 +204,6 @@ const PaymentDetails = ({
 			setRequirementsError(t.mustAgreeAndSelectOption);
 			setPaymentClicked(false);
 		} else {
-			// Clear error and validate form
 			setRequirementsError("");
 			validateForm();
 		}
@@ -204,10 +220,11 @@ const PaymentDetails = ({
 					<img src={CreditCard} alt='Credit Card' />
 				</CardIcons>
 			</TitleWrapper>
+
 			<form autoComplete='on'>
 				{/* Card Number */}
 				<InputGroup>
-					{/* Hidden input with raw card number (without spaces) */}
+					{/* Hidden input with raw (no spaces) card number */}
 					<input
 						type='text'
 						name='ccnumber'
@@ -221,7 +238,7 @@ const PaymentDetails = ({
 						placeholder='1234 5678 1234 5678'
 						value={cardNumber}
 						onChange={handleCardNumberChange}
-						autoComplete='off' // Visible field doesn't need autocomplete
+						autoComplete='off'
 						inputMode='numeric'
 						maxLength={19}
 						name='ccnumber_visible'
@@ -229,7 +246,7 @@ const PaymentDetails = ({
 					{errors.cardNumber && <ErrorText>{errors.cardNumber}</ErrorText>}
 				</InputGroup>
 
-				{/* Expiry Date and CVV */}
+				{/* Expiry & CVV */}
 				<InputRow>
 					<StyledInput
 						prefix={<CalendarOutlined />}
@@ -239,7 +256,7 @@ const PaymentDetails = ({
 						autoComplete='cc-exp'
 						inputMode='numeric'
 						name='ccexp'
-						maxLength={7} // "MM/YYYY" => 7 characters
+						maxLength={7}
 					/>
 					<StyledInput
 						prefix={<LockOutlined />}
@@ -252,12 +269,10 @@ const PaymentDetails = ({
 						maxLength={3}
 					/>
 				</InputRow>
-
-				{/* Show errors for expiry/cvv below them if needed */}
 				{errors.expiryDate && <ErrorText>{errors.expiryDate}</ErrorText>}
 				{errors.cvv && <ErrorText>{errors.cvv}</ErrorText>}
 
-				{/* Name on Card */}
+				{/* Name on card */}
 				<InputGroup className='mt-3'>
 					<StyledInput
 						prefix={<UserOutlined />}
@@ -272,21 +287,23 @@ const PaymentDetails = ({
 					)}
 				</InputGroup>
 
-				{/* Postal Code */}
-				<InputGroup>
-					<StyledInput
-						prefix={<HomeOutlined />}
-						placeholder='Postal Code'
-						value={postalCode}
-						onChange={(e) => setPostalCode(e.target.value)}
-						maxLength={10}
-						name='postal-code'
-						autoComplete='postal-code'
-					/>
-					{errors.postalCode && <ErrorText>{errors.postalCode}</ErrorText>}
-				</InputGroup>
+				{/* Postal Code (conditionally) */}
+				{showPostalCodeInput && (
+					<InputGroup>
+						<StyledInput
+							prefix={<HomeOutlined />}
+							placeholder='Postal Code'
+							value={postalCode}
+							onChange={(e) => setPostalCode(e.target.value)}
+							maxLength={10}
+							name='postal-code'
+							autoComplete='postal-code'
+						/>
+						{errors.postalCode && <ErrorText>{errors.postalCode}</ErrorText>}
+					</InputGroup>
+				)}
 
-				{/* Price Section */}
+				{/* Price Info */}
 				<PriceWrapper>
 					{selectedPaymentOption === "acceptDeposit" && (
 						<h4>
@@ -309,7 +326,7 @@ const PaymentDetails = ({
 					)}
 				</PriceWrapper>
 
-				{/* Submit Button with onClick */}
+				{/* Reserve Button */}
 				<SubmitButton
 					type='primary'
 					onClick={handleClickReserve}
@@ -318,7 +335,7 @@ const PaymentDetails = ({
 					Reserve Now
 				</SubmitButton>
 
-				{/* If user didn't choose payment option or accept terms, show red note */}
+				{/* If user didn't choose payment option or accept terms */}
 				{requirementsError && <ErrorText>{requirementsError}</ErrorText>}
 			</form>
 		</PaymentWrapper>
@@ -327,7 +344,7 @@ const PaymentDetails = ({
 
 export default PaymentDetails;
 
-// Styled Components
+// ----------------- Styled Components -----------------
 const PaymentWrapper = styled.div`
 	background: #f9f9f9;
 	padding: 20px;
