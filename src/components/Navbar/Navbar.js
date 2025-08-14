@@ -15,7 +15,10 @@ import SidebarCartDrawer from "./SidebarCartDrawer";
 import { Link } from "react-router-dom";
 import { useCartContext } from "../../cart_context";
 import HeaderTopbar from "./HeaderTopbar";
-import { gettingJannatWebsiteData } from "../../apiCore";
+import {
+	gettingJannatWebsiteData,
+	gettingHotelsWithOffersAndMonths,
+} from "../../apiCore";
 import { isAuthenticated, signout } from "../../auth";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
@@ -28,12 +31,15 @@ const Navbar = () => {
 	const [homePage, setHomePage] = useState({});
 	const { user } = isAuthenticated();
 
+	// NEW: whether any hotels have offers/monthly
+	const [hasOffers, setHasOffers] = useState(false);
+
 	const gettingAllHomes = () => {
 		gettingJannatWebsiteData().then((data) => {
-			if (data.error) {
+			if (data?.error) {
 				console.log(data.error);
 			} else {
-				setHomePage(data[data.length - 1]);
+				setHomePage(data?.[data.length - 1]);
 			}
 		});
 	};
@@ -41,6 +47,25 @@ const Navbar = () => {
 	useEffect(() => {
 		gettingAllHomes();
 		// eslint-disable-next-line
+	}, []);
+
+	// NEW: fetch hotels with offers/monthly on mount
+	useEffect(() => {
+		let isMounted = true;
+		(async () => {
+			try {
+				const deals = await gettingHotelsWithOffersAndMonths();
+				if (isMounted) {
+					setHasOffers(Array.isArray(deals) && deals.length > 0);
+				}
+			} catch (err) {
+				console.error("Failed to load offers/monthly hotels:", err);
+				if (isMounted) setHasOffers(false);
+			}
+		})();
+		return () => {
+			isMounted = false;
+		};
 	}, []);
 
 	// Function to toggle the drawer
@@ -128,6 +153,24 @@ const Navbar = () => {
 									فنادقنا
 								</Link>
 							</li>
+
+							{/* NEW: Conditional Our Offers Link (Arabic) */}
+							{hasOffers && (
+								<li
+									onClick={() => {
+										window.location.href =
+											"/jannat-offers-monthly-reservations";
+									}}
+								>
+									<Link
+										to='/jannat-offers-monthly-reservations'
+										onClick={() => window.scrollTo({ top: 8 })}
+									>
+										عروضنا
+									</Link>
+								</li>
+							)}
+
 							<li>
 								<Link to='/about' onClick={() => window.scrollTo({ top: 8 })}>
 									معلومات عنا
@@ -162,6 +205,24 @@ const Navbar = () => {
 									Our Hotels
 								</Link>
 							</li>
+
+							{/* NEW: Conditional Our Offers Link (English) */}
+							{hasOffers && (
+								<li
+									onClick={() => {
+										window.location.href =
+											"/jannat-offers-monthly-reservations";
+									}}
+								>
+									<Link
+										to='/jannat-offers-monthly-reservations'
+										onClick={() => window.scrollTo({ top: 8 })}
+									>
+										Our Offers
+									</Link>
+								</li>
+							)}
+
 							<li
 								onClick={() => {
 									window.location.href = "/about";
@@ -240,6 +301,7 @@ const Navbar = () => {
 					☰
 				</MobileIcon>
 			</NavbarWrapper>
+
 			<SideDrawer isOpen={isDrawerOpen} language={chosenLanguage === "Arabic"}>
 				{chosenLanguage === "Arabic" ? (
 					<React.Fragment>
@@ -265,6 +327,22 @@ const Navbar = () => {
 								<FaBuilding /> فنادقنا
 							</Link>
 						</li>
+
+						{/* NEW: Conditional Our Offers in Drawer (Arabic) */}
+						{hasOffers && (
+							<li
+								dir='rtl'
+								onClick={() => {
+									setIsDrawerOpen(false);
+									window.location.href = "/jannat-offers-monthly-reservations";
+								}}
+							>
+								<Link to='/jannat-offers-monthly-reservations'>
+									<FaRegBell /> عروضنا
+								</Link>
+							</li>
+						)}
+
 						<li
 							dir='rtl'
 							onClick={() => {
@@ -353,6 +431,21 @@ const Navbar = () => {
 								<FaBuilding /> Our Hotels
 							</Link>
 						</li>
+
+						{/* NEW: Conditional Our Offers in Drawer (English) */}
+						{hasOffers && (
+							<li
+								onClick={() => {
+									setIsDrawerOpen(false);
+									window.location.href = "/jannat-offers-monthly-reservations";
+								}}
+							>
+								<Link to='/jannat-offers-monthly-reservations'>
+									<FaRegBell /> Our Offers
+								</Link>
+							</li>
+						)}
+
 						<li
 							onClick={() => {
 								setIsDrawerOpen(false);

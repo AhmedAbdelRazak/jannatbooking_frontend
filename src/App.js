@@ -31,6 +31,7 @@ import ReactPixel from "react-facebook-pixel";
 import VerificationPage from "./pages/VerificationPage";
 import PaymentLink from "./pages/PaymentLink";
 import ClientPaymentTriggering from "./pages/ClientPaymentTriggering";
+import OffersAndMonthly from "./pages/OffersAndMonthly";
 
 const App = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
@@ -126,6 +127,11 @@ const App = () => {
 					/>
 					{/* <Route path='/our-hotels-rooms' exact component={OurHotelRooms} /> */}
 					<Route path='/our-hotels-rooms' exact component={OurHotelRooms2} />
+					<Route
+						path='/jannat-offers-monthly-reservations'
+						exact
+						component={OffersAndMonthly}
+					/>
 					<Route path='/checkout' exact component={Checkout} />
 					<Route
 						path='/generated-link'

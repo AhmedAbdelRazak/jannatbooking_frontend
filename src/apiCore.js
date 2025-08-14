@@ -513,3 +513,17 @@ export const currencyConversion = (amounts) => {
 		.then((response) => response.json())
 		.catch((err) => console.log(err));
 };
+
+export const gettingHotelsWithOffersAndMonths = async () => {
+	return fetch(`${process.env.REACT_APP_API_URL}/hotels/active-with-deals`, {
+		method: "GET",
+		headers: {
+			Accept: "application/json",
+			"Content-Type": "application/json",
+		},
+	})
+		.then((response) => response.json())
+		.catch((err) => {
+			console.error("API error: ", err);
+		});
+};
