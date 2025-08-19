@@ -32,6 +32,7 @@ import VerificationPage from "./pages/VerificationPage";
 import PaymentLink from "./pages/PaymentLink";
 import ClientPaymentTriggering from "./pages/ClientPaymentTriggering";
 import OffersAndMonthly from "./pages/OffersAndMonthly";
+import SingleReservationInvoice from "./pages/SingleReservationInvoice";
 
 const App = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
@@ -147,6 +148,12 @@ const App = () => {
 						path='/reservation-verification'
 						exact
 						component={VerificationPage}
+					/>
+
+					<Route
+						path='/single-reservation/:confirmation'
+						exact
+						component={SingleReservationInvoice}
 					/>
 
 					<Route
