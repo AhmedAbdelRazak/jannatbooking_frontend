@@ -1,3 +1,5 @@
+import axios from "axios";
+
 export const PropertySignup = (userData) => {
 	console.log(userData, "userData");
 	return fetch(`${process.env.REACT_APP_API_URL}/property-listing`, {
@@ -526,4 +528,56 @@ export const gettingHotelsWithOffersAndMonths = async () => {
 		.catch((err) => {
 			console.error("API error: ", err);
 		});
+};
+
+export const getPayPalClientToken = async () => {
+	const { data } = await axios.get(
+		`${process.env.REACT_APP_API_URL}/paypal/client-token`
+	);
+	return data?.clientToken;
+};
+
+export const payReservationViaPayPalLink = async (payload) => {
+	const { data } = await axios.post(
+		`${process.env.REACT_APP_API_URL}/reservations/paypal/link-pay`,
+		payload
+	);
+	return data;
+};
+
+export const createReservationViaPayPal = async (body, opts = {}) => {
+	const base = (process.env.REACT_APP_API_URL || "").replace(/\/$/, "");
+	const url = `${base}/reservations/paypal/create`;
+
+	const resp = await fetch(url, {
+		method: "POST",
+		headers: {
+			Accept: "application/json",
+			"Content-Type": "application/json",
+			...(opts.token ? { Authorization: `Bearer ${opts.token}` } : {}),
+		},
+		// IMPORTANT: omit cookies by default to avoid CORS/mixed‑content failures.
+		credentials: opts.withCredentials ? "include" : "omit",
+		body: JSON.stringify(body),
+	});
+
+	// robust parse (server might send non‑JSON on error)
+	const text = await resp.text();
+	let data;
+	try {
+		data = text ? JSON.parse(text) : {};
+	} catch {
+		data = { message: text || null };
+	}
+
+	if (!resp.ok) {
+		const err = new Error(
+			data?.message || `PayPal reservation API error (${resp.status})`
+		);
+		err.status = resp.status;
+		err.response = data;
+		throw err;
+	}
+
+	return data; // { message, data: <reservation> }
 };

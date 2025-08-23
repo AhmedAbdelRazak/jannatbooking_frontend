@@ -3,12 +3,14 @@ import styled from "styled-components";
 // eslint-disable-next-line
 import dayjs from "dayjs";
 import { DatePicker, Button, Collapse, Select, Checkbox } from "antd";
-import PaymentDetails from "./PaymentDetails";
+// import PaymentDetails from "./PaymentDetails";
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { FaMinus, FaPlus } from "react-icons/fa";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
-import PaymentOptions from "./PaymentOptions";
+// import PaymentOptions from "./PaymentOptions";
+import PaymentDetailsPayPal from "./PaymentDetailsPayPal";
+import PaymentOptionsPayPal from "./PaymentOptionsPayPal";
 
 // eslint-disable-next-line
 const { RangePicker } = DatePicker;
@@ -18,7 +20,6 @@ const { Option } = Select;
 const DesktopCheckout = ({
 	customerDetails,
 	setCustomerDetails,
-	redirectToSignin,
 	cardNumber,
 	setCardNumber,
 	expiryDate,
@@ -31,25 +32,19 @@ const DesktopCheckout = ({
 	setPostalCode,
 	guestAgreedOnTermsAndConditions,
 	setGuestAgreedOnTermsAndConditions,
-	user,
 	nationality,
 	setNationality,
 	countryList,
 	createNewReservation,
 	total_price,
 	handleDateChange,
-	disabledDate,
 	roomCart,
 	toggleRoomAmount,
-	handleReservation,
 	removeRoomItem,
 	expanded,
 	setExpanded,
 	total_rooms,
-	pay10Percent,
-	setPay10Percent,
-	payWholeAmount,
-	setPayWholeAmount,
+
 	total_price_with_commission,
 	convertedAmounts,
 	depositAmount,
@@ -70,6 +65,7 @@ const DesktopCheckout = ({
 	disabledCheckInDate,
 	checkOut,
 	disabledCheckOutDate,
+	handlePayPalApproved,
 }) => {
 	return (
 		<DesktopWrapper>
@@ -150,7 +146,8 @@ const DesktopCheckout = ({
 
 					<div className='my-4'>
 						{hotelDetails && hotelDetails.hotelName ? (
-							<PaymentOptions
+							<>
+								{/* <PaymentOptions
 								hotelDetails={hotelDetails}
 								chosenLanguage={chosenLanguage}
 								t={t}
@@ -163,7 +160,24 @@ const DesktopCheckout = ({
 								overallAverageCommissionRate={overallAverageCommissionRate}
 								totalRoomsPricePerNight={totalRoomsPricePerNight}
 								createUncompletedDocument={createUncompletedDocument}
-							/>
+							/> */}
+
+								<PaymentOptionsPayPal
+									hotelDetails={hotelDetails}
+									chosenLanguage={chosenLanguage}
+									t={t}
+									depositAmount={depositAmount}
+									averageCommissionRate={averageCommissionRate}
+									total_price_with_commission={total_price_with_commission}
+									convertedAmounts={convertedAmounts}
+									selectedPaymentOption={selectedPaymentOption}
+									setSelectedPaymentOption={setSelectedPaymentOption}
+									overallAverageCommissionRate={overallAverageCommissionRate}
+									totalRoomsPricePerNight={totalRoomsPricePerNight}
+									createUncompletedDocument={createUncompletedDocument}
+									handlePayPalApproved={handlePayPalApproved}
+								/>
+							</>
 						) : null}
 
 						<TermsWrapper
@@ -216,7 +230,8 @@ const DesktopCheckout = ({
 								{chosenLanguage === "Arabic" ? "احجز الآن" : "Reserve Now"}
 							</Button>
 						) : (
-							<PaymentDetails
+							<>
+								{/* <PaymentDetails
 								cardNumber={cardNumber}
 								setCardNumber={setCardNumber}
 								expiryDate={expiryDate}
@@ -244,7 +259,40 @@ const DesktopCheckout = ({
 								overallAverageCommissionRate={overallAverageCommissionRate}
 								totalRoomsPricePerNight={totalRoomsPricePerNight}
 								createUncompletedDocument={createUncompletedDocument}
-							/>
+							/> */}
+
+								<PaymentDetailsPayPal
+									chosenLanguage={chosenLanguage}
+									cardNumber={cardNumber}
+									setCardNumber={setCardNumber}
+									expiryDate={expiryDate}
+									setExpiryDate={setExpiryDate}
+									cvv={cvv}
+									setCvv={setCvv}
+									cardHolderName={cardHolderName}
+									setCardHolderName={setCardHolderName}
+									postalCode={postalCode}
+									setPostalCode={setPostalCode}
+									handleReservation={createNewReservation} // legacy fallback, not used for paid flows
+									total={total_price}
+									total_price_with_commission={total_price_with_commission}
+									convertedAmounts={convertedAmounts}
+									depositAmount={depositAmount}
+									setCustomerDetails={setCustomerDetails}
+									nationality={nationality}
+									customerDetails={customerDetails}
+									selectedPaymentOption={selectedPaymentOption}
+									guestAgreedOnTermsAndConditions={
+										guestAgreedOnTermsAndConditions
+									}
+									setPaymentClicked={setPaymentClicked}
+									paymentClicked={paymentClicked}
+									overallAverageCommissionRate={overallAverageCommissionRate}
+									totalRoomsPricePerNight={totalRoomsPricePerNight}
+									createUncompletedDocument={createUncompletedDocument}
+									onPayApproved={handlePayPalApproved}
+								/>
+							</>
 						)}
 					</div>
 				</form>

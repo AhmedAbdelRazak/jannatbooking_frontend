@@ -3,20 +3,13 @@ import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
 import dayjs from "dayjs";
 import { DatePicker, Button, Collapse, Select, message, Checkbox } from "antd";
-import PaymentDetails from "./PaymentDetails";
-import {
-	// eslint-disable-next-line
-	countryList,
-	countryListWithAbbreviations,
-	translations,
-} from "../../Assets"; // Ensure this file contains an array of countries
+import { countryListWithAbbreviations, translations } from "../../Assets";
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import {
-	createNewReservationClient,
-	createNewUncompletedReservationClient,
 	currencyConversion,
 	gettingSingleHotel,
 	gettingRoomByIds,
+	createReservationViaPayPal, // ✅ PayPal server create
 } from "../../apiCore";
 import { FaMinus, FaPlus } from "react-icons/fa";
 import { authenticate, isAuthenticated, signin } from "../../auth";
@@ -24,11 +17,10 @@ import { useHistory } from "react-router-dom";
 import DesktopCheckout from "./DesktopCheckout";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
-import PaymentOptions from "./PaymentOptions";
 import { toast } from "react-toastify";
+import PaymentDetailsPayPal from "./PaymentDetailsPayPal";
+import PaymentOptionsPayPal from "./PaymentOptionsPayPal";
 
-// eslint-disable-next-line
-const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
 const { Option } = Select;
 
@@ -36,8 +28,10 @@ const safeParseFloat = (value, fallback = 0) => {
 	const parsed = parseFloat(value);
 	return isNaN(parsed) ? fallback : parsed;
 };
-//Create user account with no password
 
+// ────────────────────────────────────────────────────────────────────
+// Deposit math helpers (unchanged from your version)
+// ────────────────────────────────────────────────────────────────────
 const calculateDepositDetails = (roomCart) => {
 	if (!roomCart || roomCart.length === 0) {
 		return {
@@ -48,14 +42,13 @@ const calculateDepositDetails = (roomCart) => {
 		};
 	}
 
-	let totalCommission = 0; // Total Commission across all rooms
-	let rootPriceFirstDaySum = 0; // Sum of Root Price of the First Day across all rooms
-	let overallTotalWithCommission = 0; // Sum of all final daily prices for all rooms
+	let totalCommission = 0;
+	let rootPriceFirstDaySum = 0;
+	let overallTotalWithCommission = 0;
 
 	roomCart.forEach((room) => {
 		const count = safeParseFloat(room.amount, 1);
 
-		// Calculate Total Commission for the room
 		if (
 			room.pricingByDayWithCommission &&
 			room.pricingByDayWithCommission.length > 0
@@ -65,18 +58,15 @@ const calculateDepositDetails = (roomCart) => {
 				const commissionRate = safeParseFloat(day.commissionRate, 0);
 				const totalPriceWithoutCommission = safeParseFloat(day.price, 0);
 
-				// Commission per day
 				const commission =
 					rootPrice * commissionRate +
 					(totalPriceWithoutCommission - rootPrice);
 				totalCommission += commission * count;
 
-				// If it's the first day, add the root price
 				if (index === 0) {
 					rootPriceFirstDaySum += rootPrice * count;
 				}
 
-				// Sum up the total with commission
 				const totalPriceWithCommission = safeParseFloat(
 					day.totalPriceWithCommission,
 					0
@@ -84,41 +74,29 @@ const calculateDepositDetails = (roomCart) => {
 				overallTotalWithCommission += totalPriceWithCommission * count;
 			});
 		} else {
-			// Fallback if pricingByDayWithCommission is missing
-			// Assuming chosenPrice is equivalent to rootPrice for deposit purposes
 			const fallbackPrice = safeParseFloat(room.chosenPrice, 0);
 			rootPriceFirstDaySum += fallbackPrice * count;
 			overallTotalWithCommission += fallbackPrice * count;
-			// No commission in this case
 		}
 	});
 
-	// Calculate Final Deposit
 	const finalDeposit = totalCommission + rootPriceFirstDaySum;
 	const depositAmount = finalDeposit.toFixed(2);
-
-	// Optional: Calculate totalRoomsPricePerNight as the rootPriceFirstDaySum
 	const totalRoomsPricePerNight = rootPriceFirstDaySum.toFixed(2);
 
-	// Compute an “overall average rate” =
-	//  ( deposit + oneNightCost ) / ( sum of all final daily w/comm ) × 100
-	// Since "oneNightCost" here refers to rootPriceFirstDaySum, which is already included in the deposit,
-	// the formula simplifies to:
-	// (depositAmount) / (overallTotalWithCommission) * 100
 	let overallAvgRate = 0;
 	if (overallTotalWithCommission > 0) {
 		overallAvgRate = (finalDeposit / overallTotalWithCommission) * 100;
 	}
 	const overallAverageCommissionRate = overallAvgRate.toFixed(0);
 
-	// Set averageCommissionRate as needed (keeping "0.00" as per original)
 	const averageCommissionRate = "0.00";
 
 	return {
 		averageCommissionRate,
-		depositAmount, // e.g. "94.60"
-		totalRoomsPricePerNight, // e.g. "70.00"
-		overallAverageCommissionRate, // e.g. "48.00"
+		depositAmount,
+		totalRoomsPricePerNight,
+		overallAverageCommissionRate,
 	};
 };
 
@@ -129,7 +107,6 @@ const generateDateRange = (startDate, endDate) => {
 
 	let currentDate = start;
 	while (currentDate.isBefore(end)) {
-		// Exclude end date
 		dateArray.push(currentDate.format("YYYY-MM-DD"));
 		currentDate = currentDate.add(1, "day");
 	}
@@ -153,13 +130,13 @@ const calculatePricingByDay = (
 			? rateForDate.commissionRate / 100
 			: roomCommission
 				? roomCommission / 100
-				: parseFloat(process.env.REACT_APP_COMMISSIONRATE || "0.10"); // Default to 10%
+				: parseFloat(process.env.REACT_APP_COMMISSIONRATE || "0.10");
 
 		return {
 			date,
 			price: rateForDate
-				? parseFloat(rateForDate.price) || 0 // Use `price` if available
-				: parseFloat(basePrice || 0), // Fallback to `basePrice`
+				? parseFloat(rateForDate.price) || 0
+				: parseFloat(basePrice || 0),
 			rootPrice: rateForDate
 				? parseFloat(rateForDate.rootPrice) ||
 					parseFloat(defaultCost || basePrice || 0)
@@ -190,9 +167,12 @@ const CheckoutContent = ({
 	const t = translations[chosenLanguage] || translations.English;
 
 	const [expanded, setExpanded] = useState({});
-	const [mobileExpanded, setMobileExpanded] = useState(false); // Mobile collapse
+	const [mobileExpanded, setMobileExpanded] = useState(false);
 	const [guestAgreedOnTermsAndConditions, setGuestAgreedOnTermsAndConditions] =
 		useState(false);
+
+	// ❗ Card inputs are still shown in the UI for parity,
+	// but they will NOT be sent to the server in PayPal flows.
 	const [cardNumber, setCardNumber] = useState("");
 	const [pay10Percent, setPay10Percent] = useState(false);
 	const [payWholeAmount, setPayWholeAmount] = useState(false);
@@ -223,15 +203,11 @@ const CheckoutContent = ({
 		totalRoomsPricePerNightUSD: null,
 	});
 
-	// Define state for check-in and check-out dates
 	const [checkIn, setCheckIn] = useState(null);
 	const [checkOut, setCheckOut] = useState(null);
-
-	// Store previous dates for rollback
 	const [prevCheckIn, setPrevCheckIn] = useState(null);
 	const [prevCheckOut, setPrevCheckOut] = useState(null);
 
-	// Calculate the number of nights based on check-in and check-out
 	const nightsCount = useMemo(() => {
 		if (checkIn && checkOut) {
 			return checkOut.diff(checkIn, "day");
@@ -246,7 +222,6 @@ const CheckoutContent = ({
 		overallAverageCommissionRate,
 	} = useMemo(() => calculateDepositDetails(roomCart), [roomCart]);
 
-	// Initialize checkIn and checkOut from roomCart on component mount
 	useEffect(() => {
 		if (roomCart && roomCart.length > 0) {
 			const firstRoom = roomCart[0];
@@ -262,33 +237,22 @@ const CheckoutContent = ({
 	useEffect(() => {
 		const fetchHotel = async () => {
 			try {
-				// Ensure roomCart exists and has at least one room
 				if (roomCart && roomCart.length > 0) {
-					const hotelName = roomCart[0]?.hotelName; // Extract hotelName from roomCart
-
+					const hotelName = roomCart[0]?.hotelName;
 					if (hotelName) {
-						// Generate slug by replacing spaces with "-"
 						const hotelNameSlug = hotelName.toLowerCase().replace(/\s+/g, "-");
-						// console.log("Generated hotelNameSlug:", hotelNameSlug);
-
-						const hotelData = await gettingSingleHotel(hotelNameSlug); // Fetch hotel by slug
-						setHotelDetails(hotelData); // Set the response to hotelDetails state
-					} else {
-						console.error("No hotelName found in roomCart");
+						const hotelData = await gettingSingleHotel(hotelNameSlug);
+						setHotelDetails(hotelData);
 					}
-				} else {
-					console.error("roomCart is empty or not available");
 				}
 			} catch (error) {
 				console.error("Error fetching hotel:", error);
 			}
 		};
-
-		fetchHotel(); // Call the fetchHotel function
-	}, [roomCart]); // Depend on roomCart to re-fetch if it changes
+		fetchHotel();
+	}, [roomCart]);
 
 	useEffect(() => {
-		// Fetch currency and rates from localStorage
 		const currency = localStorage.getItem("selectedCurrency") || "SAR";
 		const rates = JSON.parse(localStorage.getItem("rates")) || {
 			SAR_USD: 0.27,
@@ -300,7 +264,6 @@ const CheckoutContent = ({
 	}, []);
 
 	useEffect(() => {
-		// Fetch conversion for both deposit and total amounts
 		const fetchConversion = async () => {
 			const deposit = depositAmount;
 			const total = total_price_with_commission;
@@ -310,9 +273,18 @@ const CheckoutContent = ({
 			try {
 				const conversions = await currencyConversion(amounts);
 				setConvertedAmounts({
-					depositUSD: conversions[0]?.amountInUSD.toFixed(2),
-					totalUSD: conversions[1]?.amountInUSD.toFixed(2),
-					totalRoomsPricePerNightUSD: conversions[2]?.amountInUSD.toFixed(2),
+					depositUSD:
+						conversions?.[0]?.amountInUSD != null
+							? Number(conversions[0].amountInUSD).toFixed(2)
+							: "0.00",
+					totalUSD:
+						conversions?.[1]?.amountInUSD != null
+							? Number(conversions[1].amountInUSD).toFixed(2)
+							: "0.00",
+					totalRoomsPricePerNightUSD:
+						conversions?.[2]?.amountInUSD != null
+							? Number(conversions[2].amountInUSD).toFixed(2)
+							: "0.00",
 				});
 			} catch (error) {
 				console.error("Currency conversion failed", error);
@@ -323,28 +295,26 @@ const CheckoutContent = ({
 		// eslint-disable-next-line
 	}, [total_price, total_price_with_commission]);
 
-	// Function to transform roomCart into pickedRoomsType format
+	// Transform cart → pickedRoomsType. If isPayInHotel === true, bump nightly totals by 10%.
 	const transformRoomCartToPickedRoomsType = (roomCart, isPayInHotel) => {
 		return roomCart.flatMap((room) => {
 			return Array.from({ length: safeParseFloat(room.amount, 1) }, () => {
-				// Transform each day in pricingByDayWithCommission
 				const pricingDetails =
-					room.pricingByDayWithCommission?.map((day) => ({
-						date: day.date,
-						price: isPayInHotel
-							? safeParseFloat(day.totalPriceWithCommission, 0) * 1.1 // Increase by 10%
-							: safeParseFloat(day.totalPriceWithCommission, 0), // Keep as is
-						rootPrice: safeParseFloat(day.rootPrice, 0), // Keep root price unchanged
-						commissionRate: safeParseFloat(day.commissionRate, 0), // Keep commission rate
-						totalPriceWithCommission: isPayInHotel
-							? safeParseFloat(day.totalPriceWithCommission, 0) * 1.1 // Increase by 10%
-							: safeParseFloat(day.totalPriceWithCommission, 0), // Keep as is
-						totalPriceWithoutCommission: safeParseFloat(day.price, 0), // Keep as is
-					})) || [];
+					room.pricingByDayWithCommission?.map((day) => {
+						const base = safeParseFloat(day.totalPriceWithCommission, 0);
+						const bumped = isPayInHotel ? base * 1.1 : base;
+						return {
+							date: day.date,
+							price: safeParseFloat(day.price, 0),
+							rootPrice: safeParseFloat(day.rootPrice, 0),
+							commissionRate: safeParseFloat(day.commissionRate, 0),
+							totalPriceWithCommission: Number(bumped.toFixed(2)),
+							totalPriceWithoutCommission: safeParseFloat(day.price, 0),
+						};
+					}) || [];
 
-				// Calculate the average price with commission safely
 				const totalPriceWithCommissionSum = pricingDetails.reduce(
-					(sum, day) => sum + safeParseFloat(day.totalPriceWithCommission, 0),
+					(sum, d) => sum + safeParseFloat(d.totalPriceWithCommission, 0),
 					0
 				);
 				const averagePriceWithCommission =
@@ -359,11 +329,11 @@ const CheckoutContent = ({
 					count: 1,
 					pricingByDay: pricingDetails,
 					roomColor: room.roomColor,
-					totalPriceWithCommission: totalPriceWithCommissionSum, // Total price with commission
+					totalPriceWithCommission: totalPriceWithCommissionSum,
 					hotelShouldGet: pricingDetails.reduce(
-						(sum, day) => sum + safeParseFloat(day.rootPrice, 0),
+						(sum, d) => sum + safeParseFloat(d.rootPrice, 0),
 						0
-					), // Total price without commission
+					),
 				};
 			});
 		});
@@ -373,14 +343,9 @@ const CheckoutContent = ({
 		const fetchRoomDetails = async () => {
 			try {
 				const roomIds = roomCart && roomCart.map((i) => i.id);
-
-				if (!roomIds || roomIds.length === 0) {
-					console.warn("No room IDs found in the cart.");
-					return;
-				}
+				if (!roomIds || roomIds.length === 0) return;
 
 				const data = await gettingRoomByIds(roomIds);
-
 				if (data && data.success) {
 					setRoomDetailsFromIds(data.rooms);
 				} else {
@@ -406,7 +371,6 @@ const CheckoutContent = ({
 		}
 	}, [roomCart]);
 
-	// Validate the dates before proceeding to checkout
 	const validateDates = (startDate, endDate) => {
 		if (!startDate || !endDate) {
 			toast.error(
@@ -425,45 +389,30 @@ const CheckoutContent = ({
 			);
 			return false;
 		}
-
-		// Additional validations can be added here (e.g., room availability)
-
 		return true;
 	};
 
-	// Handle Date Range change
 	const handleDateChange = (date, type) => {
-		if (!date) return; // Handle cases where date is cleared
-
-		console.log(`handleDateChange called with type: ${type}, date: ${date}`);
+		if (!date) return;
 		if (type === "checkIn") {
 			const newCheckOut = date.add(nightsCount, "day");
-
-			// Validate the new date range
 			const isValid = validateDates(date, newCheckOut);
-
 			if (!isValid) {
-				// Reset to previous dates if invalid
 				if (prevCheckIn && prevCheckOut) {
 					setCheckIn(prevCheckIn);
 					setCheckOut(prevCheckOut);
 				}
 				return;
 			}
-
 			setCheckIn(date);
 			setCheckOut(newCheckOut);
-
-			// Update previous dates
 			setPrevCheckIn(date);
 			setPrevCheckOut(newCheckOut);
 
-			// Automatically update the cart
 			roomCart.forEach((room) => {
 				const roomDetails = roomDetailsFromIds.find(
 					(detail) => detail._id === room.id
 				);
-
 				if (roomDetails) {
 					const updatedPricingByDay = calculatePricingByDay(
 						roomDetails.pricingRate || [],
@@ -506,7 +455,6 @@ const CheckoutContent = ({
 				);
 				return;
 			}
-
 			if (!checkIn.isBefore(date)) {
 				toast.error(
 					chosenLanguage === "Arabic"
@@ -516,11 +464,8 @@ const CheckoutContent = ({
 				return;
 			}
 
-			// Validate the new date range
 			const isValid = validateDates(checkIn, date);
-
 			if (!isValid) {
-				// Reset to previous dates if invalid
 				if (prevCheckIn && prevCheckOut) {
 					setCheckIn(prevCheckIn);
 					setCheckOut(prevCheckOut);
@@ -529,16 +474,12 @@ const CheckoutContent = ({
 			}
 
 			setCheckOut(date);
-
-			// Update previous dates
 			setPrevCheckOut(date);
 
-			// Automatically update the cart
 			roomCart.forEach((room) => {
 				const roomDetails = roomDetailsFromIds.find(
 					(detail) => detail._id === room.id
 				);
-
 				if (roomDetails) {
 					const updatedPricingByDay = calculatePricingByDay(
 						roomDetails.pricingRate || [],
@@ -573,172 +514,138 @@ const CheckoutContent = ({
 		}
 	};
 
-	// Disable past dates for Check-In
-	const disabledCheckInDate = (current) => {
-		return current && current < dayjs().endOf("day");
-	};
-
-	// Disable dates before Check-In for Check-Out
+	const disabledCheckInDate = (current) =>
+		current && current < dayjs().endOf("day");
 	const disabledCheckOutDate = (current) => {
 		if (!checkIn) return current && current < dayjs().endOf("day");
 		return current && current <= checkIn.endOf("day");
 	};
-
-	// Disable past dates
 	const disabledDate = (current) => current && current < dayjs().endOf("day");
 
 	const createUncompletedDocument = async (from) => {
 		try {
 			const { phone, email } = customerDetails;
+			if (!(phone || email)) return;
 
-			if (phone || email) {
-				// Hotel name consistency validation
-				const hotelNames = roomCart.map((room) => room.hotelName);
-				const uniqueHotelNames = [...new Set(hotelNames)];
+			const hotelNames = roomCart.map((room) => room.hotelName);
+			const uniqueHotelNames = [...new Set(hotelNames)];
 
-				// Dynamically set payment-related fields based on selectedPaymentOption
-				let payment = "Not Paid";
-				let commissionPaid = false;
-				let commission = safeParseFloat(depositAmount, 0);
-				let paid_amount = 0;
-				let totalAmount = safeParseFloat(total_price_with_commission, 0); // Default total amount
+			let payment = "Not Paid";
+			let commissionPaid = false;
+			let commission = safeParseFloat(depositAmount, 0);
+			let paid_amount = 0;
+			let totalAmount = safeParseFloat(total_price_with_commission, 0);
 
-				if (selectedPaymentOption === "acceptDeposit") {
-					payment = "Deposit Paid";
-					commissionPaid = true;
-					commission = safeParseFloat(depositAmount, 0);
-					paid_amount =
-						safeParseFloat(depositAmount, 0) +
-						safeParseFloat(totalRoomsPricePerNight, 0);
-				} else if (selectedPaymentOption === "acceptPayWholeAmount") {
-					payment = "Paid Online";
-					commissionPaid = true;
-					commission = safeParseFloat(depositAmount, 0);
-					paid_amount = safeParseFloat(total_price_with_commission, 0);
-				} else if (selectedPaymentOption === "acceptReserveNowPayInHotel") {
-					payment = "Not Paid";
-					commissionPaid = false;
-					commission = safeParseFloat(depositAmount, 0); // Same calculation as in PaymentOptions
-					totalAmount = safeParseFloat(total_price_with_commission, 0) * 1.1; // Increase total by 10%
-					paid_amount = 0; // No payment made upfront
-				}
-
-				// Prepare payment details
-				const paymentDetails = {
-					cardNumber,
-					cardExpiryDate: expiryDate,
-					cardCVV: cvv,
-					cardHolderName,
-				};
-
-				// Adjust pickedRoomsType to reflect changes for "Pay in Hotel"
-				const pickedRoomsType = transformRoomCartToPickedRoomsType(
-					roomCart,
-					selectedPaymentOption === "acceptReserveNowPayInHotel" // Pass a flag
-				);
-
-				// Validate pickedRoomsType to ensure data integrity
-				const isValidPickedRoomsType = pickedRoomsType.every((room) => {
-					return (
-						room.room_type &&
-						room.displayName &&
-						!isNaN(parseFloat(room.chosenPrice)) &&
-						typeof room.count === "number" &&
-						Array.isArray(room.pricingByDay) &&
-						room.pricingByDay.every(
-							(day) =>
-								day.date &&
-								typeof day.price === "number" &&
-								typeof day.rootPrice === "number" &&
-								typeof day.commissionRate === "number" &&
-								typeof day.totalPriceWithCommission === "number" &&
-								typeof day.totalPriceWithoutCommission === "number"
-						)
-					);
-				});
-
-				if (!isValidPickedRoomsType) {
-					message.error(
-						"Invalid room pricing details. Please review your selection."
-					);
-					return;
-				}
-
-				const reservationDataUncompleted = {
-					guestAgreedOnTermsAndConditions: guestAgreedOnTermsAndConditions,
-					userId: user ? user._id : null,
-					hotelId: roomCart[0].hotelId, // Assuming hotelId is a string
-					hotelName: roomCart[0].hotelName || "",
-					belongsTo: roomCart[0].belongsTo || "",
-					customerDetails: {
-						...customerDetails,
-						nationality,
-						postalCode,
-					},
-					paymentDetails,
-					total_rooms: safeParseFloat(total_rooms, 0),
-					total_guests:
-						safeParseFloat(roomCart[0].adults, 0) +
-						safeParseFloat(roomCart[0].children, 0),
-					adults: safeParseFloat(roomCart[0].adults, 0),
-					children: safeParseFloat(roomCart[0].children, 0),
-					total_amount: safeParseFloat(totalAmount, 0), // Adjusted if "Pay in Hotel"
-					payment,
-					paid_amount: safeParseFloat(paid_amount, 0),
-					commission: commission
-						? safeParseFloat(commission, 0)
-						: depositAmount,
-					commissionPaid,
-					checkin_date: roomCart[0].startDate || "",
-					checkout_date: roomCart[0].endDate || "",
-					days_of_residence: dayjs(roomCart[0].endDate).diff(
-						dayjs(roomCart[0].startDate),
-						"days"
-					),
-					booking_source: "Online Jannat Booking",
-					pickedRoomsType, // Ensure this is correctly set
-					convertedAmounts,
-					rootCause:
-						uniqueHotelNames.length > 1
-							? "User added more than one hotel to the cart"
-							: from,
-				};
-
-				// Send the uncomplete reservation to the backend
-				const response = await createNewUncompletedReservationClient(
-					reservationDataUncompleted
-				);
-
-				// Handle API response
-				if (response && response.message) {
-					// message.success(response.message);
-					console.log("Thank you");
-				} else {
-					console.log("Thank you");
-				}
-			} else {
-				// message.error("Please provide at least a phone number or an email.");
+			if (selectedPaymentOption === "acceptDeposit") {
+				payment = "Deposit Paid";
+				commissionPaid = true;
+				commission = safeParseFloat(depositAmount, 0);
+				paid_amount =
+					safeParseFloat(depositAmount, 0) +
+					safeParseFloat(totalRoomsPricePerNight, 0);
+			} else if (selectedPaymentOption === "acceptPayWholeAmount") {
+				payment = "Paid Online";
+				commissionPaid = true;
+				commission = safeParseFloat(depositAmount, 0);
+				paid_amount = safeParseFloat(total_price_with_commission, 0);
+			} else if (selectedPaymentOption === "acceptReserveNowPayInHotel") {
+				payment = "Not Paid";
+				commissionPaid = false;
+				commission = safeParseFloat(depositAmount, 0);
+				totalAmount = safeParseFloat(total_price_with_commission, 0) * 1.1;
+				paid_amount = 0;
 			}
+
+			// Keep structure same as your server expects for the "uncompleted" tracker,
+			// but do NOT include plaintext card values anymore.
+			const pickedRoomsType = transformRoomCartToPickedRoomsType(
+				roomCart,
+				selectedPaymentOption === "acceptReserveNowPayInHotel"
+			);
+
+			const isValidPickedRoomsType = pickedRoomsType.every((room) => {
+				return (
+					room.room_type &&
+					room.displayName &&
+					!isNaN(parseFloat(room.chosenPrice)) &&
+					typeof room.count === "number" &&
+					Array.isArray(room.pricingByDay) &&
+					room.pricingByDay.every(
+						(day) =>
+							day.date &&
+							typeof day.price === "number" &&
+							typeof day.rootPrice === "number" &&
+							typeof day.commissionRate === "number" &&
+							typeof day.totalPriceWithCommission === "number" &&
+							typeof day.totalPriceWithoutCommission === "number"
+					)
+				);
+			});
+
+			if (!isValidPickedRoomsType) return;
+
+			const reservationDataUncompleted = {
+				guestAgreedOnTermsAndConditions,
+				userId: user ? user._id : null,
+				hotelId: roomCart[0].hotelId,
+				hotelName: roomCart[0].hotelName || "",
+				belongsTo: roomCart[0].belongsTo || "",
+				customerDetails: {
+					...customerDetails,
+					nationality,
+					postalCode,
+				},
+				// ⛔ no 'paymentDetails' (card fields) sent
+				total_rooms: safeParseFloat(total_rooms, 0),
+				total_guests:
+					safeParseFloat(roomCart[0].adults, 0) +
+					safeParseFloat(roomCart[0].children, 0),
+				adults: safeParseFloat(roomCart[0].adults, 0),
+				children: safeParseFloat(roomCart[0].children, 0),
+				total_amount: safeParseFloat(totalAmount, 0),
+				payment,
+				paid_amount: safeParseFloat(paid_amount, 0),
+				commission: commission ? safeParseFloat(commission, 0) : depositAmount,
+				commissionPaid,
+				checkin_date: roomCart[0].startDate || "",
+				checkout_date: roomCart[0].endDate || "",
+				days_of_residence: dayjs(roomCart[0].endDate).diff(
+					dayjs(roomCart[0].startDate),
+					"days"
+				),
+				booking_source: "Online Jannat Booking",
+				pickedRoomsType,
+				convertedAmounts,
+				rootCause:
+					uniqueHotelNames.length > 1
+						? "User added more than one hotel to the cart"
+						: from,
+			};
+
+			// Fire-and-forget tracker; your API handler can remain as-is.
+			await fetch(
+				`${process.env.REACT_APP_API_URL}/create-uncomplete-reservation-document`,
+				{
+					method: "POST",
+					headers: {
+						Accept: "application/json",
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify(reservationDataUncompleted),
+				}
+			);
 		} catch (error) {
 			console.error("Error creating uncomplete reservation:", error);
-			message.error(
-				"An error occurred while tracking your uncomplete reservation."
-			);
 		}
 	};
 
+	// ────────────────────────────────────────────────────────────────
+	// Reserve‑Now (Not Paid) flow — now via PayPal route (no PAN/CVV)
+	// ────────────────────────────────────────────────────────────────
 	const createNewReservation = async () => {
-		const {
-			name,
-			phone,
-			email,
-			passport,
-			passportExpiry,
-			password,
-			// confirmPassword,
-		} = customerDetails;
+		const { name, phone, email, passport, passportExpiry, password } =
+			customerDetails;
 
-		// Check if terms and conditions are agreed
 		if (!guestAgreedOnTermsAndConditions) {
 			message.error(
 				"You must accept the Terms & Conditions before proceeding."
@@ -746,59 +653,32 @@ const CheckoutContent = ({
 			return;
 		}
 
-		// Full name validation
 		if (!name || name.trim().split(" ").length < 2) {
 			message.error("Please provide your full name (first and last name).");
 			return;
 		}
 
-		// Phone number validation
 		const phoneRegex = /^\+?[0-9\s-]{5,}$/;
 		if (!phone || !phoneRegex.test(phone)) {
 			message.error("Please provide a valid phone number.");
 			return;
 		}
 
-		// Email validation
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 		if (!email || !emailRegex.test(email)) {
 			message.error("Please provide a valid email address.");
 			return;
 		}
 
-		// Password validation (only for non-authenticated users)
-		// if (!user) {
-		// 	if (!password || !confirmPassword) {
-		// 		message.error("Please enter your password and confirm it.");
-		// 		return;
-		// 	}
-
-		// 	if (password !== confirmPassword) {
-		// 		message.error("Passwords do not match.");
-		// 		return;
-		// 	}
-
-		// 	const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
-		// 	if (!passwordRegex.test(password)) {
-		// 		message.error(
-		// 			"Password must be at least 6 characters long and include both letters and numbers."
-		// 		);
-		// 		return;
-		// 	}
-		// }
-
-		// Passport validation
 		if (!passport) {
 			message.error("Please provide your passport number.");
 			return;
 		}
 
-		// Passport Expiry validation (less than 6 months check)
 		if (passportExpiry) {
-			const expiryDate = dayjs(passportExpiry);
+			const expiryDateD = dayjs(passportExpiry);
 			const sixMonthsFromNow = dayjs().add(6, "month");
-
-			if (expiryDate.isBefore(sixMonthsFromNow)) {
+			if (expiryDateD.isBefore(sixMonthsFromNow)) {
 				message.error(
 					"Passport expiry date should be at least 6 months from today's date."
 				);
@@ -809,59 +689,30 @@ const CheckoutContent = ({
 			return;
 		}
 
-		// Hotel name consistency validation
 		const hotelNames = roomCart.map((room) => room.hotelName);
 		const uniqueHotelNames = [...new Set(hotelNames)];
-
 		if (uniqueHotelNames.length > 1) {
 			message.error(
-				"You cannot make a reservation with rooms from multiple hotels. Please ensure all rooms are from the same hotel."
+				"You cannot make a reservation with rooms from multiple hotels."
 			);
 			return;
 		}
 
-		// Dynamically set payment-related fields based on selectedPaymentOption
-		let payment = "Not Paid";
-		let commissionPaid = false;
-		let commission = safeParseFloat(depositAmount, 0);
-		let paid_amount = 0;
-		let totalAmount = safeParseFloat(total_price_with_commission, 0); // Default total amount
+		const payment = "Not Paid";
+		const commissionPaid = false;
+		const commission = safeParseFloat(depositAmount, 0);
+		const paid_amount = 0;
 
-		if (selectedPaymentOption === "acceptDeposit") {
-			payment = "Deposit Paid";
-			commissionPaid = true;
-			commission = safeParseFloat(depositAmount, 0);
-			paid_amount =
-				safeParseFloat(depositAmount, 0) +
-				safeParseFloat(totalRoomsPricePerNight, 0);
-		} else if (selectedPaymentOption === "acceptPayWholeAmount") {
-			payment = "Paid Online";
-			commissionPaid = true;
-			commission = safeParseFloat(depositAmount, 0);
-			paid_amount = safeParseFloat(total_price_with_commission, 0);
-		} else if (selectedPaymentOption === "acceptReserveNowPayInHotel") {
-			payment = "Not Paid";
-			commissionPaid = false;
-			commission = safeParseFloat(depositAmount, 0); // Same calculation as in PaymentOptions
-			totalAmount = safeParseFloat(total_price_with_commission, 0) * 1.1; // Increase total by 10%
-			paid_amount = 0; // No payment made upfront
-		}
+		// Apply 10% hotel markup for pay-in-hotel
+		const totalAmount = safeParseFloat(total_price_with_commission, 0) * 1.1;
 
-		// Prepare reservation data
-		const paymentDetails = {
-			cardNumber,
-			cardExpiryDate: expiryDate,
-			cardCVV: cvv,
-			cardHolderName,
-		};
-
-		// Adjust pickedRoomsType to reflect changes for "Pay in Hotel"
+		// Transform cart with the 10% bump baked into nightly totals
 		const pickedRoomsType = transformRoomCartToPickedRoomsType(
 			roomCart,
-			selectedPaymentOption === "acceptReserveNowPayInHotel" // Pass a flag
+			true /* isPayInHotel */
 		);
 
-		// Validate pickedRoomsType to ensure data integrity
+		// Basic pickedRoomsType integrity guard
 		const isValidPickedRoomsType = pickedRoomsType.every((room) => {
 			return (
 				room.room_type &&
@@ -879,7 +730,6 @@ const CheckoutContent = ({
 				)
 			);
 		});
-
 		if (!isValidPickedRoomsType) {
 			message.error(
 				"Invalid room pricing details. Please review your selection."
@@ -887,27 +737,26 @@ const CheckoutContent = ({
 			return;
 		}
 
-		const reservationData = {
-			guestAgreedOnTermsAndConditions: guestAgreedOnTermsAndConditions,
-			userId: user ? user._id : null,
-			hotelId: roomCart[0].hotelId, // Assuming hotelId is a string
+		const body = {
+			sentFrom: "client",
+			payment, // "Not Paid"
+			hotelId: roomCart[0].hotelId,
 			hotelName: roomCart[0].hotelName || "",
 			belongsTo: roomCart[0].belongsTo || "",
 			customerDetails: {
 				...customerDetails,
 				nationality,
 				postalCode,
-				// Remove password fields if not needed or handle securely
 			},
-			paymentDetails,
 			total_rooms: safeParseFloat(total_rooms, 0),
 			total_guests:
 				safeParseFloat(roomCart[0].adults, 0) +
 				safeParseFloat(roomCart[0].children, 0),
 			adults: safeParseFloat(roomCart[0].adults, 0),
 			children: safeParseFloat(roomCart[0].children, 0),
-			total_amount: safeParseFloat(totalAmount, 0), // Adjusted if "Pay in Hotel"
-			payment,
+			total_amount: safeParseFloat(totalAmount, 0), // SAR with 10% bump
+			paymentClicked,
+			payment_method: "Unpaid",
 			paid_amount: safeParseFloat(paid_amount, 0),
 			commission: commission ? safeParseFloat(commission, 0) : depositAmount,
 			commissionPaid,
@@ -921,91 +770,189 @@ const CheckoutContent = ({
 			pickedRoomsType,
 			convertedAmounts,
 			usePassword: password || "",
+			// ⛔ DO NOT send plaintext card values
+			// paypal: { setup_token } // (optional) only if you choose to collect + vault a card for Not Paid
 		};
 
 		try {
-			const response = await createNewReservationClient(reservationData);
-			if (response) {
-				if (
-					payment === "Not Paid" &&
-					response.message ===
-						"Verification email sent successfully. Please check your inbox."
-				) {
-					message.success(response.message);
-					onNotPaidReservation();
-					return;
-				}
-
-				if (payment !== "Not Paid") {
-					message.success("Reservation created successfully");
-					ReactGA.event({
-						category: "User Checked Out and Paid Successfully",
-						action: "Reservation Created",
-						label: "Reservation Paid",
-					});
-
-					ReactPixel.track("Reservation Paid", {
-						action: "Checkout Completed",
-						page: "checkout",
-					});
-
-					const queryParams = new URLSearchParams();
-					queryParams.append("name", customerDetails.name);
-					queryParams.append("total_price", total_price_with_commission);
-					queryParams.append("total_rooms", total_rooms);
-
-					roomCart.forEach((room, index) => {
-						queryParams.append(`hotel_name_${index}`, room.hotelName);
-						queryParams.append(`room_type_${index}`, room.roomType);
-						queryParams.append(`room_display_name_${index}`, room.name);
-						queryParams.append(`nights_${index}`, room.nights);
-						queryParams.append(`checkin_date_${index}`, room.startDate);
-						queryParams.append(`checkout_date_${index}`, room.endDate);
-					});
-
-					if (!user) {
-						const signInResponse = await signin({
-							emailOrPhone: email,
-							password: password,
-						});
-
-						if (signInResponse.error) {
-							message.error(
-								"Failed to sign in automatically after account creation."
-							);
-						} else {
-							authenticate(signInResponse, () => {
-								clearRoomCart();
-								window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
-							});
-						}
-					} else {
-						clearRoomCart();
-						window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
-					}
-				} else {
-					message.error(response.message || "Error creating reservation.");
-				}
+			const resp = await createReservationViaPayPal(body);
+			if (resp?.message) {
+				message.success(resp.message);
+				onNotPaidReservation?.();
+				return;
 			}
+			message.success("Reservation created successfully.");
+			onNotPaidReservation?.();
 		} catch (error) {
-			console.error("Error creating reservation:", error);
-			message.error("An error occurred while creating the reservation");
+			console.error("Error creating Not Paid reservation:", error);
+			message.error(
+				error?.message || "An error occurred while creating the reservation"
+			);
 		}
 	};
 
 	const convertCurrency = (amount) => {
-		if (!amount || isNaN(amount)) return "0.00"; // Default to "0.00" if amount is invalid
-
+		if (!amount || isNaN(amount)) return "0.00";
 		if (selectedCurrency === "usd")
 			return (amount * (currencyRates.SAR_USD || 1)).toFixed(2);
 		if (selectedCurrency === "eur")
 			return (amount * (currencyRates.SAR_EUR || 1)).toFixed(2);
-		return amount.toFixed(2); // Default to SAR
+		return amount.toFixed(2);
 	};
 
 	const redirectToSignin = () => {
 		const currentUrl = window.location.pathname + window.location.search;
 		history.push(`/signin?returnUrl=${encodeURIComponent(currentUrl)}`);
+	};
+
+	// Map options → payment label
+	const paymentLabelFor = (opt) => {
+		if (opt === "acceptDeposit") return "Deposit Paid";
+		if (opt === "acceptPayWholeAmount") return "Paid Online";
+		return "Not Paid";
+	};
+
+	// ────────────────────────────────────────────────────────────────
+	// Approval handler for PayPal (Deposit / Full)
+	// ────────────────────────────────────────────────────────────────
+	const handlePayPalApproved = async ({
+		paypal,
+		option,
+		sarAmount,
+		usdAmount,
+	}) => {
+		try {
+			const order_id = paypal?.order_id || paypal?.orderID;
+			if (!order_id) {
+				message.error("Missing PayPal order id.");
+				return;
+			}
+
+			const {
+				name,
+				phone,
+				email,
+				passport,
+				passportExpiry,
+				nationality,
+				password,
+			} = customerDetails || {};
+			if (
+				!name ||
+				!phone ||
+				!email ||
+				!passport ||
+				!passportExpiry ||
+				!nationality
+			) {
+				message.error("Missing required customer details.");
+				return;
+			}
+
+			const payment = paymentLabelFor(option);
+
+			// IMPORTANT: for paid flows we DO NOT 10% bump.
+			const pickedRoomsType = transformRoomCartToPickedRoomsType(
+				roomCart,
+				false
+			);
+
+			const commission = safeParseFloat(depositAmount, 0);
+			const totalAmount = safeParseFloat(total_price_with_commission, 0);
+			const paid_amount = safeParseFloat(sarAmount, 0);
+
+			const body = {
+				sentFrom: "client",
+				payment, // "Deposit Paid" | "Paid Online"
+				hotelId: roomCart[0].hotelId,
+				hotelName: roomCart[0].hotelName || "",
+				belongsTo: roomCart[0].belongsTo || "",
+				customerDetails: {
+					...customerDetails,
+					nationality,
+					postalCode,
+				},
+				total_rooms: safeParseFloat(total_rooms, 0),
+				total_guests:
+					safeParseFloat(roomCart[0].adults, 0) +
+					safeParseFloat(roomCart[0].children, 0),
+				adults: safeParseFloat(roomCart[0].adults, 0),
+				children: safeParseFloat(roomCart[0].children, 0),
+				total_amount: totalAmount, // SAR
+				paymentClicked,
+				payment_method: "PayPal",
+				paid_amount, // SAR actually paid now
+				commission,
+				commissionPaid: true,
+				checkin_date: roomCart[0].startDate || "",
+				checkout_date: roomCart[0].endDate || "",
+				days_of_residence: dayjs(roomCart[0].endDate).diff(
+					dayjs(roomCart[0].startDate),
+					"days"
+				),
+				booking_source: "Online Jannat Booking",
+				pickedRoomsType,
+				convertedAmounts,
+				usePassword: password || "",
+
+				// ✅ PayPal verify+capture block
+				paypal: {
+					order_id,
+					expectedUsdAmount: usdAmount, // e.g., "123.45"
+					// cmid: <optional if you collect it>
+				},
+			};
+
+			const resp = await createReservationViaPayPal(body);
+
+			message.success(resp?.message || "Reservation created successfully");
+			ReactGA.event({
+				category: "User Checked Out and Paid Successfully",
+				action: "Reservation Created",
+				label: payment,
+			});
+			ReactPixel.track("Reservation Paid", {
+				action: "Checkout Completed",
+				page: "checkout",
+			});
+
+			const queryParams = new URLSearchParams();
+			queryParams.append("name", customerDetails.name);
+			queryParams.append("total_price", total_price_with_commission);
+			queryParams.append("total_rooms", total_rooms);
+			roomCart.forEach((room, index) => {
+				queryParams.append(`hotel_name_${index}`, room.hotelName);
+				queryParams.append(`room_type_${index}`, room.roomType);
+				queryParams.append(`room_display_name_${index}`, room.name);
+				queryParams.append(`nights_${index}`, room.nights);
+				queryParams.append(`checkin_date_${index}`, room.startDate);
+				queryParams.append(`checkout_date_${index}`, room.endDate);
+			});
+
+			// Auto sign-in if needed (same behavior you have now)
+			if (!user) {
+				const signInResponse = await signin({
+					emailOrPhone: email,
+					password: password, // you set this from phone input
+				});
+				if (signInResponse.error) {
+					message.error(
+						"Failed to sign in automatically after account creation."
+					);
+				} else {
+					authenticate(signInResponse, () => {
+						clearRoomCart();
+						window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
+					});
+				}
+			} else {
+				clearRoomCart();
+				window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
+			}
+		} catch (err) {
+			console.error("PayPal reservation create error:", err);
+			message.error(err?.message || "Failed to create reservation.");
+		}
 	};
 
 	return (
@@ -1029,7 +976,7 @@ const CheckoutContent = ({
 					<RightSection>
 						<h2>{t.yourReservation}</h2>
 
-						{/* Ant Design Date Range Picker */}
+						{/* Date pickers */}
 						<InputGroup>
 							<Label>{chosenLanguage === "Arabic" ? "من" : "Check-In"}</Label>
 							<DatePicker
@@ -1045,8 +992,6 @@ const CheckoutContent = ({
 								style={{ width: "100%" }}
 							/>
 						</InputGroup>
-
-						{/* Check-Out Date Picker */}
 						<InputGroup>
 							<Label>{chosenLanguage === "Arabic" ? "إلى" : "Check-Out"}</Label>
 							<DatePicker
@@ -1062,6 +1007,7 @@ const CheckoutContent = ({
 								style={{ width: "100%" }}
 							/>
 						</InputGroup>
+
 						<div
 							style={{
 								textAlign: "center",
@@ -1077,8 +1023,6 @@ const CheckoutContent = ({
 							roomCart.map((room) => {
 								const totalNights =
 									room.pricingByDayWithCommission?.length || 0;
-
-								// Calculate the price per night and total price
 								const totalCommissionPrice =
 									room.pricingByDayWithCommission?.reduce(
 										(total, day) => total + (day.totalPriceWithCommission || 0),
@@ -1090,7 +1034,6 @@ const CheckoutContent = ({
 								return (
 									<RoomItem key={room.id}>
 										<RoomImage src={room.photos[0]?.url} alt={room.name} />
-
 										<RoomDetails>
 											<h3>
 												{chosenLanguage === "Arabic"
@@ -1119,7 +1062,6 @@ const CheckoutContent = ({
 												{t[selectedCurrency.toUpperCase()]} {t.perNight}
 											</h4>
 
-											{/* Room Quantity Controls */}
 											<QuantityControls>
 												<MinusIcon
 													onClick={() => toggleRoomAmount(room.id, "dec")}
@@ -1130,7 +1072,6 @@ const CheckoutContent = ({
 												/>
 											</QuantityControls>
 
-											{/* Updated Accordion for Price Breakdown */}
 											<Collapse
 												accordion
 												expandIcon={({ isActive }) => (
@@ -1162,17 +1103,15 @@ const CheckoutContent = ({
 														{room.pricingByDayWithCommission &&
 														room.pricingByDayWithCommission.length > 0 ? (
 															room.pricingByDayWithCommission.map(
-																({ date, totalPriceWithCommission }, index) => {
-																	return (
-																		<li key={index}>
-																			{date}:{" "}
-																			{Number(totalPriceWithCommission).toFixed(
-																				2
-																			)}{" "}
-																			{t[selectedCurrency.toUpperCase()]}
-																		</li>
-																	);
-																}
+																({ date, totalPriceWithCommission }, index) => (
+																	<li key={index}>
+																		{date}:{" "}
+																		{Number(totalPriceWithCommission).toFixed(
+																			2
+																		)}{" "}
+																		{t[selectedCurrency.toUpperCase()]}
+																	</li>
+																)
 															)
 														) : (
 															<li>{t.noPriceBreakdown}</li>
@@ -1192,7 +1131,6 @@ const CheckoutContent = ({
 							<p>{t.noReservations}</p>
 						)}
 
-						{/* Totals Section */}
 						<TotalsWrapper>
 							<p>
 								{t.totalRooms}: {total_rooms}
@@ -1206,7 +1144,7 @@ const CheckoutContent = ({
 				</Panel>
 			</MobileAccordion>
 
-			{/* Mobile form for user details */}
+			{/* Mobile form */}
 			<MobileFormWrapper>
 				<h2>{t.customerDetails}</h2>
 				<form>
@@ -1232,7 +1170,7 @@ const CheckoutContent = ({
 							inputMode='numeric'
 							value={customerDetails.phone}
 							onChange={(e) => {
-								const inputValue = e.target.value.replace(/[^\d\s+-]/g, ""); // Removes invalid characters
+								const inputValue = e.target.value.replace(/[^\d\s+-]/g, "");
 								setCustomerDetails({
 									...customerDetails,
 									phone: inputValue,
@@ -1284,20 +1222,22 @@ const CheckoutContent = ({
 
 					<div className='my-4'>
 						{hotelDetails && hotelDetails.hotelName ? (
-							<PaymentOptions
-								hotelDetails={hotelDetails}
-								chosenLanguage={chosenLanguage}
-								t={t}
-								depositAmount={depositAmount}
-								averageCommissionRate={averageCommissionRate}
-								total_price_with_commission={total_price_with_commission}
-								convertedAmounts={convertedAmounts}
-								selectedPaymentOption={selectedPaymentOption}
-								setSelectedPaymentOption={setSelectedPaymentOption}
-								overallAverageCommissionRate={overallAverageCommissionRate}
-								totalRoomsPricePerNight={totalRoomsPricePerNight}
-								createUncompletedDocument={createUncompletedDocument}
-							/>
+							<>
+								<PaymentOptionsPayPal
+									hotelDetails={hotelDetails}
+									chosenLanguage={chosenLanguage}
+									t={t}
+									depositAmount={depositAmount}
+									averageCommissionRate={averageCommissionRate}
+									total_price_with_commission={total_price_with_commission}
+									convertedAmounts={convertedAmounts}
+									selectedPaymentOption={selectedPaymentOption}
+									setSelectedPaymentOption={setSelectedPaymentOption}
+									overallAverageCommissionRate={overallAverageCommissionRate}
+									totalRoomsPricePerNight={totalRoomsPricePerNight}
+									createUncompletedDocument={createUncompletedDocument}
+								/>
+							</>
 						) : null}
 
 						<small onClick={() => window.open("/terms-conditions", "_blank")}>
@@ -1310,14 +1250,12 @@ const CheckoutContent = ({
 								setGuestAgreedOnTermsAndConditions(
 									!guestAgreedOnTermsAndConditions
 								);
-
 								createUncompletedDocument("User Accepted Terms And Conditions");
 								ReactGA.event({
 									category: "User Accepted Terms And Cond",
 									action: "User Accepted Terms And Cond",
 									label: `User Accepted Terms And Cond`,
 								});
-
 								ReactPixel.track("Terms And Conditions Accepted", {
 									action: "User Accepted Terms And Conditions Accepted",
 									page: "checkout",
@@ -1334,7 +1272,6 @@ const CheckoutContent = ({
 										action: "User Accepted Terms And Cond",
 										label: `User Accepted Terms And Cond`,
 									});
-
 									ReactPixel.track("Terms And Conditions Accepted", {
 										action: "User Accepted Terms And Conditions Accepted",
 										page: "checkout",
@@ -1354,35 +1291,39 @@ const CheckoutContent = ({
 								{chosenLanguage === "Arabic" ? "احجز الآن" : "Reserve Now"}
 							</Button>
 						) : (
-							<PaymentDetails
-								cardNumber={cardNumber}
-								setCardNumber={setCardNumber}
-								expiryDate={expiryDate}
-								setExpiryDate={setExpiryDate}
-								cvv={cvv}
-								setCvv={setCvv}
-								cardHolderName={cardHolderName}
-								setCardHolderName={setCardHolderName}
-								postalCode={postalCode}
-								setPostalCode={setPostalCode}
-								handleReservation={createNewReservation}
-								total={total_price}
-								total_price_with_commission={total_price_with_commission}
-								convertedAmounts={convertedAmounts}
-								depositAmount={depositAmount}
-								setCustomerDetails={setCustomerDetails}
-								nationality={nationality}
-								customerDetails={customerDetails}
-								selectedPaymentOption={selectedPaymentOption}
-								guestAgreedOnTermsAndConditions={
-									guestAgreedOnTermsAndConditions
-								}
-								setPaymentClicked={setPaymentClicked}
-								paymentClicked={paymentClicked}
-								overallAverageCommissionRate={overallAverageCommissionRate}
-								totalRoomsPricePerNight={totalRoomsPricePerNight}
-								createUncompletedDocument={createUncompletedDocument}
-							/>
+							<>
+								<PaymentDetailsPayPal
+									chosenLanguage={chosenLanguage}
+									cardNumber={cardNumber}
+									setCardNumber={setCardNumber}
+									expiryDate={expiryDate}
+									setExpiryDate={setExpiryDate}
+									cvv={cvv}
+									setCvv={setCvv}
+									cardHolderName={cardHolderName}
+									setCardHolderName={setCardHolderName}
+									postalCode={postalCode}
+									setPostalCode={setPostalCode}
+									handleReservation={createNewReservation} // legacy fallback, not used for paid flows
+									total={total_price}
+									total_price_with_commission={total_price_with_commission}
+									convertedAmounts={convertedAmounts}
+									depositAmount={depositAmount}
+									setCustomerDetails={setCustomerDetails}
+									nationality={nationality}
+									customerDetails={customerDetails}
+									selectedPaymentOption={selectedPaymentOption}
+									guestAgreedOnTermsAndConditions={
+										guestAgreedOnTermsAndConditions
+									}
+									setPaymentClicked={setPaymentClicked}
+									paymentClicked={paymentClicked}
+									overallAverageCommissionRate={overallAverageCommissionRate}
+									totalRoomsPricePerNight={totalRoomsPricePerNight}
+									createUncompletedDocument={createUncompletedDocument}
+									onPayApproved={handlePayPalApproved} // ✅ key wire-up
+								/>
+							</>
 						)}
 					</div>
 				</form>
@@ -1442,6 +1383,7 @@ const CheckoutContent = ({
 				disabledCheckInDate={disabledCheckInDate}
 				checkOut={checkOut}
 				disabledCheckOutDate={disabledCheckOutDate}
+				handlePayPalApproved={handlePayPalApproved} // ✅ key wire-up
 			/>
 		</CheckoutContentWrapper>
 	);
@@ -1449,7 +1391,8 @@ const CheckoutContent = ({
 
 export default CheckoutContent;
 
-// Styled components
+/* ───────────────────────── styles (unchanged) ───────────────────── */
+
 const CheckoutContentWrapper = styled.div`
 	display: flex;
 	flex-direction: column;
@@ -1470,7 +1413,6 @@ const CheckoutContentWrapper = styled.div`
 		font-weight: bold;
 		font-size: 11px;
 		cursor: pointer;
-		/* color: var(--primaryBlue); */
 		color: blue;
 		text-decoration: underline;
 	}
@@ -1494,11 +1436,9 @@ const MobileAccordion = styled(Collapse)`
 const MobileFormWrapper = styled.div`
 	display: block;
 	margin: 20px 0;
-
 	@media (min-width: 768px) {
 		display: none;
 	}
-
 	@media (max-width: 768px) {
 		h2 {
 			font-size: 1.6rem;
@@ -1537,7 +1477,6 @@ const RoomDetails = styled.div`
 		font-size: 1.2rem;
 		text-transform: capitalize;
 	}
-
 	h4 {
 		font-size: 1.1rem;
 	}
@@ -1568,19 +1507,6 @@ const PricingList = styled.ul`
 	list-style-type: none;
 	padding: 0;
 	margin-top: 10px;
-`;
-
-// eslint-disable-next-line
-const TotalSection = styled.div`
-	margin-top: 20px;
-	padding-top: 10px;
-	border-top: 1px solid #ddd;
-	text-align: center;
-	.total-price {
-		font-size: 1.4rem;
-		font-weight: bold;
-		color: var(--text-color-dark);
-	}
 `;
 
 const InputGroup = styled.div`
@@ -1617,7 +1543,6 @@ const PlusIcon = styled(FaPlus)`
 	padding: 4px;
 	width: 44%;
 	height: 27px;
-
 	&:hover {
 		color: var(--primary-color);
 	}
@@ -1633,7 +1558,6 @@ const MinusIcon = styled(FaMinus)`
 	padding: 4px;
 	width: 44%;
 	height: 27px;
-
 	&:hover {
 		color: var(--primary-color);
 	}
@@ -1662,25 +1586,6 @@ const TotalsWrapper = styled.div`
 	}
 `;
 
-// eslint-disable-next-line
-const DateRangePickerWrapper = styled.div`
-	margin: 10px 0;
-
-	.ant-picker {
-		width: 100%;
-	}
-
-	@media (max-width: 768px) {
-		.ant-picker-dropdown {
-			width: 100vw;
-			left: 0;
-			right: 0;
-			top: 50px;
-			transform: none;
-		}
-	}
-`;
-
 const TermsWrapper = styled.div`
 	margin: 5px auto;
 	font-size: 1rem;
@@ -1695,12 +1600,10 @@ const TermsWrapper = styled.div`
 	margin-bottom: 2px;
 	cursor: pointer;
 	transition: var(--main-transition);
-
 	&:hover {
 		background-color: ${({ selected }) =>
 			selected ? "#c4e2ff" : "var(--accent-color-2-dark)"};
 	}
-
 	.ant-checkbox-wrapper {
 		margin-left: 10px;
 	}

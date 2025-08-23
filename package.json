@@ -4,6 +4,7 @@
 	"homepage": "https://jannatbooking.com",
 	"private": true,
 	"dependencies": {
+		"@paypal/react-paypal-js": "^8.8.3",
 		"@react-google-maps/api": "^2.19.3",
 		"@react-pdf/renderer": "^3.1.14",
 		"@testing-library/jest-dom": "^5.17.0",
