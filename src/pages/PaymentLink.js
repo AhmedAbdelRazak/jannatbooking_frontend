@@ -50,7 +50,6 @@ function computeCommissionAndDeposit(pickedRoomsType = []) {
 /* ───────── Hosted Card Fields submit button (supports both APIs) ───────── */
 function CardFieldsSubmitButton({ disabled, label }) {
 	const ctx = usePayPalCardFields();
-	// Some versions expose { cardFieldsForm }, others { cardFields }
 	const cardFieldsForm = ctx?.cardFieldsForm;
 	const cardFields = ctx?.cardFields;
 	const submitFn =
@@ -86,7 +85,6 @@ function CardFieldsSubmitButton({ disabled, label }) {
 		if (disabled || typeof submitFn !== "function") return;
 		setBusy(true);
 		try {
-			// Optional UX: validate before submit when form API is present
 			if (cardFieldsForm?.getState) {
 				const state = await cardFieldsForm.getState();
 				if (state && !state.isFormValid) {
@@ -95,9 +93,8 @@ function CardFieldsSubmitButton({ disabled, label }) {
 					return;
 				}
 			}
-			await submitFn(); // Triggers 3‑D Secure if needed and then calls onApprove
+			await submitFn(); // Triggers 3‑D Secure if needed → then onApprove runs
 		} catch (e) {
-			// eslint-disable-next-line no-console
 			console.error("CardFields submit error:", e);
 			message.error(label?.error || "Card payment failed.");
 		} finally {
@@ -175,7 +172,6 @@ const PaymentLink = () => {
 					}
 				}
 			} catch (e) {
-				// eslint-disable-next-line no-console
 				console.error("Error fetching reservation:", e);
 				message.error(
 					isArabic ? "حدث خطأ أثناء تحميل الحجز" : "Failed to load reservation."
@@ -222,7 +218,6 @@ const PaymentLink = () => {
 				setTotalUSD(Number(totalU).toFixed(2));
 				setEffectiveDepositUSD(Number(effU).toFixed(2));
 			} catch (err) {
-				// eslint-disable-next-line no-console
 				console.error("Error converting currency:", err);
 			}
 		};
@@ -237,7 +232,6 @@ const PaymentLink = () => {
 				const raw = typeof token === "string" ? token : token?.clientToken;
 				setClientToken(raw || null);
 			} catch (e) {
-				// eslint-disable-next-line no-console
 				console.error(e);
 				message.error(isArabic ? "فشل تهيئة PayPal" : "PayPal init failed.");
 			}
@@ -342,10 +336,11 @@ const PaymentLink = () => {
 				},
 			];
 
+			// For link-pay we prefer AUTHORIZE (safer). Backend supports both.
 			if (actions?.order) {
 				// Buttons path
 				return actions.order.create({
-					intent: "CAPTURE",
+					intent: "AUTHORIZE",
 					purchase_units,
 					application_context: {
 						brand_name: "Jannat Booking",
@@ -362,7 +357,7 @@ const PaymentLink = () => {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
-						intent: "CAPTURE",
+						intent: "AUTHORIZE",
 						purchase_units,
 						application_context: {
 							brand_name: "Jannat Booking",
@@ -395,6 +390,7 @@ const PaymentLink = () => {
 						order_id: orderID,
 						expectedUsdAmount: selectedUsdAmount,
 						cmid: getCMID(),
+						mode: "authorize", // backend will store AUTH and ledger
 					},
 				};
 
@@ -419,14 +415,12 @@ const PaymentLink = () => {
 					);
 				}
 			} catch (e) {
-				// eslint-disable-next-line no-console
 				console.error(e);
 				message.error(isArabic ? "تعذر إتمام الدفع" : "Payment failed.");
 			}
 		};
 
 		const onError = (e) => {
-			// eslint-disable-next-line no-console
 			console.error("PayPal error:", e);
 			message.error(
 				isArabic ? "خطأ في الدفع عبر PayPal" : "PayPal payment error."
@@ -437,7 +431,7 @@ const PaymentLink = () => {
 
 		return (
 			<>
-				{/* Explicit funding sources → avoids duplicates */}
+				{/* Explicit funding sources to avoid duplicates */}
 				<ButtonsBox>
 					<PayPalButtons
 						fundingSource='paypal'
@@ -648,7 +642,7 @@ const PaymentLink = () => {
 										"data-client-token": clientToken,
 										components: "buttons,card-fields",
 										currency: "USD",
-										intent: "capture",
+										intent: "authorize", // <-- link-pay defaults to AUTHORIZE (backend handles it)
 										commit: true,
 										"enable-funding": "paypal,venmo,card,paylater",
 										"disable-funding": "credit",
@@ -672,7 +666,7 @@ const PaymentLink = () => {
 
 export default PaymentLink;
 
-/* ───────── Styled (clean, centered, responsive, RTL-aware) ───────── */
+/* ───────── Styled ───────── */
 
 const PageWrapper = styled.div`
 	min-height: 720px;

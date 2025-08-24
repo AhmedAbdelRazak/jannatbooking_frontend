@@ -30,7 +30,7 @@ const safeParseFloat = (value, fallback = 0) => {
 };
 
 // ────────────────────────────────────────────────────────────────────
-// Deposit math helpers (unchanged from your version)
+// Deposit math helpers (unchanged logic)
 // ────────────────────────────────────────────────────────────────────
 const calculateDepositDetails = (roomCart) => {
 	if (!roomCart || roomCart.length === 0) {
@@ -171,8 +171,7 @@ const CheckoutContent = ({
 	const [guestAgreedOnTermsAndConditions, setGuestAgreedOnTermsAndConditions] =
 		useState(false);
 
-	// ❗ Card inputs are still shown in the UI for parity,
-	// but they will NOT be sent to the server in PayPal flows.
+	// Card inputs kept for parity with your UI (not sent to backend in PayPal flows)
 	const [cardNumber, setCardNumber] = useState("");
 	const [pay10Percent, setPay10Percent] = useState(false);
 	const [payWholeAmount, setPayWholeAmount] = useState(false);
@@ -297,8 +296,8 @@ const CheckoutContent = ({
 
 	// Transform cart → pickedRoomsType. If isPayInHotel === true, bump nightly totals by 10%.
 	const transformRoomCartToPickedRoomsType = (roomCart, isPayInHotel) => {
-		return roomCart.flatMap((room) => {
-			return Array.from({ length: safeParseFloat(room.amount, 1) }, () => {
+		return roomCart.flatMap((room) =>
+			Array.from({ length: safeParseFloat(room.amount, 1) }, () => {
 				const pricingDetails =
 					room.pricingByDayWithCommission?.map((day) => {
 						const base = safeParseFloat(day.totalPriceWithCommission, 0);
@@ -335,8 +334,8 @@ const CheckoutContent = ({
 						0
 					),
 				};
-			});
-		});
+			})
+		);
 	};
 
 	useEffect(() => {
@@ -556,8 +555,6 @@ const CheckoutContent = ({
 				paid_amount = 0;
 			}
 
-			// Keep structure same as your server expects for the "uncompleted" tracker,
-			// but do NOT include plaintext card values anymore.
 			const pickedRoomsType = transformRoomCartToPickedRoomsType(
 				roomCart,
 				selectedPaymentOption === "acceptReserveNowPayInHotel"
@@ -595,7 +592,6 @@ const CheckoutContent = ({
 					nationality,
 					postalCode,
 				},
-				// ⛔ no 'paymentDetails' (card fields) sent
 				total_rooms: safeParseFloat(total_rooms, 0),
 				total_guests:
 					safeParseFloat(roomCart[0].adults, 0) +
@@ -622,7 +618,6 @@ const CheckoutContent = ({
 						: from,
 			};
 
-			// Fire-and-forget tracker; your API handler can remain as-is.
 			await fetch(
 				`${process.env.REACT_APP_API_URL}/create-uncomplete-reservation-document`,
 				{
@@ -639,9 +634,7 @@ const CheckoutContent = ({
 		}
 	};
 
-	// ────────────────────────────────────────────────────────────────
-	// Reserve‑Now (Not Paid) flow — now via PayPal route (no PAN/CVV)
-	// ────────────────────────────────────────────────────────────────
+	// Reserve‑Now (Not Paid) flow — no PAN/CVV, no PayPal payload → backend will send verification link
 	const createNewReservation = async () => {
 		const { name, phone, email, passport, passportExpiry, password } =
 			customerDetails;
@@ -706,13 +699,11 @@ const CheckoutContent = ({
 		// Apply 10% hotel markup for pay-in-hotel
 		const totalAmount = safeParseFloat(total_price_with_commission, 0) * 1.1;
 
-		// Transform cart with the 10% bump baked into nightly totals
 		const pickedRoomsType = transformRoomCartToPickedRoomsType(
 			roomCart,
 			true /* isPayInHotel */
 		);
 
-		// Basic pickedRoomsType integrity guard
 		const isValidPickedRoomsType = pickedRoomsType.every((room) => {
 			return (
 				room.room_type &&
@@ -770,8 +761,7 @@ const CheckoutContent = ({
 			pickedRoomsType,
 			convertedAmounts,
 			usePassword: password || "",
-			// ⛔ DO NOT send plaintext card values
-			// paypal: { setup_token } // (optional) only if you choose to collect + vault a card for Not Paid
+			// ⛔ No paypal{} here → backend will send verification link for this branch
 		};
 
 		try {
@@ -805,28 +795,50 @@ const CheckoutContent = ({
 		history.push(`/signin?returnUrl=${encodeURIComponent(currentUrl)}`);
 	};
 
-	// Map options → payment label
 	const paymentLabelFor = (opt) => {
-		if (opt === "acceptDeposit") return "Deposit Paid";
-		if (opt === "acceptPayWholeAmount") return "Paid Online";
+		if (opt === "deposit") return "Deposit Paid";
+		if (opt === "full") return "Paid Online";
 		return "Not Paid";
 	};
 
 	// ────────────────────────────────────────────────────────────────
-	// Approval handler for PayPal (Deposit / Full)
+	// Approval handler for PayPal (Deposit / Full) — FIXED WIRING
 	// ────────────────────────────────────────────────────────────────
-	const handlePayPalApproved = async ({
-		paypal,
-		option,
-		sarAmount,
-		usdAmount,
-	}) => {
+	const handlePayPalApproved = async (payload) => {
 		try {
-			const order_id = paypal?.order_id || paypal?.orderID;
+			// payload shape from PaymentDetailsPayPal:
+			// {
+			//   option: "deposit" | "full",
+			//   convertedAmounts,
+			//   sarAmount: "###.##",
+			//   paypal: { order_id, expectedUsdAmount, cmid, mode: "authorize"|"capture" }
+			// }
+			const option = payload?.option; // "deposit" | "full"
+			const paypal = payload?.paypal || {};
+			const sarAmount = payload?.sarAmount;
+			const conv = payload?.convertedAmounts || {};
+
+			const order_id = paypal?.order_id;
 			if (!order_id) {
 				message.error("Missing PayPal order id.");
 				return;
 			}
+
+			// Always pass the expected USD amount to the backend
+			const expectedUsdAmount =
+				paypal?.expectedUsdAmount != null
+					? String(paypal.expectedUsdAmount)
+					: option === "deposit"
+						? String(conv?.depositUSD ?? "")
+						: String(conv?.totalUSD ?? "");
+
+			if (!expectedUsdAmount) {
+				message.error("Missing expected USD amount.");
+				return;
+			}
+
+			const mode = paypal?.mode || "authorize"; // defaults to AUTHORIZE for your use case
+			const cmid = paypal?.cmid || null;
 
 			const {
 				name,
@@ -834,7 +846,7 @@ const CheckoutContent = ({
 				email,
 				passport,
 				passportExpiry,
-				nationality,
+				nationality: natFromState,
 				password,
 			} = customerDetails || {};
 			if (
@@ -843,15 +855,13 @@ const CheckoutContent = ({
 				!email ||
 				!passport ||
 				!passportExpiry ||
-				!nationality
+				!natFromState
 			) {
 				message.error("Missing required customer details.");
 				return;
 			}
 
-			const payment = paymentLabelFor(option);
-
-			// IMPORTANT: for paid flows we DO NOT 10% bump.
+			// IMPORTANT: do NOT 10% bump in paid/authorized flows
 			const pickedRoomsType = transformRoomCartToPickedRoomsType(
 				roomCart,
 				false
@@ -859,11 +869,15 @@ const CheckoutContent = ({
 
 			const commission = safeParseFloat(depositAmount, 0);
 			const totalAmount = safeParseFloat(total_price_with_commission, 0);
+
+			// Keep current semantics: mark paid_amount in SAR (even for authorizations backend can ignore/override)
 			const paid_amount = safeParseFloat(sarAmount, 0);
 
 			const body = {
 				sentFrom: "client",
-				payment, // "Deposit Paid" | "Paid Online"
+				// Keep your present label behavior; backend will set final status
+				payment: paymentLabelFor(option),
+				option, // <-- crucial for backend amounts/branch
 				hotelId: roomCart[0].hotelId,
 				hotelName: roomCart[0].hotelName || "",
 				belongsTo: roomCart[0].belongsTo || "",
@@ -881,9 +895,9 @@ const CheckoutContent = ({
 				total_amount: totalAmount, // SAR
 				paymentClicked,
 				payment_method: "PayPal",
-				paid_amount, // SAR actually paid now
+				paid_amount, // SAR paid/authorized now
 				commission,
-				commissionPaid: true,
+				commissionPaid: true, // backend may overwrite on authorize-only
 				checkin_date: roomCart[0].startDate || "",
 				checkout_date: roomCart[0].endDate || "",
 				days_of_residence: dayjs(roomCart[0].endDate).diff(
@@ -892,14 +906,13 @@ const CheckoutContent = ({
 				),
 				booking_source: "Online Jannat Booking",
 				pickedRoomsType,
-				convertedAmounts,
+				convertedAmounts: conv,
 				usePassword: password || "",
-
-				// ✅ PayPal verify+capture block
 				paypal: {
 					order_id,
-					expectedUsdAmount: usdAmount, // e.g., "123.45"
-					// cmid: <optional if you collect it>
+					expectedUsdAmount, // ✅ now always set
+					cmid,
+					mode, // ✅ "authorize" for pay-later
 				},
 			};
 
@@ -909,7 +922,7 @@ const CheckoutContent = ({
 			ReactGA.event({
 				category: "User Checked Out and Paid Successfully",
 				action: "Reservation Created",
-				label: payment,
+				label: paymentLabelFor(option),
 			});
 			ReactPixel.track("Reservation Paid", {
 				action: "Checkout Completed",
@@ -929,7 +942,7 @@ const CheckoutContent = ({
 				queryParams.append(`checkout_date_${index}`, room.endDate);
 			});
 
-			// Auto sign-in if needed (same behavior you have now)
+			// Auto sign-in if needed (unchanged behavior)
 			if (!user) {
 				const signInResponse = await signin({
 					emailOrPhone: email,
@@ -1321,7 +1334,7 @@ const CheckoutContent = ({
 									overallAverageCommissionRate={overallAverageCommissionRate}
 									totalRoomsPricePerNight={totalRoomsPricePerNight}
 									createUncompletedDocument={createUncompletedDocument}
-									onPayApproved={handlePayPalApproved} // ✅ key wire-up
+									onPayApproved={handlePayPalApproved} // ✅ fixed wiring
 								/>
 							</>
 						)}
@@ -1383,7 +1396,7 @@ const CheckoutContent = ({
 				disabledCheckInDate={disabledCheckInDate}
 				checkOut={checkOut}
 				disabledCheckOutDate={disabledCheckOutDate}
-				handlePayPalApproved={handlePayPalApproved} // ✅ key wire-up
+				handlePayPalApproved={handlePayPalApproved} // ✅ fixed wiring
 			/>
 		</CheckoutContentWrapper>
 	);
@@ -1391,7 +1404,7 @@ const CheckoutContent = ({
 
 export default CheckoutContent;
 
-/* ───────────────────────── styles (unchanged) ───────────────────── */
+/* styles unchanged from your version */
 
 const CheckoutContentWrapper = styled.div`
 	display: flex;

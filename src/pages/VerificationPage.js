@@ -44,7 +44,7 @@ const VerificationPage = () => {
 			const fetchReservationData = async () => {
 				try {
 					const response = await axios.post(
-						`${process.env.REACT_APP_API_URL}/reservation-verification`,
+						`${process.env.REACT_APP_API_URL}/paypal/reservation-verification`,
 						{ token }
 					);
 
