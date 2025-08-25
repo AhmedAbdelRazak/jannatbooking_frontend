@@ -1,11 +1,12 @@
-import React, { useEffect, useState, useMemo } from "react";
+// src/pages/PaymentLink.js
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import styled from "styled-components";
 import { useParams } from "react-router-dom";
-import { Checkbox, message, Spin } from "antd";
+import { Checkbox, message, Spin, Alert } from "antd";
 import {
 	gettingSingleReservationById,
 	currencyConversion,
-	getPayPalClientToken,
+	getPayPalClientToken, // must return { clientToken, env } per apiCore fix above
 	payReservationViaPayPalLink,
 } from "../apiCore";
 import { useCartContext } from "../cart_context";
@@ -25,7 +26,7 @@ import {
 	usePayPalCardFields,
 } from "@paypal/react-paypal-js";
 
-/* ───────── Commission + Deposit (your logic) ───────── */
+/* ───────── Helpers ───────── */
 function computeCommissionAndDeposit(pickedRoomsType = []) {
 	let totalCommission = 0;
 	let oneNightCost = 0;
@@ -47,30 +48,41 @@ function computeCommissionAndDeposit(pickedRoomsType = []) {
 	return { defaultDeposit: Number(defaultDeposit.toFixed(2)) };
 }
 
-/* ───────── Hosted Card Fields submit button (supports both APIs) ───────── */
+function mapLocale(isArabic) {
+	return isArabic ? "ar_EG" : "en_US";
+}
+function guessBuyerCountry(fallback = "US") {
+	try {
+		const lang = navigator?.language || navigator?.languages?.[0] || "";
+		const part = String(lang).replace("_", "-").split("-")[1];
+		if (part && part.length === 2) return part.toUpperCase();
+	} catch {}
+	return fallback;
+}
+
+/* ───────── Hosted Card Fields submit button ───────── */
 function CardFieldsSubmitButton({ disabled, label }) {
 	const ctx = usePayPalCardFields();
 	const cardFieldsForm = ctx?.cardFieldsForm;
 	const cardFields = ctx?.cardFields;
-	const submitFn =
-		(cardFieldsForm && cardFieldsForm.submit) ||
-		(cardFields && cardFields.submit) ||
-		null;
 
 	const [busy, setBusy] = useState(false);
-	const [ready, setReady] = useState(!!submitFn);
+	const [ready, setReady] = useState(false);
 
 	useEffect(() => {
 		let cancelled = false;
 		let tries = 0;
 		const tick = () => {
 			if (cancelled) return;
-			const fn =
+			const submitFn =
 				(cardFieldsForm && cardFieldsForm.submit) ||
 				(cardFields && cardFields.submit) ||
 				null;
-			setReady(typeof fn === "function");
-			if (!fn && tries < 120) {
+			const eligible =
+				(cardFieldsForm?.isEligible?.() ?? true) &&
+				(cardFields?.isEligible?.() ?? true);
+			setReady(typeof submitFn === "function" && eligible);
+			if ((!submitFn || !eligible) && tries < 60) {
 				tries += 1;
 				setTimeout(tick, 250);
 			}
@@ -82,6 +94,10 @@ function CardFieldsSubmitButton({ disabled, label }) {
 	}, [cardFieldsForm, cardFields]);
 
 	const submit = async () => {
+		const submitFn =
+			(cardFieldsForm && cardFieldsForm.submit) ||
+			(cardFields && cardFields.submit) ||
+			null;
 		if (disabled || typeof submitFn !== "function") return;
 		setBusy(true);
 		try {
@@ -93,7 +109,7 @@ function CardFieldsSubmitButton({ disabled, label }) {
 					return;
 				}
 			}
-			await submitFn(); // Triggers 3‑D Secure if needed → then onApprove runs
+			await submitFn(); // 3‑D Secure if needed → then onApprove runs
 		} catch (e) {
 			console.error("CardFields submit error:", e);
 			message.error(label?.error || "Card payment failed.");
@@ -129,18 +145,22 @@ const PaymentLink = () => {
 	const [loading, setLoading] = useState(true);
 
 	// Pay options
-	const [selectedOption, setSelectedOption] = useState(null); // "acceptDeposit" | "acceptPayWholeAmount"
+	const [selectedOption, setSelectedOption] = useState(null);
 	const [guestAgreed, setGuestAgreed] = useState(false);
 
 	// USD conversions
 	const [effectiveDepositUSD, setEffectiveDepositUSD] = useState("0.00");
 	const [totalUSD, setTotalUSD] = useState("0.00");
 
-	// PayPal client token
+	// PayPal client token + env (from backend)
 	const [clientToken, setClientToken] = useState(null);
+	const [isLive, setIsLive] = useState(null);
+	const [tokenError, setTokenError] = useState(null);
+	const [reloadKey, setReloadKey] = useState(0);
 
 	const isArabic = chosenLanguage === "Arabic";
-	const locale = isArabic ? "ar" : "en_US";
+	const locale = mapLocale(isArabic);
+	const buyerCountry = guessBuyerCountry(isArabic ? "EG" : "US");
 
 	const allowInteract =
 		!!selectedOption &&
@@ -156,6 +176,13 @@ const PaymentLink = () => {
 			return null;
 		}
 	};
+
+	const reloadPayment = useCallback(() => {
+		setReloadKey((k) => k + 1);
+		setClientToken(null);
+		setIsLive(null);
+		setTokenError(null);
+	}, []);
 
 	/* 1) Fetch reservation */
 	useEffect(() => {
@@ -201,7 +228,6 @@ const PaymentLink = () => {
 				depositToUse = adv;
 			}
 		}
-
 		setEffectiveDeposit(Number(depositToUse.toFixed(2)));
 	}, [reservationData, defaultDeposit]);
 
@@ -224,20 +250,39 @@ const PaymentLink = () => {
 		doConversion();
 	}, [reservationData, effectiveDeposit]);
 
-	/* 4) PayPal client token (for Card Fields + Buttons) */
+	/* 4) PayPal client token + env (from backend, with fallback) */
 	useEffect(() => {
 		const init = async () => {
 			try {
-				const token = await getPayPalClientToken();
-				const raw = typeof token === "string" ? token : token?.clientToken;
-				setClientToken(raw || null);
+				const tokenResp = await getPayPalClientToken(); // { clientToken, env } per apiCore fix
+				const token =
+					typeof tokenResp === "string"
+						? tokenResp
+						: tokenResp?.clientToken || null;
+				if (!token) throw new Error("Missing PayPal client token");
+
+				let env = (tokenResp?.env || "").toLowerCase();
+
+				// Fallback guess if env is not provided by the client API for any reason
+				if (env !== "live" && env !== "sandbox") {
+					const node = (process.env.REACT_APP_NODE_ENV || "").toUpperCase();
+					env = node === "PRODUCTION" ? "live" : "sandbox";
+					console.warn(
+						"[PayPal] 'env' not returned by API. Falling back to",
+						env
+					);
+				}
+
+				setClientToken(token);
+				setIsLive(env === "live");
 			} catch (e) {
-				console.error(e);
+				console.error("PayPal init failed:", e);
+				setTokenError(e);
 				message.error(isArabic ? "فشل تهيئة PayPal" : "PayPal init failed.");
 			}
 		};
 		init();
-	}, [isArabic]);
+	}, [isArabic, reloadKey]);
 
 	const selectedUsdAmount = useMemo(() => {
 		const val =
@@ -265,9 +310,9 @@ const PaymentLink = () => {
 		});
 	};
 
-	/* ───────── PayPal area: explicit funding sources + Card Fields ───────── */
+	/* ───────── Inner PayPal area ───────── */
 	const PayArea = () => {
-		const [{ isResolved }] = usePayPalScriptReducer();
+		const [{ isResolved, isRejected }] = usePayPalScriptReducer();
 
 		const requireSelectionAndTerms = () => {
 			if (!selectedOption) {
@@ -294,7 +339,6 @@ const PaymentLink = () => {
 			return true;
 		};
 
-		// Dual-mode createOrder: Buttons (actions) vs Card Fields (server)
 		const createOrder = async (data, actions) => {
 			if (!requireSelectionAndTerms()) return;
 
@@ -336,9 +380,8 @@ const PaymentLink = () => {
 				},
 			];
 
-			// For link-pay we prefer AUTHORIZE (safer). Backend supports both.
+			// Prefer AUTHORIZE; backend persists AUTH (and vault if present)
 			if (actions?.order) {
-				// Buttons path
 				return actions.order.create({
 					intent: "AUTHORIZE",
 					purchase_units,
@@ -350,7 +393,7 @@ const PaymentLink = () => {
 				});
 			}
 
-			// Card Fields path → create order on the server, return its id
+			// Card Fields path — create order on server and return id
 			const res = await fetch(
 				`${process.env.REACT_APP_API_URL}/paypal/order/create`,
 				{
@@ -363,6 +406,9 @@ const PaymentLink = () => {
 							brand_name: "Jannat Booking",
 							user_action: "PAY_NOW",
 							shipping_preference: "NO_SHIPPING",
+						},
+						payment_source: {
+							card: { attributes: { vault: { store_in_vault: "ON_SUCCESS" } } },
 						},
 					}),
 				}
@@ -390,7 +436,7 @@ const PaymentLink = () => {
 						order_id: orderID,
 						expectedUsdAmount: selectedUsdAmount,
 						cmid: getCMID(),
-						mode: "authorize", // backend will store AUTH and ledger
+						mode: "authorize",
 					},
 				};
 
@@ -427,31 +473,40 @@ const PaymentLink = () => {
 			);
 		};
 
+		if (isRejected) {
+			return (
+				<div>
+					<Alert
+						type='error'
+						showIcon
+						message={
+							isArabic
+								? "تعذر تحميل بوابة الدفع"
+								: "Payment module failed to load"
+						}
+						description={
+							isArabic
+								? "يرجى تعطيل مانع الإعلانات أو التأكد من اتصال الإنترنت ثم إعادة المحاولة."
+								: "Please disable ad blockers or check your connection, then try again."
+						}
+					/>
+					<div style={{ textAlign: "center", marginTop: 10 }}>
+						<ReloadBtn onClick={reloadPayment}>
+							{isArabic ? "إعادة تحميل الدفع" : "Reload payment"}
+						</ReloadBtn>
+					</div>
+				</div>
+			);
+		}
+
 		if (!isResolved) return <Spin />;
 
 		return (
 			<>
-				{/* Explicit funding sources to avoid duplicates */}
 				<ButtonsBox>
 					<PayPalButtons
 						fundingSource='paypal'
 						style={{ layout: "vertical", label: "paypal" }}
-						createOrder={createOrder}
-						onApprove={onApprove}
-						onError={onError}
-						disabled={!allowInteract}
-					/>
-					<PayPalButtons
-						fundingSource='venmo'
-						style={{ layout: "vertical" }}
-						createOrder={createOrder}
-						onApprove={onApprove}
-						onError={onError}
-						disabled={!allowInteract}
-					/>
-					<PayPalButtons
-						fundingSource='card'
-						style={{ layout: "vertical", label: "pay" }}
 						createOrder={createOrder}
 						onApprove={onApprove}
 						onError={onError}
@@ -462,10 +517,8 @@ const PaymentLink = () => {
 				<BrandFootnote>
 					Powered by <b>PayPal</b>
 				</BrandFootnote>
-
 				<Divider />
 
-				{/* Hosted Card Fields */}
 				<CardBox dir={isArabic ? "rtl" : "ltr"} aria-disabled={!allowInteract}>
 					<CardTitle>
 						{isArabic ? "أو ادفع مباشرة بالبطاقة" : "Or pay directly by card"}
@@ -527,135 +580,162 @@ const PaymentLink = () => {
 		);
 	};
 
-	if (loading) return <Centered>Loading…</Centered>;
-	if (!reservationData) return <Centered>No reservation found</Centered>;
+	/* Build PayPal SDK options (no hooks here) */
+	const paypalOptions =
+		clientToken && isLive != null
+			? {
+					"client-id": isLive
+						? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE
+						: process.env.REACT_APP_PAYPAL_CLIENT_ID_SANDBOX,
+					"data-client-token": clientToken,
+					components: "buttons,card-fields",
+					currency: "USD",
+					intent: "authorize",
+					commit: true,
+					"enable-funding": "paypal,card",
+					"disable-funding": "credit",
+					locale,
+					"buyer-country": buyerCountry,
+				}
+			: null;
 
 	return (
 		<PageWrapper dir={isArabic ? "rtl" : "ltr"}>
 			<Card>
-				<Header style={{ textAlign: isArabic ? "right" : "" }}>
-					{isArabic ? "تفاصيل الحجز" : "Reservation Details"}
-				</Header>
-				<InfoRow>
-					<strong>{isArabic ? "اسم الفندق:" : "Hotel Name:"}</strong>
-					<span>{reservationData.hotelId?.hotelName}</span>
-				</InfoRow>
-				<InfoRow>
-					<strong>{isArabic ? "رقم التأكيد:" : "Confirmation Number:"}</strong>
-					<span>{reservationData.confirmation_number}</span>
-				</InfoRow>
-				<InfoRow>
-					<strong>{isArabic ? "اسم الضيف:" : "Guest Name:"}</strong>
-					<span>{reservationData.customer_details?.name}</span>
-				</InfoRow>
-				<InfoRow>
-					<strong>{isArabic ? "البريد الإلكتروني:" : "Email:"}</strong>
-					<span>{reservationData.customer_details?.email}</span>
-				</InfoRow>
-				<InfoRow>
-					<strong>{isArabic ? "الجنسية:" : "Nationality:"}</strong>
-					<span>{reservationData.customer_details?.nationality}</span>
-				</InfoRow>
-				<InfoRow>
-					<strong>{isArabic ? "إجمالي المبلغ:" : "Total Amount:"}</strong>
-					<span>{Number(reservationData.total_amount).toFixed(2)} SAR</span>
-				</InfoRow>
-
-				{["deposit paid", "paid online"].includes(
-					(reservationData.payment || "").toLowerCase()
-				) ? (
-					<ThankYou>
-						{isArabic
-							? `شكرًا على الدفع ${reservationData.customer_details?.name}!`
-							: `Thank you for your payment ${reservationData.customer_details?.name}!`}
-					</ThankYou>
+				{loading || !reservationData ? (
+					<Centered>{loading ? "Loading…" : "No reservation found"}</Centered>
 				) : (
 					<>
-						<SubHeader>
-							{isArabic ? "اختر خيار الدفع" : "Choose Payment Option"}
-						</SubHeader>
+						<Header style={{ textAlign: isArabic ? "right" : undefined }}>
+							{isArabic ? "تفاصيل الحجز" : "Reservation Details"}
+						</Header>
 
-						{/* Deposit */}
-						<Option
-							onClick={() => handleOptionChange("acceptDeposit")}
-							selected={selectedOption === "acceptDeposit"}
-						>
-							<input
-								type='radio'
-								readOnly
-								checked={selectedOption === "acceptDeposit"}
-							/>
-							<label>
-								{isArabic ? "دفعة مقدمة" : "Deposit"}{" "}
-								<strong>
-									{effectiveDepositUSD} USD (
-									{Number(effectiveDeposit).toLocaleString()} SAR)
-								</strong>
-							</label>
-						</Option>
+						<InfoRow>
+							<strong>{isArabic ? "اسم الفندق:" : "Hotel Name:"}</strong>
+							<span>{reservationData.hotelId?.hotelName}</span>
+						</InfoRow>
+						<InfoRow>
+							<strong>
+								{isArabic ? "رقم التأكيد:" : "Confirmation Number:"}
+							</strong>
+							<span>{reservationData.confirmation_number}</span>
+						</InfoRow>
+						<InfoRow>
+							<strong>{isArabic ? "اسم الضيف:" : "Guest Name:"}</strong>
+							<span>{reservationData.customer_details?.name}</span>
+						</InfoRow>
+						<InfoRow>
+							<strong>{isArabic ? "البريد الإلكتروني:" : "Email:"}</strong>
+							<span>{reservationData.customer_details?.email}</span>
+						</InfoRow>
+						<InfoRow>
+							<strong>{isArabic ? "الجنسية:" : "Nationality:"}</strong>
+							<span>{reservationData.customer_details?.nationality}</span>
+						</InfoRow>
+						<InfoRow>
+							<strong>{isArabic ? "إجمالي المبلغ:" : "Total Amount:"}</strong>
+							<span>{Number(reservationData.total_amount).toFixed(2)} SAR</span>
+						</InfoRow>
 
-						{/* Full amount */}
-						<Option
-							onClick={() => handleOptionChange("acceptPayWholeAmount")}
-							selected={selectedOption === "acceptPayWholeAmount"}
-						>
-							<input
-								type='radio'
-								readOnly
-								checked={selectedOption === "acceptPayWholeAmount"}
-							/>
-							<label>
-								{isArabic ? "المبلغ الكامل" : "Full Amount"}{" "}
-								<strong>
-									{totalUSD} USD (
-									{Number(reservationData.total_amount).toLocaleString()} SAR)
-								</strong>
-							</label>
-						</Option>
-
-						{/* Terms */}
-						<Terms
-							selected={guestAgreed}
-							onClick={() => setGuestAgreed(!guestAgreed)}
-						>
-							<Checkbox
-								checked={guestAgreed}
-								onChange={(e) => setGuestAgreed(e.target.checked)}
-							>
-								{t.acceptTerms ||
-									(isArabic
-										? "أوافق على الشروط والأحكام"
-										: "I accept the Terms & Conditions")}
-							</Checkbox>
-						</Terms>
-
-						{/* PayPal Area */}
-						{clientToken ? (
-							<ScriptShell>
-								<PayPalScriptProvider
-									options={{
-										"client-id":
-											(process.env.REACT_APP_NODE_ENV || "").toUpperCase() ===
-											"PRODUCTION"
-												? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE
-												: process.env.REACT_APP_PAYPAL_CLIENT_ID_SANDBOX,
-										"data-client-token": clientToken,
-										components: "buttons,card-fields",
-										currency: "USD",
-										intent: "authorize", // <-- link-pay defaults to AUTHORIZE (backend handles it)
-										commit: true,
-										"enable-funding": "paypal,venmo,card,paylater",
-										"disable-funding": "credit",
-										locale,
-									}}
-								>
-									<PayArea />
-								</PayPalScriptProvider>
-							</ScriptShell>
+						{["deposit paid", "paid online"].includes(
+							(reservationData.payment || "").toLowerCase()
+						) ? (
+							<ThankYou>
+								{isArabic
+									? `شكرًا على الدفع ${reservationData.customer_details?.name}!`
+									: `Thank you for your payment ${reservationData.customer_details?.name}!`}
+							</ThankYou>
 						) : (
-							<Centered>
-								<Spin />
-							</Centered>
+							<>
+								<SubHeader>
+									{isArabic ? "اختر خيار الدفع" : "Choose Payment Option"}
+								</SubHeader>
+
+								{/* Deposit */}
+								<Option
+									onClick={() => handleOptionChange("acceptDeposit")}
+									selected={selectedOption === "acceptDeposit"}
+								>
+									<input
+										type='radio'
+										readOnly
+										checked={selectedOption === "acceptDeposit"}
+									/>
+									<label>
+										{isArabic ? "دفعة مقدمة" : "Deposit"}{" "}
+										<strong>
+											{effectiveDepositUSD} USD (
+											{Number(effectiveDeposit).toLocaleString()} SAR)
+										</strong>
+									</label>
+								</Option>
+
+								{/* Full amount */}
+								<Option
+									onClick={() => handleOptionChange("acceptPayWholeAmount")}
+									selected={selectedOption === "acceptPayWholeAmount"}
+								>
+									<input
+										type='radio'
+										readOnly
+										checked={selectedOption === "acceptPayWholeAmount"}
+									/>
+									<label>
+										{isArabic ? "المبلغ الكامل" : "Full Amount"}{" "}
+										<strong>
+											{totalUSD} USD (
+											{Number(reservationData.total_amount).toLocaleString()}{" "}
+											SAR)
+										</strong>
+									</label>
+								</Option>
+
+								{/* Terms */}
+								<Terms
+									selected={guestAgreed}
+									onClick={() => setGuestAgreed(!guestAgreed)}
+								>
+									<Checkbox
+										checked={guestAgreed}
+										onChange={(e) => setGuestAgreed(e.target.checked)}
+									>
+										{t.acceptTerms ||
+											(isArabic
+												? "أوافق على الشروط والأحكام"
+												: "I accept the Terms & Conditions")}
+									</Checkbox>
+								</Terms>
+
+								{/* PayPal Area */}
+								{tokenError ? (
+									<div style={{ textAlign: "center" }}>
+										<Alert
+											type='error'
+											showIcon
+											message={
+												isArabic
+													? "فشل تهيئة PayPal"
+													: "PayPal initialization failed"
+											}
+										/>
+										<div style={{ marginTop: 10 }}>
+											<ReloadBtn onClick={reloadPayment}>
+												{isArabic ? "إعادة المحاولة" : "Try again"}
+											</ReloadBtn>
+										</div>
+									</div>
+								) : !paypalOptions ? (
+									<Centered>
+										<Spin />
+									</Centered>
+								) : (
+									<ScriptShell key={reloadKey}>
+										<PayPalScriptProvider options={paypalOptions}>
+											<PayArea />
+										</PayPalScriptProvider>
+									</ScriptShell>
+								)}
+							</>
 						)}
 					</>
 				)}
@@ -905,4 +985,14 @@ const Centered = styled.div`
 	width: 100%;
 	text-align: center;
 	padding: 18px 0;
+`;
+
+const ReloadBtn = styled.button`
+	background: #0f172a;
+	color: #fff;
+	border: none;
+	border-radius: 8px;
+	padding: 8px 14px;
+	font-weight: 700;
+	cursor: pointer;
 `;

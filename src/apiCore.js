@@ -530,12 +530,32 @@ export const gettingHotelsWithOffersAndMonths = async () => {
 		});
 };
 
-export const getPayPalClientToken = async () => {
-	const { data } = await axios.get(
-		`${process.env.REACT_APP_API_URL}/paypal/client-token`
-	);
-	return data?.clientToken;
-};
+export async function getPayPalClientToken() {
+	// Use your actual endpoint path
+	const url = `${process.env.REACT_APP_API_URL}/paypal/token-generated`;
+
+	const res = await fetch(url, { method: "POST" }); // or GET if your route is GET
+	const json = await res.json();
+
+	if (!res.ok) {
+		const errMsg =
+			json?.error || json?.message || "Failed to fetch PayPal client token";
+		throw new Error(errMsg);
+	}
+
+	// Server may return { clientToken, env } (new) or just { clientToken } or a raw string (legacy)
+	const clientToken =
+		typeof json === "string"
+			? json
+			: json.clientToken || json.client_token || json.token;
+
+	const env =
+		typeof json === "object" && json && typeof json.env === "string"
+			? json.env.toLowerCase()
+			: null;
+
+	return { clientToken, env }; // <-- preserve env for the caller
+}
 
 export const payReservationViaPayPalLink = async (payload) => {
 	const { data } = await axios.post(

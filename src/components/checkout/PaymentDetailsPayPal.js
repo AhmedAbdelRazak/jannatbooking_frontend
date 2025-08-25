@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import styled from "styled-components";
-import { Spin, message } from "antd";
+import { Spin, message, Alert } from "antd";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import {
@@ -17,6 +17,22 @@ import {
 } from "@paypal/react-paypal-js";
 import { getPayPalClientToken } from "../../apiCore";
 
+/** Utility: pick a valid PayPal locale */
+function mapLocale(isArabic) {
+	// Use a valid full locale code; ar_EG works well for MENA Arabic
+	return isArabic ? "ar_EG" : "en_US";
+}
+
+/** Utility: best-effort country code, improves funding selection */
+function guessBuyerCountry(fallback = "US") {
+	try {
+		const lang = navigator?.language || navigator?.languages?.[0] || "";
+		const match = String(lang).replace("_", "-").split("-")[1];
+		if (match && match.length === 2) return match.toUpperCase();
+	} catch {}
+	return fallback;
+}
+
 export default function PaymentDetailsPayPal(props) {
 	const {
 		chosenLanguage,
@@ -30,23 +46,31 @@ export default function PaymentDetailsPayPal(props) {
 	} = props;
 
 	const isArabic = chosenLanguage === "Arabic";
-	const locale = isArabic ? "ar" : "en_US";
+	const locale = mapLocale(isArabic);
+	const buyerCountry = guessBuyerCountry(isArabic ? "EG" : "US");
 
 	// Single source of truth: AUTHORIZE (hold now, capture later)
 	const INTENT = "AUTHORIZE";
 	const isAuthorize = INTENT === "AUTHORIZE";
 
 	const [clientToken, setClientToken] = useState(null);
+	const [isLive, setIsLive] = useState(null); // ← authoritative env from backend
 	const [tokenError, setTokenError] = useState(null);
+	const [reloadKey, setReloadKey] = useState(0); // for “Reload payment” action
 
 	useEffect(() => {
 		let mounted = true;
 		(async () => {
 			try {
-				const token = await getPayPalClientToken();
-				const raw = typeof token === "string" ? token : token?.clientToken;
-				if (!raw) throw new Error("Missing PayPal client token");
-				if (mounted) setClientToken(raw);
+				const tok = await getPayPalClientToken(); // must return { clientToken, env }
+				const ct = typeof tok === "string" ? tok : tok?.clientToken;
+				const env = (tok?.env || "").toLowerCase(); // "live" | "sandbox"
+				if (!ct) throw new Error("Missing PayPal client token");
+				if (!env) throw new Error("Missing PayPal environment");
+				if (mounted) {
+					setClientToken(ct);
+					setIsLive(env === "live");
+				}
 			} catch (e) {
 				console.error("PayPal init failed:", e);
 				setTokenError(e);
@@ -58,7 +82,8 @@ export default function PaymentDetailsPayPal(props) {
 		return () => {
 			mounted = false;
 		};
-	}, [isArabic]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [isArabic, reloadKey]);
 
 	const usdDeposit = useMemo(
 		() =>
@@ -95,23 +120,40 @@ export default function PaymentDetailsPayPal(props) {
 		guestAgreedOnTermsAndConditions &&
 		Number(selectedUsdAmount) > 0;
 
-	const paypalOptions = useMemo(
-		() => ({
-			"client-id":
-				(process.env.REACT_APP_NODE_ENV || "").toUpperCase() === "PRODUCTION"
-					? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE
-					: process.env.REACT_APP_PAYPAL_CLIENT_ID_SANDBOX,
+	/** Always pair the client token env with the matching client-id */
+	const paypalOptions = useMemo(() => {
+		if (!clientToken || isLive == null) return null;
+
+		const clientId = isLive
+			? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE
+			: process.env.REACT_APP_PAYPAL_CLIENT_ID_SANDBOX;
+
+		if (!clientId) {
+			console.error("Missing PayPal client-id for selected environment");
+		}
+
+		return {
+			"client-id": clientId,
 			"data-client-token": clientToken,
 			components: "buttons,card-fields",
 			currency: "USD",
 			intent: INTENT.toLowerCase(), // "authorize"
 			commit: true,
-			"enable-funding": "paypal,card,venmo,paylater",
+			// Keep globally-safe funding to reduce eligibility issues
+			"enable-funding": "paypal,card",
 			"disable-funding": "credit",
 			locale,
-		}),
-		[clientToken, locale]
-	);
+			"buyer-country": buyerCountry,
+		};
+	}, [clientToken, isLive, locale, buyerCountry]);
+
+	const reloadPayment = useCallback(() => {
+		// Let the admin/buyer retry if the SDK failed to load (adblock, flaky network, etc.)
+		setReloadKey((k) => k + 1);
+		setClientToken(null);
+		setIsLive(null);
+		setTokenError(null);
+	}, []);
 
 	const getCMID = () => {
 		try {
@@ -122,7 +164,7 @@ export default function PaymentDetailsPayPal(props) {
 	};
 
 	const PayArea = () => {
-		const [{ isResolved }] = usePayPalScriptReducer();
+		const [{ isResolved, isRejected }] = usePayPalScriptReducer();
 
 		const requireSelectionAndTerms = () => {
 			const optionOK =
@@ -183,7 +225,6 @@ export default function PaymentDetailsPayPal(props) {
 			},
 		];
 
-		// Create order for both Buttons and Card Fields
 		const createOrder = async (data, actions) => {
 			if (!requireSelectionAndTerms()) return;
 
@@ -200,10 +241,10 @@ export default function PaymentDetailsPayPal(props) {
 
 			const purchase_units = buildPurchaseUnits(label);
 
-			// Buttons flow — PayPal passes actions
 			if (actions?.order) {
+				// Buttons flow
 				return actions.order.create({
-					intent: INTENT, // "AUTHORIZE"
+					intent: INTENT,
 					purchase_units,
 					application_context: {
 						user_action: "PAY_NOW",
@@ -227,11 +268,8 @@ export default function PaymentDetailsPayPal(props) {
 							shipping_preference: "NO_SHIPPING",
 							brand_name: "Jannat Booking",
 						},
-						// Vault on success (lets you MIT/capture later)
 						payment_source: {
-							card: {
-								attributes: { vault: { store_in_vault: "ON_SUCCESS" } },
-							},
+							card: { attributes: { vault: { store_in_vault: "ON_SUCCESS" } } },
 						},
 					}),
 				}
@@ -252,7 +290,6 @@ export default function PaymentDetailsPayPal(props) {
 					message.error("Missing onPayApproved handler.");
 					return;
 				}
-
 				const optionNormalized =
 					selectedPaymentOption === "acceptDeposit"
 						? "deposit"
@@ -262,7 +299,7 @@ export default function PaymentDetailsPayPal(props) {
 
 				const payload = {
 					option: optionNormalized,
-					convertedAmounts, // backend uses for checks and receipts
+					convertedAmounts,
 					sarAmount: Number(selectedSarAmount).toFixed(2),
 					paypal: {
 						order_id: data?.orderID,
@@ -312,6 +349,33 @@ export default function PaymentDetailsPayPal(props) {
 			);
 		};
 
+		// If the script failed (bad client-id/env, adblock, network), tell the user and offer retry
+		if (isRejected) {
+			return (
+				<div>
+					<Alert
+						type='error'
+						showIcon
+						message={
+							isArabic
+								? "تعذر تحميل بوابة الدفع"
+								: "Payment module failed to load"
+						}
+						description={
+							isArabic
+								? "يرجى تعطيل مانع الإعلانات أو التأكد من اتصال الإنترنت ثم إعادة المحاولة."
+								: "Please disable ad blockers or check your connection, then try again."
+						}
+					/>
+					<div style={{ textAlign: "center", marginTop: 10 }}>
+						<ReloadBtn onClick={reloadPayment}>
+							{isArabic ? "إعادة تحميل الدفع" : "Reload payment"}
+						</ReloadBtn>
+					</div>
+				</div>
+			);
+		}
+
 		if (!isResolved) return <Spin />;
 
 		return (
@@ -320,14 +384,6 @@ export default function PaymentDetailsPayPal(props) {
 					<PayPalButtons
 						fundingSource='paypal'
 						style={{ layout: "vertical", label: "paypal" }}
-						createOrder={createOrder}
-						onApprove={onApprove}
-						onError={onError}
-						disabled={!allowInteract}
-					/>
-					<PayPalButtons
-						fundingSource='venmo'
-						style={{ layout: "vertical" }}
 						createOrder={createOrder}
 						onApprove={onApprove}
 						onError={onError}
@@ -400,21 +456,38 @@ export default function PaymentDetailsPayPal(props) {
 		);
 	};
 
-	if (tokenError)
+	if (tokenError) {
 		return (
 			<Centered>
-				<div>PayPal initialization failed.</div>
+				<Alert
+					type='error'
+					showIcon
+					message={
+						isArabic ? "فشل تهيئة PayPal" : "PayPal initialization failed"
+					}
+					description={
+						isArabic ? "يرجى المحاولة مرة أخرى." : "Please try again."
+					}
+				/>
+				<div style={{ marginTop: 10 }}>
+					<ReloadBtn onClick={reloadPayment}>
+						{isArabic ? "إعادة المحاولة" : "Try again"}
+					</ReloadBtn>
+				</div>
 			</Centered>
 		);
-	if (!clientToken)
+	}
+
+	if (!clientToken || isLive == null || !paypalOptions) {
 		return (
 			<Centered>
 				<Spin />
 			</Centered>
 		);
+	}
 
 	return (
-		<ScriptShell>
+		<ScriptShell key={reloadKey}>
 			<PayPalScriptProvider options={paypalOptions}>
 				<PayArea />
 			</PayPalScriptProvider>
@@ -435,7 +508,8 @@ function CardSubmit({ allowInteract }) {
 			const hasSubmit = typeof cardFieldsForm?.submit === "function";
 			const eligible = cardFieldsForm?.isEligible?.() ?? true;
 			setReady(hasSubmit && eligible);
-			if ((!hasSubmit || !eligible) && attempts < 120) {
+			// Keep trying a bit; if not eligible, the button stays disabled
+			if ((!hasSubmit || !eligible) && attempts < 60) {
 				attempts += 1;
 				setTimeout(tick, 250);
 			}
@@ -457,7 +531,7 @@ function CardSubmit({ allowInteract }) {
 				setBusy(false);
 				return;
 			}
-			await cardFieldsForm.submit(); // triggers 3DS if needed → then onApprove runs
+			await cardFieldsForm.submit(); // 3DS if needed → then onApprove runs
 		} catch (e) {
 			console.error("Card submit error:", e);
 			message.error("Card payment failed.");
@@ -601,4 +675,13 @@ const Centered = styled.div`
 	width: 100%;
 	text-align: center;
 	padding: 10px 0;
+`;
+const ReloadBtn = styled.button`
+	background: #0f172a;
+	color: #fff;
+	border: none;
+	border-radius: 8px;
+	padding: 8px 14px;
+	font-weight: 700;
+	cursor: pointer;
 `;
