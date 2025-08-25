@@ -6,7 +6,7 @@ import { Checkbox, message, Spin, Alert } from "antd";
 import {
 	gettingSingleReservationById,
 	currencyConversion,
-	getPayPalClientToken, // must return { clientToken, env } per apiCore fix above
+	getPayPalClientToken, // returns { clientToken, env }
 	payReservationViaPayPalLink,
 } from "../apiCore";
 import { useCartContext } from "../cart_context";
@@ -254,7 +254,7 @@ const PaymentLink = () => {
 	useEffect(() => {
 		const init = async () => {
 			try {
-				const tokenResp = await getPayPalClientToken(); // { clientToken, env } per apiCore fix
+				const tokenResp = await getPayPalClientToken(); // { clientToken, env }
 				const token =
 					typeof tokenResp === "string"
 						? tokenResp
@@ -263,7 +263,7 @@ const PaymentLink = () => {
 
 				let env = (tokenResp?.env || "").toLowerCase();
 
-				// Fallback guess if env is not provided by the client API for any reason
+				// Fallback guess if env is not provided by the API
 				if (env !== "live" && env !== "sandbox") {
 					const node = (process.env.REACT_APP_NODE_ENV || "").toUpperCase();
 					env = node === "PRODUCTION" ? "live" : "sandbox";
@@ -312,7 +312,21 @@ const PaymentLink = () => {
 
 	/* ───────── Inner PayPal area ───────── */
 	const PayArea = () => {
-		const [{ isResolved, isRejected }] = usePayPalScriptReducer();
+		const [{ isResolved, isRejected, loadingStatus, error, options }] =
+			usePayPalScriptReducer();
+
+		// Helpful diagnostics during remote testing (can be removed later)
+		useEffect(() => {
+			// eslint-disable-next-line no-console
+			console.log("[PP][script]", {
+				isResolved,
+				isRejected,
+				loadingStatus,
+				options,
+				hasWindowPayPal: !!window.paypal,
+				error,
+			});
+		}, [isResolved, isRejected, loadingStatus, options, error]);
 
 		const requireSelectionAndTerms = () => {
 			if (!selectedOption) {
@@ -473,6 +487,40 @@ const PaymentLink = () => {
 			);
 		};
 
+		// Show only eligible button sources
+		const EligibleButtons = (props) => {
+			if (!window?.paypal) return null;
+			const F = window.paypal.FUNDING;
+			const sources = [
+				{ key: "paypal", constVal: F.PAYPAL, label: "paypal" },
+				{ key: "card", constVal: F.CARD, label: "pay" },
+			];
+			return (
+				<>
+					{sources.map((src) => {
+						let eligible = false;
+						try {
+							eligible = window.paypal.isFundingEligible(src.constVal);
+						} catch {
+							eligible = false;
+						}
+						if (!eligible) return null;
+						return (
+							<PayPalButtons
+								key={src.key}
+								fundingSource={src.key}
+								style={{ layout: "vertical", label: src.label }}
+								createOrder={props.createOrder}
+								onApprove={props.onApprove}
+								onError={props.onError}
+								disabled={props.disabled}
+							/>
+						);
+					})}
+				</>
+			);
+		};
+
 		if (isRejected) {
 			return (
 				<div>
@@ -501,12 +549,37 @@ const PaymentLink = () => {
 
 		if (!isResolved) return <Spin />;
 
+		// Gate Card Fields rendering to avoid the crash you saw:
+		let supportsCardFields = false;
+		try {
+			supportsCardFields = !!window?.paypal?.CardFields;
+			if (
+				supportsCardFields &&
+				typeof window.paypal.CardFields.isEligible === "function"
+			) {
+				supportsCardFields = !!window.paypal.CardFields.isEligible();
+			}
+		} catch {
+			supportsCardFields = false;
+		}
+
+		// Check if neither PAYPAL nor CARD buttons are eligible
+		let noEligible = false;
+		if (window?.paypal?.FUNDING) {
+			try {
+				const F = window.paypal.FUNDING;
+				const payPalElig = window.paypal.isFundingEligible(F.PAYPAL);
+				const cardElig = window.paypal.isFundingEligible(F.CARD);
+				noEligible = !payPalElig && !cardElig;
+			} catch {
+				noEligible = false;
+			}
+		}
+
 		return (
 			<>
 				<ButtonsBox>
-					<PayPalButtons
-						fundingSource='paypal'
-						style={{ layout: "vertical", label: "paypal" }}
+					<EligibleButtons
 						createOrder={createOrder}
 						onApprove={onApprove}
 						onError={onError}
@@ -514,73 +587,115 @@ const PaymentLink = () => {
 					/>
 				</ButtonsBox>
 
+				{noEligible && (
+					<div style={{ marginTop: 8 }}>
+						<Alert
+							type='warning'
+							showIcon
+							message={
+								isArabic
+									? "لا توجد طرق دفع متاحة"
+									: "No eligible PayPal methods available"
+							}
+							description={
+								isArabic
+									? "قد لا يكون PayPal أو بطاقات الدفع متاحة في بلدك لهذا التاجر. جرّب بطاقة أخرى أو اتصل بنا."
+									: "PayPal wallet or card may not be available in your country for this merchant. Try another card or contact us."
+							}
+						/>
+					</div>
+				)}
+
 				<BrandFootnote>
 					Powered by <b>PayPal</b>
 				</BrandFootnote>
 				<Divider />
 
-				<CardBox dir={isArabic ? "rtl" : "ltr"} aria-disabled={!allowInteract}>
-					<CardTitle>
-						{isArabic ? "أو ادفع مباشرة بالبطاقة" : "Or pay directly by card"}
-					</CardTitle>
-
-					<PayPalCardFieldsProvider
-						createOrder={createOrder}
-						onApprove={onApprove}
-						onError={onError}
+				{/* Render Card Fields only when the SDK exposes it */}
+				{supportsCardFields ? (
+					<CardBox
+						dir={isArabic ? "rtl" : "ltr"}
+						aria-disabled={!allowInteract}
 					>
-						<PayPalCardFieldsForm>
-							<div className='field'>
-								<label>
-									{isArabic ? "اسم حامل البطاقة" : "Cardholder name"}
-								</label>
-								<div className='hosted'>
-									<PayPalNameField />
-								</div>
-							</div>
+						<CardTitle>
+							{isArabic ? "أو ادفع مباشرة بالبطاقة" : "Or pay directly by card"}
+						</CardTitle>
 
-							<div className='field'>
-								<label>{isArabic ? "رقم البطاقة" : "Card number"}</label>
-								<div className='hosted'>
-									<PayPalNumberField />
-								</div>
-							</div>
-
-							<Row>
-								<div className='field half'>
-									<label>{isArabic ? "تاريخ الانتهاء" : "Expiry date"}</label>
+						<PayPalCardFieldsProvider
+							createOrder={createOrder}
+							onApprove={onApprove}
+							onError={onError}
+						>
+							<PayPalCardFieldsForm>
+								<div className='field'>
+									<label>
+										{isArabic ? "اسم حامل البطاقة" : "Cardholder name"}
+									</label>
 									<div className='hosted'>
-										<PayPalExpiryField />
+										<PayPalNameField />
 									</div>
 								</div>
-								<div className='field half'>
-									<label>{isArabic ? "الرمز السري (CVV)" : "CVV"}</label>
+
+								<div className='field'>
+									<label>{isArabic ? "رقم البطاقة" : "Card number"}</label>
 									<div className='hosted'>
-										<PayPalCVVField />
+										<PayPalNumberField />
 									</div>
 								</div>
-							</Row>
-						</PayPalCardFieldsForm>
 
-						<div style={{ marginTop: 8 }}>
-							<CardFieldsSubmitButton
-								disabled={!allowInteract}
-								label={{
-									pay: isArabic ? "ادفع بالبطاقة" : "Pay by Card",
-									processing: isArabic ? "جار المعالجة..." : "Processing…",
-									error: isArabic
-										? "فشل الدفع بالبطاقة"
-										: "Card payment failed.",
-								}}
-							/>
-						</div>
-					</PayPalCardFieldsProvider>
-				</CardBox>
+								<Row>
+									<div className='field half'>
+										<label>{isArabic ? "تاريخ الانتهاء" : "Expiry date"}</label>
+										<div className='hosted'>
+											<PayPalExpiryField />
+										</div>
+									</div>
+									<div className='field half'>
+										<label>{isArabic ? "الرمز السري (CVV)" : "CVV"}</label>
+										<div className='hosted'>
+											<PayPalCVVField />
+										</div>
+									</div>
+								</Row>
+							</PayPalCardFieldsForm>
+
+							<div style={{ marginTop: 8 }}>
+								<CardFieldsSubmitButton
+									disabled={!allowInteract}
+									label={{
+										pay: isArabic ? "ادفع بالبطاقة" : "Pay by Card",
+										processing: isArabic ? "جار المعالجة..." : "Processing…",
+										error: isArabic
+											? "فشل الدفع بالبطاقة"
+											: "Card payment failed.",
+									}}
+								/>
+							</div>
+						</PayPalCardFieldsProvider>
+					</CardBox>
+				) : (
+					<div style={{ marginTop: 10 }}>
+						<Alert
+							type='info'
+							showIcon
+							message={
+								isArabic
+									? "الدفع بالبطاقة داخل الصفحة غير متاح"
+									: "Inline card fields are not available"
+							}
+							description={
+								isArabic
+									? 'يرجى استخدام زر "الدفع بالبطاقة" بالأعلى لإتمام الدفع.'
+									: 'Please use the "Pay by Card" button above to complete payment.'
+							}
+						/>
+					</div>
+				)}
 			</>
 		);
 	};
 
-	/* Build PayPal SDK options (no hooks here) */
+	/* PayPal SDK options (note: no custom data-namespace) */
 	const paypalOptions =
 		clientToken && isLive != null
 			? {
@@ -593,7 +708,7 @@ const PaymentLink = () => {
 					intent: "authorize",
 					commit: true,
 					"enable-funding": "paypal,card",
-					"disable-funding": "credit",
+					"disable-funding": "credit,venmo,paylater",
 					locale,
 					"buyer-country": buyerCountry,
 				}
@@ -609,7 +724,6 @@ const PaymentLink = () => {
 						<Header style={{ textAlign: isArabic ? "right" : undefined }}>
 							{isArabic ? "تفاصيل الحجز" : "Reservation Details"}
 						</Header>
-
 						<InfoRow>
 							<strong>{isArabic ? "اسم الفندق:" : "Hotel Name:"}</strong>
 							<span>{reservationData.hotelId?.hotelName}</span>

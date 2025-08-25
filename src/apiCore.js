@@ -530,11 +530,16 @@ export const gettingHotelsWithOffersAndMonths = async () => {
 		});
 };
 
-export async function getPayPalClientToken() {
-	// Use your actual endpoint path
-	const url = `${process.env.REACT_APP_API_URL}/paypal/token-generated`;
+export async function getPayPalClientToken({
+	debug = false,
+	buyerCountry,
+} = {}) {
+	const qs = new URLSearchParams();
+	if (debug) qs.set("dbg", "1");
+	if (buyerCountry) qs.set("bc", String(buyerCountry).toUpperCase());
+	const url = `${process.env.REACT_APP_API_URL}/paypal/token-generated${qs.toString() ? `?${qs}` : ""}`;
 
-	const res = await fetch(url, { method: "POST" }); // or GET if your route is GET
+	const res = await fetch(url, { method: "GET" }); // GET is fine; we also added POST support server-side
 	const json = await res.json();
 
 	if (!res.ok) {
@@ -543,7 +548,6 @@ export async function getPayPalClientToken() {
 		throw new Error(errMsg);
 	}
 
-	// Server may return { clientToken, env } (new) or just { clientToken } or a raw string (legacy)
 	const clientToken =
 		typeof json === "string"
 			? json
@@ -554,7 +558,13 @@ export async function getPayPalClientToken() {
 			? json.env.toLowerCase()
 			: null;
 
-	return { clientToken, env }; // <-- preserve env for the caller
+	if (json?.diag) {
+		// Helpful when debugging a remote user (Egypt)
+		// eslint-disable-next-line no-console
+		console.log("[PP][token diag]", json.diag);
+	}
+
+	return { clientToken, env };
 }
 
 export const payReservationViaPayPalLink = async (payload) => {
