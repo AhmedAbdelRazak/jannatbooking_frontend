@@ -23,15 +23,17 @@ function mapLocale(isArabic) {
 	return isArabic ? "ar_EG" : "en_US";
 }
 
-/** Utility: best-effort country code, improves funding selection */
-function guessBuyerCountry(fallback = "US") {
+/** Non-crypto visible signature for quick FE vs BE app checks */
+const idSig = (s) => {
 	try {
-		const lang = navigator?.language || navigator?.languages?.[0] || "";
-		const match = String(lang).replace("_", "-").split("-")[1];
-		if (match && match.length === 2) return match.toUpperCase();
-	} catch {}
-	return fallback;
-}
+		const t = String(s || "");
+		let h = 0;
+		for (let i = 0; i < t.length; i++) h = (h * 33 + t.charCodeAt(i)) >>> 0;
+		return h.toString(16).slice(0, 8);
+	} catch {
+		return "na";
+	}
+};
 
 /** Submit button that works with both the new + legacy Card Fields contexts */
 function CardSubmit({ allowInteract, labels }) {
@@ -125,28 +127,29 @@ export default function PaymentDetailsPayPal(props) {
 
 	const isArabic = chosenLanguage === "Arabic";
 	const locale = mapLocale(isArabic);
-	const buyerCountry = guessBuyerCountry(isArabic ? "EG" : "US");
 
 	// Single source of truth: AUTHORIZE (hold now, capture later)
 	const INTENT = "AUTHORIZE";
 	const isAuthorize = INTENT === "AUTHORIZE";
 
+	// Client token + env coming from backend
 	const [clientToken, setClientToken] = useState(null);
 	const [isLive, setIsLive] = useState(null); // ← authoritative env from backend
 	const [tokenError, setTokenError] = useState(null);
 	const [reloadKey, setReloadKey] = useState(0); // for “Reload payment” action
 
+	// Wallet-only fallback: if the SDK rejects with card-fields, retry with buttons only
+	const [walletOnly, setWalletOnly] = useState(false);
+
 	useEffect(() => {
 		let mounted = true;
 		(async () => {
 			try {
-				const tok = await getPayPalClientToken(); // should return { clientToken, env }
+				const tok = await getPayPalClientToken(); // should return { clientToken, env, diag? }
 				const ct = typeof tok === "string" ? tok : tok?.clientToken;
 				let env = (tok?.env || "").toLowerCase(); // "live" | "sandbox"
-
 				if (!ct) throw new Error("Missing PayPal client token");
 
-				// Fallback if backend didn't send env for any reason
 				if (env !== "live" && env !== "sandbox") {
 					const node = (process.env.REACT_APP_NODE_ENV || "").toUpperCase();
 					env = node === "PRODUCTION" ? "live" : "sandbox";
@@ -160,6 +163,23 @@ export default function PaymentDetailsPayPal(props) {
 					setClientToken(ct);
 					setIsLive(env === "live");
 				}
+
+				// Optional FE/BE diag: show short signature of client-ids to spot mismatches
+				const feClientId =
+					env === "live"
+						? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE
+						: process.env.REACT_APP_PAYPAL_CLIENT_ID_SANDBOX;
+				// eslint-disable-next-line no-console
+				console.log(
+					"[PP][diag] FE clientIdSig:",
+					idSig(feClientId || "na"),
+					"BE clientIdSig:",
+					tok?.diag?.clientIdSig || "(n/a)",
+					"env:",
+					env,
+					"cached:",
+					!!tok?.cached
+				);
 			} catch (e) {
 				// eslint-disable-next-line no-console
 				console.error("PayPal init failed:", e);
@@ -210,38 +230,12 @@ export default function PaymentDetailsPayPal(props) {
 		guestAgreedOnTermsAndConditions &&
 		Number(selectedUsdAmount) > 0;
 
-	/** Always pair the client token env with the matching client-id */
-	const paypalOptions = useMemo(() => {
-		if (!clientToken || isLive == null) return null;
-
-		const clientId = isLive
-			? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE
-			: process.env.REACT_APP_PAYPAL_CLIENT_ID_SANDBOX;
-
-		if (!clientId) {
-			console.error("Missing PayPal client-id for selected environment");
-		}
-
-		return {
-			"client-id": clientId,
-			"data-client-token": clientToken,
-			components: "buttons,card-fields",
-			currency: "USD",
-			intent: INTENT.toLowerCase(), // "authorize"
-			commit: true,
-			// Keep globally-safe funding to reduce eligibility issues
-			"enable-funding": "paypal,card",
-			"disable-funding": "credit,venmo,paylater",
-			locale,
-			"buyer-country": buyerCountry,
-		};
-	}, [clientToken, isLive, locale, buyerCountry]);
-
 	const reloadPayment = useCallback(() => {
 		setReloadKey((k) => k + 1);
 		setClientToken(null);
 		setIsLive(null);
 		setTokenError(null);
+		setWalletOnly(false);
 	}, []);
 
 	const getCMID = () => {
@@ -253,21 +247,7 @@ export default function PaymentDetailsPayPal(props) {
 	};
 
 	const PayArea = () => {
-		const [{ isResolved, isRejected, loadingStatus, options, error }] =
-			usePayPalScriptReducer();
-
-		// Helpful diagnostics while testing across regions
-		useEffect(() => {
-			// eslint-disable-next-line no-console
-			console.log("[PP][script]", {
-				isResolved,
-				isRejected,
-				loadingStatus,
-				options,
-				hasWindowPayPal: !!window.paypal,
-				error,
-			});
-		}, [isResolved, isRejected, loadingStatus, options, error]);
+		const [{ isResolved, isRejected, options }] = usePayPalScriptReducer();
 
 		const requireSelectionAndTerms = () => {
 			const optionOK =
@@ -341,7 +321,6 @@ export default function PaymentDetailsPayPal(props) {
 						: "Full Amount";
 
 			createUncompletedDocument?.(`PayPal createOrder — ${label}`);
-
 			const purchase_units = buildPurchaseUnits(label);
 
 			if (actions?.order) {
@@ -454,36 +433,64 @@ export default function PaymentDetailsPayPal(props) {
 			);
 		};
 
-		// If the script failed (bad client-id/env, adblock, network), tell the user and offer retry
+		// If the script failed, log the exact SDK URL and offer fallback/retry
 		if (isRejected) {
-			return (
-				<div>
-					<Alert
-						type='error'
-						showIcon
-						message={
-							isArabic
-								? "تعذر تحميل بوابة الدفع"
-								: "Payment module failed to load"
-						}
-						description={
-							isArabic
-								? "يرجى تعطيل مانع الإعلانات أو التأكد من اتصال الإنترنت ثم إعادة المحاولة."
-								: "Please disable ad blockers or check your connection, then try again."
-						}
-					/>
-					<div style={{ textAlign: "center", marginTop: 10 }}>
-						<ReloadBtn onClick={reloadPayment}>
-							{isArabic ? "إعادة تحميل الدفع" : "Reload payment"}
-						</ReloadBtn>
+			try {
+				const p = new URL("https://www.paypal.com/sdk/js");
+				Object.entries(options || {}).forEach(([k, v]) => {
+					if (v === undefined || v === null || v === "") return;
+					p.searchParams.set(k, String(v));
+				});
+				// eslint-disable-next-line no-console
+				console.log("[PP][script] url:", p.toString(), {
+					options,
+					isRejected,
+					isResolved: false,
+				});
+			} catch {
+				/* noop */
+			}
+
+			if (!walletOnly) {
+				return (
+					<div>
+						<Alert
+							type='error'
+							showIcon
+							message={
+								isArabic
+									? "تعذر تحميل بوابة الدفع"
+									: "Payment module failed to load"
+							}
+							description={
+								isArabic
+									? "سنحاول استخدام محفظة PayPal أو البطاقة المستضافة فقط. إذا استمر الخطأ، عطّل مانع الإعلانات أو جرّب شبكة مختلفة."
+									: "We’ll try a wallet-only (buttons) fallback. If it persists, disable ad blockers or try another network."
+							}
+						/>
+						<div style={{ textAlign: "center", marginTop: 10 }}>
+							<ReloadBtn onClick={() => setWalletOnly(true)}>
+								{isArabic
+									? "متابعة بالأزرار فقط"
+									: "Continue with buttons only"}
+							</ReloadBtn>
+							<div style={{ marginTop: 8 }}>
+								<ReloadBtn onClick={reloadPayment}>
+									{isArabic ? "إعادة تحميل الدفع" : "Reload payment"}
+								</ReloadBtn>
+							</div>
+						</div>
 					</div>
-				</div>
-			);
+				);
+			}
+
+			// When walletOnly is true, the provider is recreated outside with fallback options
+			return null;
 		}
 
 		if (!isResolved) return <Spin />;
 
-		// Gate Card Fields rendering to avoid runtime crashes in ineligible regions
+		// Card Fields eligibility (avoid runtime crash if SDK doesn't expose CardFields)
 		let supportsCardFields = false;
 		try {
 			supportsCardFields = !!window?.paypal?.CardFields;
@@ -500,7 +507,7 @@ export default function PaymentDetailsPayPal(props) {
 		return (
 			<>
 				<ButtonsBox>
-					{/* Let the wrapper decide eligibility; it will render nothing if not eligible */}
+					{/* Wallet (PayPal) */}
 					<PayPalButtons
 						fundingSource='paypal'
 						style={{ layout: "vertical", label: "paypal" }}
@@ -509,6 +516,7 @@ export default function PaymentDetailsPayPal(props) {
 						onError={onError}
 						disabled={!allowInteract}
 					/>
+					{/* Wallet card (hosted card button) */}
 					<PayPalButtons
 						fundingSource='card'
 						style={{ layout: "vertical", label: "pay" }}
@@ -524,8 +532,8 @@ export default function PaymentDetailsPayPal(props) {
 				</BrandFootnote>
 				<Divider />
 
-				{/* Render Card Fields only when the SDK exposes it */}
-				{supportsCardFields ? (
+				{/* Inline Card Fields section */}
+				{supportsCardFields && !walletOnly ? (
 					<CardBox
 						dir={isArabic ? "rtl" : "ltr"}
 						aria-disabled={!allowInteract}
@@ -601,8 +609,8 @@ export default function PaymentDetailsPayPal(props) {
 							}
 							description={
 								isArabic
-									? 'يرجى استخدام زر "الدفع بالبطاقة" بالأعلى لإتمام الدفع.'
-									: 'Please use the "Pay by Card" button above to complete payment.'
+									? 'يرجى استخدام أزرار "PayPal" أو "Pay" بالأعلى لإتمام الدفع.'
+									: 'Please use the "PayPal" or "Pay" (card) buttons above to complete payment.'
 							}
 						/>
 					</div>
@@ -633,7 +641,44 @@ export default function PaymentDetailsPayPal(props) {
 		);
 	}
 
-	if (!clientToken || isLive == null || !paypalOptions) {
+	/** Build PayPal SDK options (primary vs wallet-only fallback) */
+	const feClientId =
+		(isLive
+			? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE
+			: process.env.REACT_APP_PAYPAL_CLIENT_ID_SANDBOX) || "";
+	const primaryOptions =
+		clientToken && isLive != null && !walletOnly
+			? {
+					"client-id": feClientId,
+					"data-client-token": clientToken,
+					components: "buttons,card-fields",
+					currency: "USD",
+					intent: INTENT.toLowerCase(),
+					commit: true,
+					"enable-funding": "paypal,card",
+					"disable-funding": "credit,venmo,paylater",
+					locale,
+					// No "buyer-country" here — let PayPal pick automatically to avoid region conflicts
+				}
+			: null;
+
+	const fallbackOptions =
+		isLive != null && walletOnly
+			? {
+					"client-id": feClientId,
+					components: "buttons",
+					currency: "USD",
+					intent: INTENT.toLowerCase(),
+					commit: true,
+					"enable-funding": "paypal,card", // both wallet options still available
+					"disable-funding": "credit,venmo,paylater",
+					locale,
+				}
+			: null;
+
+	const paypalOptions = primaryOptions || fallbackOptions;
+
+	if (!paypalOptions) {
 		return (
 			<Centered>
 				<Spin />
@@ -642,7 +687,7 @@ export default function PaymentDetailsPayPal(props) {
 	}
 
 	return (
-		<ScriptShell key={reloadKey}>
+		<ScriptShell key={`${reloadKey}-${walletOnly ? "w" : "p"}`}>
 			<PayPalScriptProvider options={paypalOptions}>
 				<PayArea />
 			</PayPalScriptProvider>
