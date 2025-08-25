@@ -49,7 +49,6 @@ function computeCommissionAndDeposit(pickedRoomsType = []) {
 }
 const idSig = (s) => {
 	try {
-		// simple visible signature without crypto dep (fine for FE logging)
 		const t = String(s || "");
 		let h = 0;
 		for (let i = 0; i < t.length; i++) h = (h * 33 + t.charCodeAt(i)) >>> 0;
@@ -109,6 +108,7 @@ function CardFieldsSubmitButton({ disabled, label }) {
 			}
 			await submitFn(); // 3‑D Secure if needed → then onApprove runs
 		} catch (e) {
+			// eslint-disable-next-line no-console
 			console.error("CardFields submit error:", e);
 			message.error(label?.error || "Card payment failed.");
 		} finally {
@@ -199,6 +199,7 @@ const PaymentLink = () => {
 					}
 				}
 			} catch (e) {
+				// eslint-disable-next-line no-console
 				console.error("Error fetching reservation:", e);
 				message.error(
 					isArabic ? "حدث خطأ أثناء تحميل الحجز" : "Failed to load reservation."
@@ -231,20 +232,36 @@ const PaymentLink = () => {
 		setEffectiveDeposit(Number(depositToUse.toFixed(2)));
 	}, [reservationData, defaultDeposit]);
 
-	/* 3) SAR → USD conversions */
+	/* 3) SAR → USD conversions (robust defaults so UI always shows USD) */
 	useEffect(() => {
 		const doConversion = async () => {
 			if (!reservationData) return;
-			const fullTotal = parseFloat(reservationData.total_amount || 0);
-			const amounts = [fullTotal, effectiveDeposit];
+
+			// Full total SAR & advance/deposit SAR
+			const fullTotalSAR = Number(reservationData.total_amount || 0);
+			const depositSAR = Number(effectiveDeposit || 0);
+
+			// Reset to safe defaults first
+			setTotalUSD("0.00");
+			setEffectiveDepositUSD("0.00");
+
 			try {
-				const conversions = await currencyConversion(amounts);
-				const totalU = conversions?.[0]?.amountInUSD || 0;
-				const effU = conversions?.[1]?.amountInUSD || 0;
-				setTotalUSD(Number(totalU).toFixed(2));
-				setEffectiveDepositUSD(Number(effU).toFixed(2));
+				const conversions = await currencyConversion([
+					fullTotalSAR,
+					depositSAR,
+				]);
+				const totalU = Number(conversions?.[0]?.amountInUSD ?? 0);
+				const effU = Number(conversions?.[1]?.amountInUSD ?? 0);
+
+				// Always coerce to 2dp strings, never NaN/undefined
+				setTotalUSD(Number.isFinite(totalU) ? totalU.toFixed(2) : "0.00");
+				setEffectiveDepositUSD(
+					Number.isFinite(effU) ? effU.toFixed(2) : "0.00"
+				);
 			} catch (err) {
+				// eslint-disable-next-line no-console
 				console.error("Error converting currency:", err);
+				// Hard default is already set (0.00) so the UI won't show blanks
 			}
 		};
 		doConversion();
@@ -265,6 +282,7 @@ const PaymentLink = () => {
 				if (env !== "live" && env !== "sandbox") {
 					const node = (process.env.REACT_APP_NODE_ENV || "").toUpperCase();
 					env = node === "PRODUCTION" ? "live" : "sandbox";
+					// eslint-disable-next-line no-console
 					console.warn(
 						"[PayPal] 'env' not returned by API. Falling back to",
 						env
@@ -291,6 +309,7 @@ const PaymentLink = () => {
 					!!tokenResp?.cached
 				);
 			} catch (e) {
+				// eslint-disable-next-line no-console
 				console.error("PayPal init failed:", e);
 				setTokenError(e);
 				message.error(isArabic ? "فشل تهيئة PayPal" : "PayPal init failed.");
@@ -463,12 +482,14 @@ const PaymentLink = () => {
 					);
 				}
 			} catch (e) {
+				// eslint-disable-next-line no-console
 				console.error(e);
 				message.error(isArabic ? "تعذر إتمام الدفع" : "Payment failed.");
 			}
 		};
 
 		const onError = (e) => {
+			// eslint-disable-next-line no-console
 			console.error("PayPal error:", e);
 			message.error(
 				isArabic ? "خطأ في الدفع عبر PayPal" : "PayPal payment error."
@@ -476,7 +497,7 @@ const PaymentLink = () => {
 		};
 
 		if (isRejected) {
-			// Log the exact script URL (copy/paste into address bar on the failing device to see HTTP status/body)
+			// Log exact SDK URL for remote debugging (copy/paste to see HTTP response)
 			try {
 				const p = new URL("https://www.paypal.com/sdk/js");
 				Object.entries(options || {}).forEach(([k, v]) => {
@@ -531,12 +552,36 @@ const PaymentLink = () => {
 
 		if (!isResolved) return <Spin />;
 
+		// Only render Card Fields if the SDK exposes them (avoid runtime crash)
+		let supportsCardFields = false;
+		try {
+			supportsCardFields = !!window?.paypal?.CardFields;
+			if (
+				supportsCardFields &&
+				typeof window.paypal.CardFields.isEligible === "function"
+			) {
+				supportsCardFields = !!window.paypal.CardFields.isEligible();
+			}
+		} catch {
+			supportsCardFields = false;
+		}
+
 		return (
 			<>
 				<ButtonsBox>
+					{/* Wallet (PayPal) */}
 					<PayPalButtons
 						fundingSource='paypal'
 						style={{ layout: "vertical", label: "paypal" }}
+						createOrder={createOrder}
+						onApprove={onApprove}
+						onError={onError}
+						disabled={!allowInteract}
+					/>
+					{/* Wallet card button (Pay with credit/debit card) */}
+					<PayPalButtons
+						fundingSource='card'
+						style={{ layout: "vertical", label: "pay" }}
 						createOrder={createOrder}
 						onApprove={onApprove}
 						onError={onError}
@@ -550,70 +595,92 @@ const PaymentLink = () => {
 							Powered by <b>PayPal</b>
 						</BrandFootnote>
 						<Divider />
-						<CardBox
-							dir={isArabic ? "rtl" : "ltr"}
-							aria-disabled={!allowInteract}
-						>
-							<CardTitle>
-								{isArabic
-									? "أو ادفع مباشرة بالبطاقة"
-									: "Or pay directly by card"}
-							</CardTitle>
-
-							<PayPalCardFieldsProvider
-								createOrder={createOrder}
-								onApprove={onApprove}
-								onError={onError}
+						{/* Inline Card Fields — shown only if supported */}
+						{supportsCardFields ? (
+							<CardBox
+								dir={isArabic ? "rtl" : "ltr"}
+								aria-disabled={!allowInteract}
 							>
-								<PayPalCardFieldsForm>
-									<div className='field'>
-										<label>
-											{isArabic ? "اسم حامل البطاقة" : "Cardholder name"}
-										</label>
-										<div className='hosted'>
-											<PayPalNameField />
-										</div>
-									</div>
+								<CardTitle>
+									{isArabic
+										? "أو ادفع مباشرة بالبطاقة"
+										: "Or pay directly by card"}
+								</CardTitle>
 
-									<div className='field'>
-										<label>{isArabic ? "رقم البطاقة" : "Card number"}</label>
-										<div className='hosted'>
-											<PayPalNumberField />
-										</div>
-									</div>
-
-									<Row>
-										<div className='field half'>
+								<PayPalCardFieldsProvider
+									createOrder={createOrder}
+									onApprove={onApprove}
+									onError={onError}
+								>
+									<PayPalCardFieldsForm>
+										<div className='field'>
 											<label>
-												{isArabic ? "تاريخ الانتهاء" : "Expiry date"}
+												{isArabic ? "اسم حامل البطاقة" : "Cardholder name"}
 											</label>
 											<div className='hosted'>
-												<PayPalExpiryField />
+												<PayPalNameField />
 											</div>
 										</div>
-										<div className='field half'>
-											<label>{isArabic ? "الرمز السري (CVV)" : "CVV"}</label>
-											<div className='hosted'>
-												<PayPalCVVField />
-											</div>
-										</div>
-									</Row>
-								</PayPalCardFieldsForm>
 
-								<div style={{ marginTop: 8 }}>
-									<CardFieldsSubmitButton
-										disabled={!allowInteract}
-										label={{
-											pay: isArabic ? "ادفع بالبطاقة" : "Pay by Card",
-											processing: isArabic ? "جار المعالجة..." : "Processing…",
-											error: isArabic
-												? "فشل الدفع بالبطاقة"
-												: "Card payment failed.",
-										}}
-									/>
-								</div>
-							</PayPalCardFieldsProvider>
-						</CardBox>
+										<div className='field'>
+											<label>{isArabic ? "رقم البطاقة" : "Card number"}</label>
+											<div className='hosted'>
+												<PayPalNumberField />
+											</div>
+										</div>
+
+										<Row>
+											<div className='field half'>
+												<label>
+													{isArabic ? "تاريخ الانتهاء" : "Expiry date"}
+												</label>
+												<div className='hosted'>
+													<PayPalExpiryField />
+												</div>
+											</div>
+											<div className='field half'>
+												<label>{isArabic ? "الرمز السري (CVV)" : "CVV"}</label>
+												<div className='hosted'>
+													<PayPalCVVField />
+												</div>
+											</div>
+										</Row>
+									</PayPalCardFieldsForm>
+
+									<div style={{ marginTop: 8 }}>
+										<CardFieldsSubmitButton
+											disabled={!allowInteract}
+											label={{
+												pay: isArabic ? "ادفع بالبطاقة" : "Pay by Card",
+												processing: isArabic
+													? "جار المعالجة..."
+													: "Processing…",
+												error: isArabic
+													? "فشل الدفع بالبطاقة"
+													: "Card payment failed.",
+											}}
+										/>
+									</div>
+								</PayPalCardFieldsProvider>
+							</CardBox>
+						) : (
+							<div style={{ marginTop: 10 }}>
+								<Alert
+									type='info'
+									showIcon
+									message={
+										isArabic
+											? "الدفع بالبطاقة داخل الصفحة غير متاح"
+											: "Inline card fields are not available"
+									}
+									description={
+										isArabic
+											? 'يرجى استخدام زري "PayPal" أو "Pay" بالأعلى لإتمام الدفع.'
+											: 'Please use the "PayPal" or "Pay" (card) buttons above to complete payment.'
+									}
+								/>
+							</div>
+						)}
 					</>
 				)}
 			</>
@@ -625,6 +692,7 @@ const PaymentLink = () => {
 		(isLive
 			? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE
 			: process.env.REACT_APP_PAYPAL_CLIENT_ID_SANDBOX) || "";
+
 	const primaryOptions =
 		clientToken && isLive != null && !walletOnly
 			? {
@@ -637,7 +705,7 @@ const PaymentLink = () => {
 					"enable-funding": "paypal,card",
 					"disable-funding": "credit,venmo,paylater",
 					locale,
-					// no buyer-country here (let PayPal choose); reduces regional conflicts
+					// Let PayPal auto-detect buyer country; avoids regional conflicts
 				}
 			: null;
 
@@ -649,7 +717,7 @@ const PaymentLink = () => {
 					currency: "USD",
 					intent: "authorize",
 					commit: true,
-					"enable-funding": "paypal",
+					"enable-funding": "paypal,card", // keep both wallet options
 					"disable-funding": "credit,venmo,paylater",
 					locale,
 				}
