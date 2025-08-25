@@ -6,7 +6,7 @@ import { Checkbox, message, Spin, Alert } from "antd";
 import {
 	gettingSingleReservationById,
 	currencyConversion,
-	getPayPalClientToken, // returns { clientToken, env }
+	getPayPalClientToken, // returns { clientToken, env } + diag (when dbg=1)
 	payReservationViaPayPalLink,
 } from "../apiCore";
 import { useCartContext } from "../cart_context";
@@ -47,25 +47,23 @@ function computeCommissionAndDeposit(pickedRoomsType = []) {
 	const defaultDeposit = totalCommission + oneNightCost;
 	return { defaultDeposit: Number(defaultDeposit.toFixed(2)) };
 }
-
-function mapLocale(isArabic) {
-	return isArabic ? "ar_EG" : "en_US";
-}
-function guessBuyerCountry(fallback = "US") {
+const idSig = (s) => {
 	try {
-		const lang = navigator?.language || navigator?.languages?.[0] || "";
-		const part = String(lang).replace("_", "-").split("-")[1];
-		if (part && part.length === 2) return part.toUpperCase();
-	} catch {}
-	return fallback;
-}
+		// simple visible signature without crypto dep (fine for FE logging)
+		const t = String(s || "");
+		let h = 0;
+		for (let i = 0; i < t.length; i++) h = (h * 33 + t.charCodeAt(i)) >>> 0;
+		return h.toString(16).slice(0, 8);
+	} catch {
+		return "na";
+	}
+};
 
-/* ───────── Hosted Card Fields submit button ───────── */
+/* Hosted Card Fields submit button */
 function CardFieldsSubmitButton({ disabled, label }) {
 	const ctx = usePayPalCardFields();
 	const cardFieldsForm = ctx?.cardFieldsForm;
 	const cardFields = ctx?.cardFields;
-
 	const [busy, setBusy] = useState(false);
 	const [ready, setReady] = useState(false);
 
@@ -119,7 +117,6 @@ function CardFieldsSubmitButton({ disabled, label }) {
 	};
 
 	const isDisabled = disabled || !ready || busy;
-
 	return (
 		<PayCardButton
 			type='button'
@@ -152,15 +149,17 @@ const PaymentLink = () => {
 	const [effectiveDepositUSD, setEffectiveDepositUSD] = useState("0.00");
 	const [totalUSD, setTotalUSD] = useState("0.00");
 
-	// PayPal client token + env (from backend)
+	// PayPal client token + env (from backend) + diag
 	const [clientToken, setClientToken] = useState(null);
 	const [isLive, setIsLive] = useState(null);
 	const [tokenError, setTokenError] = useState(null);
 	const [reloadKey, setReloadKey] = useState(0);
 
+	// Wallet-only fallback (retry without card-fields & without client-token)
+	const [walletOnly, setWalletOnly] = useState(false);
+
 	const isArabic = chosenLanguage === "Arabic";
-	const locale = mapLocale(isArabic);
-	const buyerCountry = guessBuyerCountry(isArabic ? "EG" : "US");
+	const locale = isArabic ? "ar_EG" : "en_US";
 
 	const allowInteract =
 		!!selectedOption &&
@@ -182,6 +181,7 @@ const PaymentLink = () => {
 		setClientToken(null);
 		setIsLive(null);
 		setTokenError(null);
+		setWalletOnly(false);
 	}, []);
 
 	/* 1) Fetch reservation */
@@ -250,11 +250,11 @@ const PaymentLink = () => {
 		doConversion();
 	}, [reservationData, effectiveDeposit]);
 
-	/* 4) PayPal client token + env (from backend, with fallback) */
+	/* 4) PayPal client token + env (with diagnostics) */
 	useEffect(() => {
 		const init = async () => {
 			try {
-				const tokenResp = await getPayPalClientToken(); // { clientToken, env }
+				const tokenResp = await getPayPalClientToken(); // { clientToken, env, diag? }
 				const token =
 					typeof tokenResp === "string"
 						? tokenResp
@@ -262,8 +262,6 @@ const PaymentLink = () => {
 				if (!token) throw new Error("Missing PayPal client token");
 
 				let env = (tokenResp?.env || "").toLowerCase();
-
-				// Fallback guess if env is not provided by the API
 				if (env !== "live" && env !== "sandbox") {
 					const node = (process.env.REACT_APP_NODE_ENV || "").toUpperCase();
 					env = node === "PRODUCTION" ? "live" : "sandbox";
@@ -275,6 +273,23 @@ const PaymentLink = () => {
 
 				setClientToken(token);
 				setIsLive(env === "live");
+
+				// FE vs BE app signature (helps spot mismatched app config)
+				const feClientId =
+					env === "live"
+						? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE
+						: process.env.REACT_APP_PAYPAL_CLIENT_ID_SANDBOX;
+				// eslint-disable-next-line no-console
+				console.log(
+					"[PP][diag] FE clientIdSig:",
+					idSig(feClientId || "na"),
+					"BE clientIdSig:",
+					tokenResp?.diag?.clientIdSig || "(n/a)",
+					"env:",
+					env,
+					"cached:",
+					!!tokenResp?.cached
+				);
 			} catch (e) {
 				console.error("PayPal init failed:", e);
 				setTokenError(e);
@@ -297,36 +312,9 @@ const PaymentLink = () => {
 			: Number(reservationData?.total_amount || 0);
 	}, [selectedOption, effectiveDeposit, reservationData]);
 
-	const handleOptionChange = (opt) => {
-		setSelectedOption(opt);
-		ReactGA.event({
-			category: "User Selected Payment Option From Link",
-			action: `User Selected ${opt}`,
-			label: `User Selected ${opt}`,
-		});
-		ReactPixel.track("Selected Payment Option From Link", {
-			action: `User Selected ${opt}`,
-			page: "generatedLink",
-		});
-	};
-
-	/* ───────── Inner PayPal area ───────── */
+	/* Inner PayPal area */
 	const PayArea = () => {
-		const [{ isResolved, isRejected, loadingStatus, error, options }] =
-			usePayPalScriptReducer();
-
-		// Helpful diagnostics during remote testing (can be removed later)
-		useEffect(() => {
-			// eslint-disable-next-line no-console
-			console.log("[PP][script]", {
-				isResolved,
-				isRejected,
-				loadingStatus,
-				options,
-				hasWindowPayPal: !!window.paypal,
-				error,
-			});
-		}, [isResolved, isRejected, loadingStatus, options, error]);
+		const [{ isResolved, isRejected, options }] = usePayPalScriptReducer();
 
 		const requireSelectionAndTerms = () => {
 			if (!selectedOption) {
@@ -487,99 +475,68 @@ const PaymentLink = () => {
 			);
 		};
 
-		// Show only eligible button sources
-		const EligibleButtons = (props) => {
-			if (!window?.paypal) return null;
-			const F = window.paypal.FUNDING;
-			const sources = [
-				{ key: "paypal", constVal: F.PAYPAL, label: "paypal" },
-				{ key: "card", constVal: F.CARD, label: "pay" },
-			];
-			return (
-				<>
-					{sources.map((src) => {
-						let eligible = false;
-						try {
-							eligible = window.paypal.isFundingEligible(src.constVal);
-						} catch {
-							eligible = false;
-						}
-						if (!eligible) return null;
-						return (
-							<PayPalButtons
-								key={src.key}
-								fundingSource={src.key}
-								style={{ layout: "vertical", label: src.label }}
-								createOrder={props.createOrder}
-								onApprove={props.onApprove}
-								onError={props.onError}
-								disabled={props.disabled}
-							/>
-						);
-					})}
-				</>
-			);
-		};
-
 		if (isRejected) {
-			return (
-				<div>
-					<Alert
-						type='error'
-						showIcon
-						message={
-							isArabic
-								? "تعذر تحميل بوابة الدفع"
-								: "Payment module failed to load"
-						}
-						description={
-							isArabic
-								? "يرجى تعطيل مانع الإعلانات أو التأكد من اتصال الإنترنت ثم إعادة المحاولة."
-								: "Please disable ad blockers or check your connection, then try again."
-						}
-					/>
-					<div style={{ textAlign: "center", marginTop: 10 }}>
-						<ReloadBtn onClick={reloadPayment}>
-							{isArabic ? "إعادة تحميل الدفع" : "Reload payment"}
-						</ReloadBtn>
+			// Log the exact script URL (copy/paste into address bar on the failing device to see HTTP status/body)
+			try {
+				const p = new URL("https://www.paypal.com/sdk/js");
+				Object.entries(options || {}).forEach(([k, v]) => {
+					if (v === undefined || v === null || v === "") return;
+					p.searchParams.set(k, String(v));
+				});
+				// eslint-disable-next-line no-console
+				console.log("[PP][script] url:", p.toString(), {
+					options,
+					isRejected,
+					isResolved,
+				});
+			} catch {
+				/* noop */
+			}
+
+			// Offer a wallet-only fallback (no card-fields, no data-client-token)
+			if (!walletOnly) {
+				return (
+					<div>
+						<Alert
+							type='error'
+							showIcon
+							message={
+								isArabic
+									? "تعذر تحميل بوابة الدفع"
+									: "Payment module failed to load"
+							}
+							description={
+								isArabic
+									? "سنحاول استخدام محفظة PayPal فقط. إذا استمر الخطأ، عطّل مانع الإعلانات أو جرّب شبكة مختلفة."
+									: "We’ll try a PayPal wallet–only fallback. If it persists, disable ad blockers or try another network."
+							}
+						/>
+						<div style={{ textAlign: "center", marginTop: 10 }}>
+							<ReloadBtn onClick={() => setWalletOnly(true)}>
+								{isArabic ? "متابعة بالمحفظة فقط" : "Continue with wallet only"}
+							</ReloadBtn>
+							<div style={{ marginTop: 8 }}>
+								<ReloadBtn onClick={reloadPayment}>
+									{isArabic ? "إعادة تحميل الدفع" : "Reload payment"}
+								</ReloadBtn>
+							</div>
+						</div>
 					</div>
-				</div>
-			);
+				);
+			}
+
+			// If user chose fallback, render buttons-only below (handled outside via options)
+			return null;
 		}
 
 		if (!isResolved) return <Spin />;
 
-		// Gate Card Fields rendering to avoid the crash you saw:
-		let supportsCardFields = false;
-		try {
-			supportsCardFields = !!window?.paypal?.CardFields;
-			if (
-				supportsCardFields &&
-				typeof window.paypal.CardFields.isEligible === "function"
-			) {
-				supportsCardFields = !!window.paypal.CardFields.isEligible();
-			}
-		} catch {
-			supportsCardFields = false;
-		}
-
-		// Check if neither PAYPAL nor CARD buttons are eligible
-		let noEligible = false;
-		if (window?.paypal?.FUNDING) {
-			try {
-				const F = window.paypal.FUNDING;
-				const payPalElig = window.paypal.isFundingEligible(F.PAYPAL);
-				const cardElig = window.paypal.isFundingEligible(F.CARD);
-				noEligible = !payPalElig && !cardElig;
-			} catch {
-				noEligible = false;
-			}
-		}
-
 		return (
 			<>
 				<ButtonsBox>
-					<EligibleButtons
+					<PayPalButtons
+						fundingSource='paypal'
+						style={{ layout: "vertical", label: "paypal" }}
 						createOrder={createOrder}
 						onApprove={onApprove}
 						onError={onError}
@@ -587,121 +544,91 @@ const PaymentLink = () => {
 					/>
 				</ButtonsBox>
 
-				{noEligible && (
-					<div style={{ marginTop: 8 }}>
-						<Alert
-							type='warning'
-							showIcon
-							message={
-								isArabic
-									? "لا توجد طرق دفع متاحة"
-									: "No eligible PayPal methods available"
-							}
-							description={
-								isArabic
-									? "قد لا يكون PayPal أو بطاقات الدفع متاحة في بلدك لهذا التاجر. جرّب بطاقة أخرى أو اتصل بنا."
-									: "PayPal wallet or card may not be available in your country for this merchant. Try another card or contact us."
-							}
-						/>
-					</div>
-				)}
-
-				<BrandFootnote>
-					Powered by <b>PayPal</b>
-				</BrandFootnote>
-				<Divider />
-
-				{/* Render Card Fields only when the SDK exposes it */}
-				{supportsCardFields ? (
-					<CardBox
-						dir={isArabic ? "rtl" : "ltr"}
-						aria-disabled={!allowInteract}
-					>
-						<CardTitle>
-							{isArabic ? "أو ادفع مباشرة بالبطاقة" : "Or pay directly by card"}
-						</CardTitle>
-
-						<PayPalCardFieldsProvider
-							createOrder={createOrder}
-							onApprove={onApprove}
-							onError={onError}
+				{!walletOnly && (
+					<>
+						<BrandFootnote>
+							Powered by <b>PayPal</b>
+						</BrandFootnote>
+						<Divider />
+						<CardBox
+							dir={isArabic ? "rtl" : "ltr"}
+							aria-disabled={!allowInteract}
 						>
-							<PayPalCardFieldsForm>
-								<div className='field'>
-									<label>
-										{isArabic ? "اسم حامل البطاقة" : "Cardholder name"}
-									</label>
-									<div className='hosted'>
-										<PayPalNameField />
-									</div>
-								</div>
+							<CardTitle>
+								{isArabic
+									? "أو ادفع مباشرة بالبطاقة"
+									: "Or pay directly by card"}
+							</CardTitle>
 
-								<div className='field'>
-									<label>{isArabic ? "رقم البطاقة" : "Card number"}</label>
-									<div className='hosted'>
-										<PayPalNumberField />
-									</div>
-								</div>
-
-								<Row>
-									<div className='field half'>
-										<label>{isArabic ? "تاريخ الانتهاء" : "Expiry date"}</label>
+							<PayPalCardFieldsProvider
+								createOrder={createOrder}
+								onApprove={onApprove}
+								onError={onError}
+							>
+								<PayPalCardFieldsForm>
+									<div className='field'>
+										<label>
+											{isArabic ? "اسم حامل البطاقة" : "Cardholder name"}
+										</label>
 										<div className='hosted'>
-											<PayPalExpiryField />
+											<PayPalNameField />
 										</div>
 									</div>
-									<div className='field half'>
-										<label>{isArabic ? "الرمز السري (CVV)" : "CVV"}</label>
+
+									<div className='field'>
+										<label>{isArabic ? "رقم البطاقة" : "Card number"}</label>
 										<div className='hosted'>
-											<PayPalCVVField />
+											<PayPalNumberField />
 										</div>
 									</div>
-								</Row>
-							</PayPalCardFieldsForm>
 
-							<div style={{ marginTop: 8 }}>
-								<CardFieldsSubmitButton
-									disabled={!allowInteract}
-									label={{
-										pay: isArabic ? "ادفع بالبطاقة" : "Pay by Card",
-										processing: isArabic ? "جار المعالجة..." : "Processing…",
-										error: isArabic
-											? "فشل الدفع بالبطاقة"
-											: "Card payment failed.",
-									}}
-								/>
-							</div>
-						</PayPalCardFieldsProvider>
-					</CardBox>
-				) : (
-					<div style={{ marginTop: 10 }}>
-						<Alert
-							type='info'
-							showIcon
-							message={
-								isArabic
-									? "الدفع بالبطاقة داخل الصفحة غير متاح"
-									: "Inline card fields are not available"
-							}
-							description={
-								isArabic
-									? 'يرجى استخدام زر "الدفع بالبطاقة" بالأعلى لإتمام الدفع.'
-									: 'Please use the "Pay by Card" button above to complete payment.'
-							}
-						/>
-					</div>
+									<Row>
+										<div className='field half'>
+											<label>
+												{isArabic ? "تاريخ الانتهاء" : "Expiry date"}
+											</label>
+											<div className='hosted'>
+												<PayPalExpiryField />
+											</div>
+										</div>
+										<div className='field half'>
+											<label>{isArabic ? "الرمز السري (CVV)" : "CVV"}</label>
+											<div className='hosted'>
+												<PayPalCVVField />
+											</div>
+										</div>
+									</Row>
+								</PayPalCardFieldsForm>
+
+								<div style={{ marginTop: 8 }}>
+									<CardFieldsSubmitButton
+										disabled={!allowInteract}
+										label={{
+											pay: isArabic ? "ادفع بالبطاقة" : "Pay by Card",
+											processing: isArabic ? "جار المعالجة..." : "Processing…",
+											error: isArabic
+												? "فشل الدفع بالبطاقة"
+												: "Card payment failed.",
+										}}
+									/>
+								</div>
+							</PayPalCardFieldsProvider>
+						</CardBox>
+					</>
 				)}
 			</>
 		);
 	};
 
-	/* PayPal SDK options (note: no custom data-namespace) */
-	const paypalOptions =
-		clientToken && isLive != null
+	/* Build PayPal SDK options (primary vs wallet-only fallback) */
+	const feClientId =
+		(isLive
+			? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE
+			: process.env.REACT_APP_PAYPAL_CLIENT_ID_SANDBOX) || "";
+	const primaryOptions =
+		clientToken && isLive != null && !walletOnly
 			? {
-					"client-id": isLive
-						? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE
-						: process.env.REACT_APP_PAYPAL_CLIENT_ID_SANDBOX,
+					"client-id": feClientId,
 					"data-client-token": clientToken,
 					components: "buttons,card-fields",
 					currency: "USD",
@@ -710,9 +637,25 @@ const PaymentLink = () => {
 					"enable-funding": "paypal,card",
 					"disable-funding": "credit,venmo,paylater",
 					locale,
-					"buyer-country": buyerCountry,
+					// no buyer-country here (let PayPal choose); reduces regional conflicts
 				}
 			: null;
+
+	const fallbackOptions =
+		isLive != null && walletOnly
+			? {
+					"client-id": feClientId,
+					components: "buttons",
+					currency: "USD",
+					intent: "authorize",
+					commit: true,
+					"enable-funding": "paypal",
+					"disable-funding": "credit,venmo,paylater",
+					locale,
+				}
+			: null;
+
+	const scriptOptions = primaryOptions || fallbackOptions;
 
 	return (
 		<PageWrapper dir={isArabic ? "rtl" : "ltr"}>
@@ -724,6 +667,7 @@ const PaymentLink = () => {
 						<Header style={{ textAlign: isArabic ? "right" : undefined }}>
 							{isArabic ? "تفاصيل الحجز" : "Reservation Details"}
 						</Header>
+
 						<InfoRow>
 							<strong>{isArabic ? "اسم الفندق:" : "Hotel Name:"}</strong>
 							<span>{reservationData.hotelId?.hotelName}</span>
@@ -767,7 +711,7 @@ const PaymentLink = () => {
 
 								{/* Deposit */}
 								<Option
-									onClick={() => handleOptionChange("acceptDeposit")}
+									onClick={() => setSelectedOption("acceptDeposit")}
 									selected={selectedOption === "acceptDeposit"}
 								>
 									<input
@@ -786,7 +730,7 @@ const PaymentLink = () => {
 
 								{/* Full amount */}
 								<Option
-									onClick={() => handleOptionChange("acceptPayWholeAmount")}
+									onClick={() => setSelectedOption("acceptPayWholeAmount")}
 									selected={selectedOption === "acceptPayWholeAmount"}
 								>
 									<input
@@ -838,13 +782,13 @@ const PaymentLink = () => {
 											</ReloadBtn>
 										</div>
 									</div>
-								) : !paypalOptions ? (
+								) : !scriptOptions ? (
 									<Centered>
 										<Spin />
 									</Centered>
 								) : (
-									<ScriptShell key={reloadKey}>
-										<PayPalScriptProvider options={paypalOptions}>
+									<ScriptShell key={`${reloadKey}-${walletOnly ? "w" : "p"}`}>
+										<PayPalScriptProvider options={scriptOptions}>
 											<PayArea />
 										</PayPalScriptProvider>
 									</ScriptShell>
@@ -860,8 +804,7 @@ const PaymentLink = () => {
 
 export default PaymentLink;
 
-/* ───────── Styled ───────── */
-
+/* ───────── Styled (unchanged) ───────── */
 const PageWrapper = styled.div`
 	min-height: 720px;
 	background: #f6f8fb;
@@ -869,12 +812,10 @@ const PageWrapper = styled.div`
 	align-items: flex-start;
 	justify-content: center;
 	padding: 24px 12px;
-
 	@media (max-width: 480px) {
 		padding: 16px 8px;
 	}
 `;
-
 const Card = styled.div`
 	width: 100%;
 	max-width: 720px;
@@ -884,14 +825,12 @@ const Card = styled.div`
 	box-shadow: 0 8px 24px rgba(16, 24, 40, 0.06);
 	padding: 22px;
 `;
-
 const Header = styled.h2`
 	margin: 0 0 14px 0;
 	font-size: 22px;
 	color: #101828;
 	font-weight: 700;
 `;
-
 const SubHeader = styled.h3`
 	margin-top: 16px;
 	margin-bottom: 10px;
@@ -899,7 +838,6 @@ const SubHeader = styled.h3`
 	font-weight: 700;
 	color: #101828;
 `;
-
 const InfoRow = styled.p`
 	display: flex;
 	gap: 8px;
@@ -916,7 +854,6 @@ const InfoRow = styled.p`
 		}
 	}
 `;
-
 const ThankYou = styled.h3`
 	margin: 18px 0;
 	font-size: 1.3rem;
@@ -924,7 +861,6 @@ const ThankYou = styled.h3`
 	text-align: center;
 	color: #12b76a;
 `;
-
 const Option = styled.div`
 	display: flex;
 	align-items: center;
@@ -935,7 +871,6 @@ const Option = styled.div`
 	margin-bottom: 10px;
 	cursor: pointer;
 	transition: all 0.2s ease;
-
 	input[type="radio"] {
 		appearance: none;
 		width: 18px;
@@ -962,7 +897,6 @@ const Option = styled.div`
 		color: #0f172a;
 	}
 `;
-
 const Terms = styled.div`
 	margin: 8px 0 14px;
 	padding: 10px 12px;
@@ -971,11 +905,9 @@ const Terms = styled.div`
 	border-radius: 10px;
 	cursor: pointer;
 `;
-
 const ScriptShell = styled.div`
 	width: 100%;
 `;
-
 const ButtonsBox = styled.div`
 	width: 100%;
 	max-width: 420px;
@@ -983,7 +915,6 @@ const ButtonsBox = styled.div`
 	display: grid;
 	gap: 10px;
 `;
-
 const BrandFootnote = styled.div`
 	text-align: center;
 	font-size: 12px;
@@ -993,14 +924,12 @@ const BrandFootnote = styled.div`
 		color: #1f2937;
 	}
 `;
-
 const Divider = styled.hr`
 	max-width: 520px;
 	margin: 18px auto;
 	border: none;
 	border-top: 1px solid #eef2f6;
 `;
-
 const CardBox = styled.div`
 	width: 100%;
 	max-width: 520px;
@@ -1052,7 +981,6 @@ const CardBox = styled.div`
 		}
 	}
 `;
-
 const CardTitle = styled.h4`
 	margin: 2px 0 10px 0;
 	font-size: 16px;
@@ -1060,7 +988,6 @@ const CardTitle = styled.h4`
 	color: #0f172a;
 	text-align: center;
 `;
-
 const Row = styled.div`
 	display: flex;
 	gap: 10px;
@@ -1071,7 +998,6 @@ const Row = styled.div`
 		flex-direction: column;
 	}
 `;
-
 const PayCardButton = styled.button`
 	width: 100%;
 	margin-top: 8px;
@@ -1094,13 +1020,11 @@ const PayCardButton = styled.button`
 		transform: translateY(0.5px);
 	}
 `;
-
 const Centered = styled.div`
 	width: 100%;
 	text-align: center;
 	padding: 18px 0;
 `;
-
 const ReloadBtn = styled.button`
 	background: #0f172a;
 	color: #fff;
