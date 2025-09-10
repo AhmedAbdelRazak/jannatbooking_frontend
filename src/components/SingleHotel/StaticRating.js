@@ -10,37 +10,33 @@ const ReviewContainer = styled.div`
 	align-items: center;
 	gap: 10px;
 `;
-
 const ScoreBox = styled.div`
-	background-color: #2f8543; /* Green background */
+	background-color: #2f8543;
 	color: white;
 	padding: 5px 10px;
 	border-radius: 5px;
 	font-weight: bold;
 	font-size: 1rem;
 `;
-
 const ReviewLink = styled.a`
-	color: #1890ff; /* Ant Design blue */
+	color: #1890ff;
 	text-decoration: none;
 	display: flex;
 	align-items: center;
 	gap: 5px;
 	font-size: 13px;
-
 	&:hover {
 		text-decoration: underline;
 	}
 `;
 
 const StaticRating = ({ selectedHotel, chosenLanguage }) => {
-	// Calculate the rating
-	const rating =
+	const base =
 		selectedHotel && selectedHotel.hotelRating
-			? Number(selectedHotel.hotelRating) * 2
-			: 8.4;
+			? Number(selectedHotel.hotelRating)
+			: 4.2;
+	const rating = Math.max(0, Math.min(10, base * 2));
 
-	// Determine the rating text
 	const ratingText =
 		rating >= 9
 			? "Excellent"
@@ -53,7 +49,7 @@ const StaticRating = ({ selectedHotel, chosenLanguage }) => {
 	return (
 		<>
 			<ReviewContainer dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
-				<ScoreBox>{rating}</ScoreBox>
+				<ScoreBox>{rating.toFixed(1)}</ScoreBox>
 				<div>
 					<Text strong style={{ fontSize: "1rem" }}>
 						{ratingText}

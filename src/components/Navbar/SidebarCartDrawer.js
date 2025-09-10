@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
 import { Link } from "react-router-dom";
-import { FaTimes, FaPlus, FaMinus } from "react-icons/fa";
+import { FaTimes, FaPlus, FaMinus, FaLock } from "react-icons/fa";
 // eslint-disable-next-line
 import { DatePicker, Button } from "antd";
 import dayjs from "dayjs";
@@ -15,7 +15,7 @@ import { toast } from "react-toastify";
 // Extend Day.js with the plugin
 dayjs.extend(isSameOrAfter);
 
-// Define translations
+// Translations — extended with deal/lock text
 const translations = {
 	English: {
 		yourReservation: "Your Reservation",
@@ -33,6 +33,14 @@ const translations = {
 		SAR: "SAR",
 		USD: "USD",
 		EUR: "EUR",
+		// NEW
+		dealBadge: "Offer / Package",
+		monthly: "Monthly",
+		offer: "Offer",
+		datesLockedShort: "Dates are locked for deal bookings.",
+		datesLockedInfo:
+			"To change dates, remove the deal from your cart or book another stay.",
+		itemDatesLocked: "Dates locked for this deal",
 	},
 	Arabic: {
 		yourReservation: "ملخص الحجز الخاص بك",
@@ -50,6 +58,14 @@ const translations = {
 		SAR: "ريال",
 		USD: "دولار",
 		EUR: "يورو",
+		// NEW
+		dealBadge: "عرض / باقة",
+		monthly: "شهري",
+		offer: "عرض",
+		datesLockedShort: "تواريخ الحجز مقفلة لوجود عرض/باقة.",
+		datesLockedInfo:
+			"لتغيير التواريخ، يرجى إزالة العرض من السلة أو إنشاء حجز جديد.",
+		itemDatesLocked: "تواريخ هذه الباقة ثابتة",
 	},
 };
 
@@ -122,6 +138,15 @@ const SidebarCartDrawer = () => {
 	const [prevCheckIn, setPrevCheckIn] = useState(null);
 	const [prevCheckOut, setPrevCheckOut] = useState(null);
 	const [roomErrors, setRoomErrors] = useState({});
+
+	// NEW: detect if any item is a deal with locked dates
+	const hasLockedDeal = useMemo(
+		() =>
+			(roomCart || []).some(
+				(r) => r.lockDates || r.fromPackagesOffers || r.packageMeta
+			),
+		[roomCart]
+	);
 
 	useEffect(() => {
 		const currency = localStorage.getItem("selectedCurrency") || "SAR";
@@ -199,12 +224,7 @@ const SidebarCartDrawer = () => {
 		});
 
 		if (hasUnavailableRooms && isValid === false) {
-			// Show toast.error only once
-			// toast.error(
-			// 	chosenLanguage === "Arabic"
-			// 		? "بعض الغرف غير متاحة في التواريخ المعدلة."
-			// 		: "Some rooms are unavailable for the modified selected dates."
-			// );
+			// toast error intentionally muted (kept from your code)
 		}
 
 		setRoomErrors(newRoomErrors); // Update state with room-specific errors
@@ -241,6 +261,8 @@ const SidebarCartDrawer = () => {
 	};
 
 	const handleDateChange = (date, type) => {
+		// If we have any locked deal, the pickers are disabled already;
+		// this function will not fire. Keeping original logic unchanged.
 		if (type === "checkIn") {
 			if (!date) {
 				// Handle clearing the check-in date
@@ -248,13 +270,11 @@ const SidebarCartDrawer = () => {
 				setCheckOut(null);
 				setPrevCheckIn(null);
 				setPrevCheckOut(null);
-				// Optionally, clear the cart or notify the user
 				return;
 			}
 
 			const newCheckOut = date.add(nightsCount, "day");
 
-			// Validate the new date range
 			const isValid = validateDates(date, newCheckOut);
 
 			if (!isValid) {
@@ -316,9 +336,7 @@ const SidebarCartDrawer = () => {
 
 		if (type === "checkOut") {
 			if (!date) {
-				// Handle clearing the check-out date
 				setCheckOut(null);
-				// Optionally, notify the user or adjust the cart
 				return;
 			}
 
@@ -341,7 +359,6 @@ const SidebarCartDrawer = () => {
 				return;
 			}
 
-			// Validate the new date range
 			const isValid = validateDates(checkIn, date);
 
 			if (!isValid) {
@@ -429,6 +446,17 @@ const SidebarCartDrawer = () => {
 					{t.yourReservation}
 				</DrawerHeader>
 
+				{/* NEW: lock banner if any deal exists */}
+				{roomCart.length > 0 && hasLockedDeal && (
+					<LockBanner dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
+						<FaLock className='ico' />
+						<div>
+							<strong>{t.datesLockedShort}</strong>
+							<small className='desc'>{t.datesLockedInfo}</small>
+						</div>
+					</LockBanner>
+				)}
+
 				{roomCart.length > 0 && (
 					<DatePickersWrapper dir={chosenLanguage === "Arabic" ? "rtl" : ""}>
 						<div>
@@ -438,7 +466,7 @@ const SidebarCartDrawer = () => {
 								onChange={(date) => handleDateChange(date, "checkIn")}
 								disabledDate={disabledCheckInDate}
 								inputReadOnly
-								// disabled
+								disabled={hasLockedDeal} // NEW: disable when locked
 								placeholder={
 									chosenLanguage === "Arabic"
 										? "اختر تاريخ الوصول"
@@ -450,10 +478,10 @@ const SidebarCartDrawer = () => {
 							<Label>{chosenLanguage === "Arabic" ? "إلى" : "Check-Out"}</Label>
 							<DatePicker
 								value={checkOut}
-								// disabled
 								onChange={(date) => handleDateChange(date, "checkOut")}
 								disabledDate={disabledCheckOutDate}
 								inputReadOnly
+								disabled={hasLockedDeal} // NEW: disable when locked
 								placeholder={
 									chosenLanguage === "Arabic"
 										? "اختر تاريخ المغادرة"
@@ -498,6 +526,16 @@ const SidebarCartDrawer = () => {
 								totalPriceWithCommission
 							);
 
+							// NEW: detect if this specific item is a deal
+							const isDeal =
+								room.lockDates || room.fromPackagesOffers || room.packageMeta;
+							const pkgType =
+								room?.packageMeta?.type === "monthly"
+									? t.monthly
+									: room?.packageMeta?.type === "offer"
+										? t.offer
+										: t.dealBadge;
+
 							return (
 								<CartItem key={room.id}>
 									<ItemImage
@@ -515,15 +553,40 @@ const SidebarCartDrawer = () => {
 												? room.nameOtherLanguage
 												: room.name}
 										</ItemName>
+
+										{/* NEW: badges row */}
+										{isDeal && (
+											<BadgesRow>
+												<DealBadge>
+													{t.dealBadge}
+													{room?.packageMeta?.name ? (
+														<>
+															{" "}
+															— <strong>{room.packageMeta.name}</strong>
+														</>
+													) : null}
+													{room?.packageMeta?.type ? (
+														<TypePill>{pkgType}</TypePill>
+													) : null}
+												</DealBadge>
+												<LockHint>
+													<FaLock className='lock' />
+													{t.itemDatesLocked}
+												</LockHint>
+											</BadgesRow>
+										)}
+
 										<ItemInfo>
 											{room.amount} {t.roomDetails} {room.nights} {t.nights}{" "}
 											{t.from} {room.startDate} {t.to} {room.endDate}
 										</ItemInfo>
+
 										<ItemPricePerNight>
 											{t.pricePerNight}{" "}
 											{Number(convertedPricePerNight * room.amount).toFixed(2)}{" "}
 											{t[selectedCurrency.toUpperCase()]}
 										</ItemPricePerNight>
+
 										{/* Room Quantity Controls */}
 										<QuantityControls>
 											<MinusIcon
@@ -534,12 +597,14 @@ const SidebarCartDrawer = () => {
 												onClick={() => toggleRoomAmount(room.id, "inc")}
 											/>
 										</QuantityControls>
+
 										<ItemPrice>
 											{t.totalAmount}{" "}
 											{Number(convertedTotalAmount * room.amount).toFixed(2)}{" "}
 											{t[selectedCurrency.toUpperCase()]}
 										</ItemPrice>
 									</ItemDetails>
+
 									<RemoveButton onClick={() => removeRoomItem(room.id)}>
 										{t.remove}
 									</RemoveButton>
@@ -636,7 +701,7 @@ const SidebarCartDrawer = () => {
 
 export default SidebarCartDrawer;
 
-// Styled-components for styling with the theme
+/* =================== styled =================== */
 const Overlay = styled.div`
 	position: fixed;
 	top: 0;
@@ -701,6 +766,31 @@ const DrawerHeader = styled.h2`
 	margin-bottom: 15px;
 `;
 
+/* NEW: lock banner when any deal is present */
+const LockBanner = styled.div`
+	display: flex;
+	gap: 5px;
+	align-items: center;
+	margin: 8px 0 14px;
+	padding: 10px 12px;
+	border: 1px dashed #c9d4e2;
+	background: #f6fbff;
+	border-radius: 8px;
+	.ico {
+		color: #1a6ed8;
+	}
+	.desc {
+		display: block;
+		color: #5a6b7a;
+		font-size: 12px;
+		margin-top: 2px;
+	}
+
+	@media (max-width: 480px) {
+		font-size: 14px;
+	}
+`;
+
 const DatePickersWrapper = styled.div`
 	display: flex;
 	justify-content: space-between;
@@ -749,6 +839,50 @@ const ItemName = styled.h3`
 	margin-bottom: 5px;
 	font-weight: bold;
 	text-transform: capitalize;
+`;
+
+/* NEW: badges under the title */
+const BadgesRow = styled.div`
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 6px;
+`;
+
+const DealBadge = styled.div`
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 700;
+	background: #fff4e6;
+	color: #8a4b00;
+	border: 1px solid #ffd8a8;
+`;
+
+const TypePill = styled.span`
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 800;
+	background: #e7f5ff;
+	color: #1c7ed6;
+	border: 1px solid #a5d8ff;
+`;
+
+const LockHint = styled.div`
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: #495057;
+	font-size: 12px;
+	.lock {
+		color: #1a6ed8;
+	}
 `;
 
 const ItemInfo = styled.p`

@@ -2,26 +2,21 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 
 const Tabs = ({ sections, onTabClick, chosenLanguage }) => {
-	const [activeTab, setActiveTab] = useState("overview");
+	const [activeTab, setActiveTab] = useState(sections?.[0]?.id || "overview");
 
-	// Observe sections and update the active tab based on scroll position
 	useEffect(() => {
 		const observer = new IntersectionObserver(
 			(entries) => {
 				entries.forEach((entry) => {
-					if (entry.isIntersecting) {
-						setActiveTab(entry.target.id);
-					}
+					if (entry.isIntersecting) setActiveTab(entry.target.id);
 				});
 			},
 			{ threshold: 0.6 }
 		);
 
-		// Observe each section using the passed `sections` prop
-		sections.forEach(({ ref }) => {
-			if (ref && ref.current) {
-				observer.observe(ref.current);
-			}
+		sections.forEach(({ id }) => {
+			const el = document.getElementById(id);
+			if (el) observer.observe(el);
 		});
 
 		return () => observer.disconnect();
@@ -50,7 +45,7 @@ const TabsWrapper = styled.div`
 	border-bottom: 2px solid #e0e0e0;
 	background-color: #fff;
 	position: sticky;
-	top: -10px; /* Adjust for your layout */
+	top: -10px;
 	z-index: 10;
 	margin-top: -20px;
 	min-width: 1200px;

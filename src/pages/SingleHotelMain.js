@@ -1,54 +1,70 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
-import { useParams } from "react-router-dom"; // to get the hotelNameSlug from the URL
+import { useParams, useLocation } from "react-router-dom";
 import SingleHotel from "../components/SingleHotel/SingleHotel";
 import { gettingSingleHotel } from "../apiCore";
-import { Spin } from "antd"; // Import Spin component from Ant Design
-// import { useCartContext } from "../cart_context";
+import { Spin } from "antd";
 import { Helmet } from "react-helmet";
-import favicon from "../favicon.ico"; // Import your favicon
+import favicon from "../favicon.ico";
 
 const SingleHotelMain = () => {
-	const { hotelNameSlug } = useParams(); // Get hotelNameSlug from URL
-	const [selectedHotel, setSelectedHotel] = useState(null); // State for selected hotel
-	const [loading, setLoading] = useState(true); // State for loading
-	// const { chosenLanguage } = useCartContext();
-	// Fetch hotel details on component mount
+	const { hotelNameSlug } = useParams();
+	const location = useLocation();
+
+	const [selectedHotel, setSelectedHotel] = useState(null);
+	const [loading, setLoading] = useState(true);
+
+	// Parse initial section from URL (rooms/packages/offers)
+	const initialSection = useMemo(() => {
+		const params = new URLSearchParams(location.search);
+		const raw = (
+			params.get("section") ||
+			params.get("tab") ||
+			params.get("goto") ||
+			""
+		).toLowerCase();
+
+		const s = location.search.toLowerCase();
+		const normalize = (x) => (x === "offers" ? "packages" : x);
+
+		if (raw) return normalize(raw);
+		if (s.includes("packages") || s.includes("offers") || s.includes("deals"))
+			return "packages";
+		if (s.includes("rooms")) return "rooms";
+		return ""; // no auto-scroll
+	}, [location.search]);
+
 	useEffect(() => {
 		window.scrollTo({ top: 10, behavior: "smooth" });
 		const fetchHotel = async () => {
 			try {
-				const hotelData = await gettingSingleHotel(hotelNameSlug); // Fetch hotel by slug
-				setSelectedHotel(hotelData); // Set the response to selectedHotel state
-				setLoading(false); // Stop loading after the hotel data is fetched
+				const hotelData = await gettingSingleHotel(hotelNameSlug);
+				setSelectedHotel(hotelData);
 			} catch (error) {
 				console.error("Error fetching hotel:", error);
-				setLoading(false); // Stop loading even if there's an error
+			} finally {
+				setLoading(false);
 			}
 		};
-
-		if (hotelNameSlug) {
-			fetchHotel();
-		}
-	}, [hotelNameSlug]); // Dependency array includes hotelNameSlug to trigger when slug changes
+		if (hotelNameSlug) fetchHotel();
+	}, [hotelNameSlug]);
 
 	const capitalize = (str) => {
 		if (!str) return "";
 		return str
 			.split(" ")
-			.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+			.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
 			.join(" ");
 	};
 
-	// Function to capitalize and format amenities
 	const generateCapitalizedAmenities = (hotel) => {
 		if (!hotel || !hotel.roomCountDetails) return "Top Amenities";
 		const amenities = [
 			...new Set(
 				hotel.roomCountDetails.flatMap((room) => [
-					...room.amenities,
-					...room.views,
-					...room.extraAmenities,
+					...(room.amenities || []),
+					...(room.views || []),
+					...(room.extraAmenities || []),
 				])
 			),
 		];
@@ -58,39 +74,40 @@ const SingleHotelMain = () => {
 	return (
 		<SingleHotelMainWrapper>
 			<Helmet>
-				{/* Dynamic Title */}
 				<title>
 					{`Book ${capitalize(selectedHotel?.hotelName)} - ${capitalize(
 						selectedHotel?.hotelCity
 					)}, Near Al Haram | Jannat Booking`}
 				</title>
 
-				{/* Dynamic Meta Description */}
 				<meta
 					name='description'
-					content={`Discover ${capitalize(selectedHotel?.hotelName)} located in ${capitalize(
-						selectedHotel?.hotelCity
-					)}, ${capitalize(selectedHotel?.hotelCountry)}. Enjoy amenities like ${generateCapitalizedAmenities(
+					content={`Discover ${capitalize(
+						selectedHotel?.hotelName
+					)} located in ${capitalize(selectedHotel?.hotelCity)}, ${capitalize(
+						selectedHotel?.hotelCountry
+					)}. Enjoy amenities like ${generateCapitalizedAmenities(
 						selectedHotel
-					)}. Walking to Al Haram: ${selectedHotel?.distances?.walkingToElHaram}. Book a comfortable and affordable stay for Haj and Umrah now.`}
+					)}. Walking to Al Haram: ${
+						selectedHotel?.distances?.walkingToElHaram
+					}. Book a comfortable and affordable stay for Haj and Umrah now.`}
 				/>
-
-				{/* Dynamic Keywords */}
 				<meta
 					name='keywords'
 					content={`Haj Hotels, Umrah Hotels, ${capitalize(
 						selectedHotel?.hotelName
 					)}, Hotels Near Al Haram, ${generateCapitalizedAmenities(
 						selectedHotel
-					)}, Hotels In ${capitalize(selectedHotel?.hotelCity)}, Luxury Rooms, Family Rooms`}
+					)}, Hotels In ${capitalize(
+						selectedHotel?.hotelCity
+					)}, Luxury Rooms, Family Rooms`}
 				/>
 
-				{/* Open Graph for Social Media */}
 				<meta
 					property='og:title'
-					content={`Stay at ${capitalize(selectedHotel?.hotelName)} in ${capitalize(
-						selectedHotel?.hotelCity
-					)} - Book Now`}
+					content={`Stay at ${capitalize(
+						selectedHotel?.hotelName
+					)} in ${capitalize(selectedHotel?.hotelCity)} - Book Now`}
 				/>
 				<meta
 					property='og:description'
@@ -115,7 +132,6 @@ const SingleHotelMain = () => {
 				/>
 				<meta property='og:type' content='website' />
 
-				{/* Twitter Card */}
 				<meta name='twitter:card' content='summary_large_image' />
 				<meta
 					name='twitter:title'
@@ -123,7 +139,9 @@ const SingleHotelMain = () => {
 				/>
 				<meta
 					name='twitter:description'
-					content={`Book ${capitalize(selectedHotel?.hotelName)} in ${capitalize(
+					content={`Book ${capitalize(
+						selectedHotel?.hotelName
+					)} in ${capitalize(
 						selectedHotel?.hotelCity
 					)}, close to Al Haram. Enjoy great amenities and spacious rooms for Haj & Umrah.`}
 				/>
@@ -135,18 +153,15 @@ const SingleHotelMain = () => {
 					}
 				/>
 
-				{/* Canonical URL */}
 				<link
 					rel='canonical'
 					href={`https://jannatbooking.com/single-hotel/${selectedHotel?.hotelName
 						?.replace(/\s+/g, "-")
 						.toLowerCase()}`}
 				/>
-
-				{/* Favicon */}
 				<link rel='icon' href={favicon} />
 			</Helmet>
-			{/* Show the Spin component while loading is true */}
+
 			{loading ? (
 				<SpinWrapper>
 					<Spin size='large' />
@@ -154,7 +169,10 @@ const SingleHotelMain = () => {
 			) : (
 				<>
 					{selectedHotel && selectedHotel.hotelName ? (
-						<SingleHotel selectedHotel={selectedHotel} />
+						<SingleHotel
+							selectedHotel={selectedHotel}
+							initialSection={initialSection}
+						/>
 					) : null}
 				</>
 			)}
@@ -173,5 +191,5 @@ const SpinWrapper = styled.div`
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	height: 100vh; // Full height of the viewport
+	height: 100vh;
 `;

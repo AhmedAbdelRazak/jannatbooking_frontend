@@ -183,7 +183,7 @@ const cart_reducer = (state, action) => {
 		const end = dayjs(endDate);
 		const nights = end.diff(start, "day");
 
-		// Calculate pricing by day
+		// Pricing arrays at time of adding
 		const pricingByDay = calculatePricingByDay(
 			priceRating,
 			startDate,
@@ -208,6 +208,14 @@ const cart_reducer = (state, action) => {
 		if (existingRoom) {
 			const updatedCart = state.roomCart.map((item) => {
 				if (item.id === id) {
+					// If dates are locked (package/offer), do not change dates or pricing
+					if (item.lockDates || item.fromPackagesOffers) {
+						return {
+							...item,
+							amount: item.amount + 1,
+							// keep original dates & pricing untouched
+						};
+					}
 					return {
 						...item,
 						amount: item.amount + 1,
@@ -217,14 +225,17 @@ const cart_reducer = (state, action) => {
 						endDate,
 						adults,
 						children,
+						// keep commissionRate if present, or set it now
+						commissionRate: item.commissionRate ?? commissionRate,
 					};
 				}
 				return item;
 			});
 			return { ...state, roomCart: updatedCart };
 		} else {
+			// NEW: carry-through flags for packages/offers & commissionRate on item
 			const newRoom = {
-				...roomDetails,
+				...roomDetails, // may include fromPackagesOffers, lockDates, packageMeta
 				id,
 				amount: 1,
 				startDate,
@@ -237,6 +248,10 @@ const cart_reducer = (state, action) => {
 				roomColor,
 				adults,
 				children,
+				commissionRate, // persist on item
+				// derived convenience flag for any future UI logic
+				datesLocked:
+					roomDetails.lockDates || roomDetails.fromPackagesOffers || false,
 			};
 
 			return { ...state, roomCart: [...state.roomCart, newRoom] };
@@ -246,6 +261,16 @@ const cart_reducer = (state, action) => {
 	if (action.type === UPDATE_ROOM_DATES) {
 		const { id, startDate, endDate, pricingByDay, pricingByDayWithCommission } =
 			action.payload;
+
+		// If the target item is locked (from package/offer), ignore date updates
+		const target = state.roomCart.find((r) => r.id === id);
+		if (
+			target &&
+			(target.lockDates || target.fromPackagesOffers || target.datesLocked)
+		) {
+			// no changes — protect package/offer reservations
+			return { ...state };
+		}
 
 		const updatedCart = state.roomCart.map((room) => {
 			if (room.id === id) {
@@ -283,7 +308,7 @@ const cart_reducer = (state, action) => {
 					...room,
 					startDate,
 					endDate,
-					nights, // Update nights dynamically
+					nights,
 					pricingByDay: newPricingByDay,
 					pricingByDayWithCommission: newPricingByDayWithCommission,
 				};
@@ -325,14 +350,14 @@ const cart_reducer = (state, action) => {
 			(accum, item) => {
 				// Total room price (sum of daily prices for the room)
 				const totalRoomPrice = item.pricingByDay.reduce(
-					(sum, day) => sum + Number(day.price), // Sum up all daily prices
+					(sum, day) => sum + Number(day.price),
 					0
 				);
 
 				// Total room commission (calculated per day)
 				const totalRoomCommission = item.pricingByDayWithCommission.reduce(
 					(sum, day) =>
-						sum + Number(day.rootPrice) * Number(day.commissionRate), // Add daily commissions
+						sum + Number(day.rootPrice) * Number(day.commissionRate),
 					0
 				);
 
@@ -340,18 +365,17 @@ const cart_reducer = (state, action) => {
 				const roomTotalWithCommission = totalRoomPrice + totalRoomCommission;
 
 				// Update overall totals
-				accum.total_rooms += item.amount; // Total number of rooms
-				accum.total_price += totalRoomPrice * item.amount; // Total price for all rooms
-				accum.total_commission += totalRoomCommission * item.amount; // Total commission
+				accum.total_rooms += item.amount;
+				accum.total_price += totalRoomPrice * item.amount;
+				accum.total_commission += totalRoomCommission * item.amount;
 				accum.total_price_with_commission +=
-					roomTotalWithCommission * item.amount; // Total price with commission
-				accum.total_guests += item.amount * (item.adults + item.children); // Total guests
-				accum.total_adults += item.adults * item.amount; // Total adults
-				accum.total_children += item.children * item.amount; // Total children
+					roomTotalWithCommission * item.amount;
+				accum.total_guests += item.amount * (item.adults + item.children);
+				accum.total_adults += item.adults * item.amount;
+				accum.total_children += item.children * item.amount;
 
 				return accum;
 			},
-			// Initialize totals
 			{
 				total_rooms: 0,
 				total_price: 0,
@@ -363,7 +387,6 @@ const cart_reducer = (state, action) => {
 			}
 		);
 
-		// Return updated state with new totals
 		return {
 			...state,
 			...totals,
