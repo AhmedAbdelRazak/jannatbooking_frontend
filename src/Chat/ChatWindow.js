@@ -1,3 +1,4 @@
+// src/Chat/ChatWindow.js
 import React, { useState, useEffect, useRef } from "react";
 import { Button, Input, Select, Form, Upload, message } from "antd";
 import { UploadOutlined, CloseOutlined } from "@ant-design/icons";
@@ -18,7 +19,241 @@ import ReactPixel from "react-facebook-pixel";
 
 const { Option } = Select;
 
+/** ---------------- Language helpers ---------------- */
+const LANGUAGES = [
+	{ label: "English", code: "en", rtl: false },
+	{ label: "Arabic", code: "ar", rtl: true },
+	{ label: "Spanish", code: "es", rtl: false },
+	{ label: "French", code: "fr", rtl: false },
+	{ label: "Urdu", code: "ur", rtl: true },
+	{ label: "Hindi", code: "hi", rtl: false },
+];
+const LANG_BY_LABEL = Object.fromEntries(LANGUAGES.map((l) => [l.label, l]));
+const isRTL = (label) => LANG_BY_LABEL[label]?.rtl ?? false;
+const langCodeOf = (label) => LANG_BY_LABEL[label]?.code ?? "en";
+
+/** ---------------- i18n ---------------- */
+const I18N = {
+	English: {
+		customerSupport: "Customer Support",
+		rateOurService: "Rate Our Service",
+		submitRating: "Submit Rating",
+		skip: "Skip",
+		typeMessage: "Type your message...",
+		send: "Send",
+		closeChat: "Close Chat",
+		fullName: "Full Name",
+		emailOrPhone: "Email or Phone Number",
+		selectHotel: "Select Hotel",
+		selectAHotel: "Select a hotel",
+		inquiryAbout: "Inquiry About",
+		speakWithJB: "Speak With Jannat Booking",
+		reserveRoom: "Reserve A Room",
+		reserveBed: "Reserve A Bed",
+		paymentInquiry: "Payment Inquiry",
+		reservationInquiry: "Reservation Inquiry",
+		others: "Others",
+		specifyInquiry: "Please specify your inquiry",
+		reservationNumber: "Reservation Confirmation Number",
+		startChat: "Start Chat",
+		preferredLanguage: "Preferred Language",
+		systemHold: "A representative will be with you in 3 to 5 minutes",
+		isTyping: "is typing…",
+		aiPaused:
+			"Our AI assistant is paused for this hotel. A human will assist you shortly.",
+		v_fullName: "Please enter your full name.",
+		v_emailPhone: "Please enter a valid email address or phone number.",
+		v_hotel: "Please select a hotel.",
+		v_inquiryType: "Please select an inquiry type.",
+		v_reservation: "Please provide your reservation confirmation number.",
+		v_others: "Please provide details for your inquiry.",
+		v_addText: "Please add text to your message.",
+		thanksFeedback: "Thank you for your feedback!",
+	},
+	Arabic: {
+		customerSupport: "دعم العملاء",
+		rateOurService: "قيّم خدمتنا",
+		submitRating: "إرسال التقييم",
+		skip: "تخطي",
+		typeMessage: "اكتب رسالتك...",
+		send: "إرسال",
+		closeChat: "إغلاق المحادثة",
+		fullName: "الاسم الكامل",
+		emailOrPhone: "البريد الإلكتروني أو رقم الهاتف",
+		selectHotel: "اختر الفندق",
+		selectAHotel: "اختر فندقًا",
+		inquiryAbout: "الاستفسار عن",
+		speakWithJB: "التحدث مع حجز جنات",
+		reserveRoom: "حجز غرفة",
+		reserveBed: "حجز سرير",
+		paymentInquiry: "استفسار عن الدفع",
+		reservationInquiry: "استفسار عن الحجز",
+		others: "أخرى",
+		specifyInquiry: "يرجى تحديد استفسارك",
+		reservationNumber: "رقم تأكيد الحجز",
+		startChat: "بدء المحادثة",
+		preferredLanguage: "اللغة المفضلة",
+		systemHold: "سيتواصل معك ممثل خلال 3 إلى 5 دقائق",
+		isTyping: "يكتب…",
+		aiPaused:
+			"المساعد الذكي متوقف لهذا الفندق حاليًا. سيتم تحويلك إلى موظف خلال لحظات.",
+		v_fullName: "يرجى إدخال اسمك الكامل.",
+		v_emailPhone: "يرجى إدخال بريد إلكتروني أو رقم هاتف صالح.",
+		v_hotel: "يرجى اختيار فندق.",
+		v_inquiryType: "يرجى اختيار نوع الاستفسار.",
+		v_reservation: "يرجى إدخال رقم تأكيد الحجز.",
+		v_others: "يرجى توضيح تفاصيل الاستفسار.",
+		v_addText: "يرجى إضافة نص إلى رسالتك.",
+		thanksFeedback: "شكرًا لملاحظاتك!",
+	},
+	Spanish: {
+		customerSupport: "Atención al Cliente",
+		rateOurService: "Califica nuestro servicio",
+		submitRating: "Enviar calificación",
+		skip: "Omitir",
+		typeMessage: "Escribe tu mensaje...",
+		send: "Enviar",
+		closeChat: "Cerrar chat",
+		fullName: "Nombre completo",
+		emailOrPhone: "Correo electrónico o número de teléfono",
+		selectHotel: "Seleccionar hotel",
+		selectAHotel: "Selecciona un hotel",
+		inquiryAbout: "Consulta sobre",
+		speakWithJB: "Hablar con Jannat Booking",
+		reserveRoom: "Reservar una habitación",
+		reserveBed: "Reservar una cama",
+		paymentInquiry: "Consulta de pago",
+		reservationInquiry: "Consulta de reserva",
+		others: "Otros",
+		specifyInquiry: "Por favor, especifica tu consulta",
+		reservationNumber: "Número de confirmación de reserva",
+		startChat: "Iniciar chat",
+		preferredLanguage: "Idioma preferido",
+		systemHold: "Un representante te atenderá en 3 a 5 minutos",
+		isTyping: "está escribiendo…",
+		aiPaused:
+			"El asistente de IA está pausado para este hotel. Un agente humano te ayudará en breve.",
+		v_fullName: "Por favor, introduce tu nombre completo.",
+		v_emailPhone: "Introduce un correo o teléfono válido.",
+		v_hotel: "Por favor, selecciona un hotel.",
+		v_inquiryType: "Por favor, selecciona el tipo de consulta.",
+		v_reservation: "Introduce tu número de confirmación de reserva.",
+		v_others: "Especifica los detalles de tu consulta.",
+		v_addText: "Por favor, escribe tu mensaje.",
+		thanksFeedback: "¡Gracias por tus comentarios!",
+	},
+	French: {
+		customerSupport: "Service Client",
+		rateOurService: "Évaluer notre service",
+		submitRating: "Envoyer l’évaluation",
+		skip: "Ignorer",
+		typeMessage: "Écrivez votre message...",
+		send: "Envoyer",
+		closeChat: "Fermer le chat",
+		fullName: "Nom complet",
+		emailOrPhone: "E-mail ou numéro de téléphone",
+		selectHotel: "Sélectionner un hôtel",
+		selectAHotel: "Sélectionnez un hôtel",
+		inquiryAbout: "Sujet de la demande",
+		speakWithJB: "Parler avec Jannat Booking",
+		reserveRoom: "Réserver une chambre",
+		reserveBed: "Réserver un lit",
+		paymentInquiry: "Question de paiement",
+		reservationInquiry: "Question de réservation",
+		others: "Autres",
+		specifyInquiry: "Veuillez préciser votre demande",
+		reservationNumber: "Numéro de confirmation de réservation",
+		startChat: "Démarrer le chat",
+		preferredLanguage: "Langue préférée",
+		systemHold: "Un agent sera avec vous dans 3 à 5 minutes",
+		isTyping: "est en train d’écrire…",
+		aiPaused:
+			"L’assistant IA est en pause pour cet hôtel. Un agent humain vous aidera sous peu.",
+		v_fullName: "Veuillez saisir votre nom complet.",
+		v_emailPhone: "Veuillez saisir un e-mail ou un téléphone valide.",
+		v_hotel: "Veuillez sélectionner un hôtel.",
+		v_inquiryType: "Veuillez sélectionner le type de demande.",
+		v_reservation: "Veuillez saisir votre numéro de confirmation.",
+		v_others: "Veuillez préciser votre demande.",
+		v_addText: "Veuillez saisir un message.",
+		thanksFeedback: "Merci pour votre retour !",
+	},
+	Urdu: {
+		customerSupport: "خدمتِ صارفین",
+		rateOurService: "ہماری خدمت کی درجہ بندی کریں",
+		submitRating: "درجہ بندی بھیجیں",
+		skip: "نظر انداز کریں",
+		typeMessage: "اپنا پیغام لکھیں...",
+		send: "بھیجیں",
+		closeChat: "چیٹ بند کریں",
+		fullName: "پورا نام",
+		emailOrPhone: "ای میل یا فون نمبر",
+		selectHotel: "ہوٹل منتخب کریں",
+		selectAHotel: "ایک ہوٹل منتخب کریں",
+		inquiryAbout: "استفسار",
+		speakWithJB: "جنّت بُکنگ سے بات کریں",
+		reserveRoom: "کمرہ بُک کریں",
+		reserveBed: "بستر بُک کریں",
+		paymentInquiry: "ادائیگی سے متعلق سوال",
+		reservationInquiry: "بکنگ سے متعلق سوال",
+		others: "دیگر",
+		specifyInquiry: "براہِ کرم اپنی استفسار کی وضاحت کریں",
+		reservationNumber: "بکنگ کنفرمیشن نمبر",
+		startChat: "چیٹ شروع کریں",
+		preferredLanguage: "پسندیدہ زبان",
+		systemHold: "ایک نمائندہ 3 سے 5 منٹ میں آپ سے رابطہ کرے گا",
+		isTyping: "لکھ رہے ہیں…",
+		aiPaused:
+			"اس ہوٹل کے لیے AI اسسٹنٹ عارضی طور پر معطل ہے، جلد ہی انسانی ایجنٹ مدد کرے گا۔",
+		v_fullName: "براہِ کرم اپنا پورا نام درج کریں.",
+		v_emailPhone: "براہِ کرم درست ای میل یا فون نمبر درج کریں.",
+		v_hotel: "براہِ کرم ہوٹل منتخب کریں.",
+		v_inquiryType: "براہِ کرم استفسار کی قسم منتخب کریں.",
+		v_reservation: "براہِ کرم اپنی بکنگ کا کنفرمیشن نمبر درج کریں.",
+		v_others: "براہِ کرم اپنی استفسار کی تفصیل درج کریں.",
+		v_addText: "براہِ کرم پیغام لکھیں.",
+		thanksFeedback: "آپ کی رائے کا شکریہ!",
+	},
+	Hindi: {
+		customerSupport: "ग्राहक सहायता",
+		rateOurService: "हमारी सेवा को रेट करें",
+		submitRating: "रेटिंग भेजें",
+		skip: "छोड़ें",
+		typeMessage: "अपना संदेश लिखें...",
+		send: "भेजें",
+		closeChat: "चैट बंद करें",
+		fullName: "पूरा नाम",
+		emailOrPhone: "ईमेल या फ़ोन नंबर",
+		selectHotel: "होटल चुनें",
+		selectAHotel: "एक होटल चुनें",
+		inquiryAbout: "किस बारे में पूछताछ",
+		speakWithJB: "जन्नत बुकिंग से बात करें",
+		reserveRoom: "कमरा बुक करें",
+		reserveBed: "बिस्तर बुक करें",
+		paymentInquiry: "भुगतान संबंधी पूछताछ",
+		reservationInquiry: "आरक्षण संबंधी पूछताछ",
+		others: "अन्य",
+		specifyInquiry: "कृपया अपनी पूछताछ लिखें",
+		reservationNumber: "आरक्षण पुष्टि संख्या",
+		startChat: "चैट शुरू करें",
+		preferredLanguage: "पसंदीदा भाषा",
+		systemHold: "एक प्रतिनिधि 3 से 5 मिनट में आपसे जुड़ेगा",
+		isTyping: "टाइप कर रहे हैं…",
+		aiPaused:
+			"इस होटल के लिए AI सहायक रुका हुआ है। जल्द ही एक प्रतिनिधि आपकी सहायता करेगा।",
+		v_fullName: "कृपया अपना पूरा नाम दर्ज करें.",
+		v_emailPhone: "कृपया मान्य ईमेल पता या फ़ोन नंबर दर्ज करें.",
+		v_hotel: "कृपया एक होटल चुनें.",
+		v_inquiryType: "कृपया पूछताछ का प्रकार चुनें.",
+		v_reservation: "कृपया अपनी बुकिंग का पुष्टि नंबर दर्ज करें.",
+		v_others: "कृपया अपनी पूछताछ का विवरण दें.",
+		v_addText: "कृपया संदेश लिखें.",
+		thanksFeedback: "आपकी प्रतिक्रिया के लिए धन्यवाद!",
+	},
+};
+
 const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
+	/** ---------------- State ---------------- */
 	const [activeHotels, setActiveHotels] = useState([]);
 	const [customerName, setCustomerName] = useState("");
 	const [customerEmail, setCustomerEmail] = useState("");
@@ -26,9 +261,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	const [productName, setProductName] = useState("");
 	const [otherInquiry, setOtherInquiry] = useState("");
 	const [reservationNumber, setReservationNumber] = useState("");
-	// eslint-disable-next-line
-	const [hotelName, setHotelName] = useState("");
-	const [hotelId, setHotelId] = useState("674cf8997e3780f1f838d458"); // Default to Jannat Booking
+	const [hotelId, setHotelId] = useState("674cf8997e3780f1f838d458");
 	const [inquiryAbout, setInquiryAbout] = useState("");
 	const [submitted, setSubmitted] = useState(false);
 	const [messages, setMessages] = useState([]);
@@ -39,32 +272,51 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	const [isRatingVisible, setIsRatingVisible] = useState(false);
 	const [rating, setRating] = useState(0);
 	const [typingStatus, setTypingStatus] = useState("");
-	// eslint-disable-next-line
-	const [isMinimized, setIsMinimized] = useState(false);
+	const [isMinimized] = useState(false);
+
+	// local guard to suppress AI typing while user is typing locally
+	const [isUserTypingLocal, setIsUserTypingLocal] = useState(false);
+
+	// refs
+	const agentTypingTimeoutRef = useRef(null);
+	const selfStopTypingRef = useRef(null);
+	const userTypingLocalTimeoutRef = useRef(null);
 	const messagesEndRef = useRef(null);
+	const isUserTypingLocalRef = useRef(false);
+
+	// NEW: use ref for i18n to keep socket listeners stable (no re-binding)
+	const defaultLang = I18N[chosenLanguage] ? chosenLanguage : "English";
+	const [preferredLanguage, setPreferredLanguage] = useState(defaultLang);
+	const T = I18N[preferredLanguage] || I18N.English;
+	const TRef = useRef(T);
 
 	useEffect(() => {
+		TRef.current = T;
+	}, [T]);
+
+	useEffect(() => {
+		isUserTypingLocalRef.current = isUserTypingLocal;
+	}, [isUserTypingLocal]);
+
+	/** ---------------- Prefill selected hotel ---------------- */
+	useEffect(() => {
 		if (selectedHotel && selectedHotel.hotelName) {
-			setHotelName(selectedHotel.hotelName);
-			setInquiryAbout("reserve_room");
 			setHotelId(selectedHotel._id);
+			setInquiryAbout("reserve_room");
 		} else {
-			// Set default values if no selectedHotel is provided
-			setHotelName("Speak With Jannat Booking");
-			setInquiryAbout("Speak With Jannat Booking");
 			setHotelId("674cf8997e3780f1f838d458");
+			setInquiryAbout("reserve_room");
 		}
 	}, [selectedHotel]);
 
+	/** ---------------- Prefill user & restore chat + sockets ---------------- */
 	useEffect(() => {
-		// Set authenticated user details
 		if (isAuthenticated()) {
 			const { user } = isAuthenticated();
 			setCustomerName(user.name);
 			setCustomerEmail(user.email || user.phone);
 		}
 
-		// Restore chat from localStorage if it exists
 		const savedChat = JSON.parse(localStorage.getItem("currentChat"));
 		if (savedChat) {
 			setCustomerName(savedChat.customerName || "");
@@ -76,57 +328,93 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 			setCaseId(savedChat.caseId || "");
 			setSubmitted(savedChat.submitted || false);
 			setMessages(savedChat.messages || []);
+			if (savedChat.preferredLanguage)
+				setPreferredLanguage(savedChat.preferredLanguage);
 			fetchSupportCase(savedChat.caseId);
 		}
 
-		// Socket listener for new messages
-		socket.on("receiveMessage", (message) => {
-			if (message.caseId === caseId) {
-				setMessages((prevMessages) => [...prevMessages, message]); // Add new message
-				markMessagesAsSeen(caseId); // Mark messages as seen
+		// --- stable socket handlers (only depend on caseId) ---
+		const onReceiveMessage = (messageData) => {
+			if (messageData.caseId === caseId) {
+				setMessages((prev) => [...prev, messageData]);
+				markMessagesAsSeen(caseId);
 			}
-		});
-
-		// Socket listener for closed cases
-		socket.on("closeCase", (data) => {
-			if (data.case._id === caseId) {
-				setIsRatingVisible(true); // Show rating dialog
-			}
-		});
-
-		// Socket listener for typing notifications
-		socket.on("typing", (data) => {
-			if (data.caseId === caseId && data.name !== customerName) {
-				setTypingStatus(`${data.name} is typing...`); // Show typing status
-			}
-		});
-
-		// Socket listener for stop typing notifications
-		socket.on("stopTyping", (data) => {
-			if (data.caseId === caseId && data.name !== customerName) {
-				setTypingStatus(""); // Clear typing status
-			}
-		});
-
-		// Socket listener for deleted messages
-		socket.on("messageDeleted", (data) => {
-			if (data.caseId === caseId) {
-				setMessages((prevMessages) =>
-					prevMessages.filter((msg) => msg._id !== data.messageId)
-				); // Remove the deleted message from the state
-			}
-		});
-
-		// Cleanup socket listeners on component unmount
-		return () => {
-			socket.off("receiveMessage");
-			socket.off("closeCase");
-			socket.off("typing");
-			socket.off("stopTyping");
-			socket.off("messageDeleted");
 		};
-	}, [caseId, customerEmail, customerName]);
 
+		const onCloseCase = (data) => {
+			if (data.case?._id === caseId) setIsRatingVisible(true);
+		};
+		const onCaseClosed = (data) => {
+			if (data.caseId === caseId) setIsRatingVisible(true);
+		};
+
+		const onTyping = (data) => {
+			if (data.caseId === caseId && data.isAi) {
+				if (isUserTypingLocalRef.current) return; // suppress while user types
+				setTypingStatus(`${data.name} ${TRef.current.isTyping}`);
+				if (agentTypingTimeoutRef.current)
+					clearTimeout(agentTypingTimeoutRef.current);
+				agentTypingTimeoutRef.current = setTimeout(() => {
+					setTypingStatus("");
+				}, 5000);
+			}
+		};
+
+		const onStopTyping = (data) => {
+			if (data.caseId === caseId && data.isAi) {
+				setTypingStatus("");
+				if (agentTypingTimeoutRef.current) {
+					clearTimeout(agentTypingTimeoutRef.current);
+					agentTypingTimeoutRef.current = null;
+				}
+			}
+		};
+
+		const onAiPaused = (data) => {
+			if (data.caseId === caseId) {
+				setMessages((prev) => [
+					...prev,
+					{
+						messageBy: { customerName: "System" },
+						message: TRef.current.aiPaused,
+						date: new Date(),
+					},
+				]);
+			}
+		};
+
+		socket.on("receiveMessage", onReceiveMessage);
+		socket.on("closeCase", onCloseCase);
+		socket.on("caseClosed", onCaseClosed);
+		socket.on("typing", onTyping);
+		socket.on("stopTyping", onStopTyping);
+		socket.on("aiPaused", onAiPaused);
+
+		return () => {
+			socket.off("receiveMessage", onReceiveMessage);
+			socket.off("closeCase", onCloseCase);
+			socket.off("caseClosed", onCaseClosed);
+			socket.off("typing", onTyping);
+			socket.off("stopTyping", onStopTyping);
+			socket.off("aiPaused", onAiPaused);
+			if (agentTypingTimeoutRef.current)
+				clearTimeout(agentTypingTimeoutRef.current);
+			if (selfStopTypingRef.current) clearTimeout(selfStopTypingRef.current);
+			if (userTypingLocalTimeoutRef.current)
+				clearTimeout(userTypingLocalTimeoutRef.current);
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [caseId]); // stable listeners per case
+
+	/** ---------------- Join/leave room per case ---------------- */
+	useEffect(() => {
+		if (caseId) {
+			socket.emit("joinRoom", { caseId });
+			return () => socket.emit("leaveRoom", { caseId });
+		}
+	}, [caseId]);
+
+	/** ---------------- Persist + seen ---------------- */
 	useEffect(() => {
 		if (caseId) {
 			const saveChat = {
@@ -139,10 +427,12 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 				caseId,
 				messages,
 				submitted,
+				preferredLanguage,
 			};
 			localStorage.setItem("currentChat", JSON.stringify(saveChat));
 			markMessagesAsSeen(caseId);
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
 		customerName,
 		customerEmail,
@@ -153,115 +443,107 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		messages,
 		submitted,
 		caseId,
+		preferredLanguage,
 	]);
 
-	// Function to make URLs in a message clickable
+	/** ---------------- Helpers ---------------- */
 	const renderMessageWithLinks = (text) => {
 		const urlRegex = /(https?:\/\/[^\s]+)/g;
-		return text.split(urlRegex).map((part, index) => {
-			if (part.match(urlRegex)) {
-				return (
+		return String(text)
+			.split(urlRegex)
+			.map((part, index) =>
+				part.match(urlRegex) ? (
 					<a key={index} href={part} target='_blank' rel='noopener noreferrer'>
 						{part}
 					</a>
-				);
-			}
-			return part;
-		});
+				) : (
+					part
+				)
+			);
 	};
 
 	const fetchSupportCase = async (id) => {
 		try {
+			if (!id) return;
 			const supportCase = await getSupportCaseById(id);
-
-			// Ensure conversation array includes `_id`
 			if (supportCase.conversation && supportCase.conversation.length > 0) {
 				setMessages(supportCase.conversation);
-			} else {
-				console.error("Conversation data is missing or malformed.");
 			}
 		} catch (err) {
 			console.error("Error fetching support case", err);
 		}
 	};
 
-	const markMessagesAsSeen = async (caseId) => {
+	const markMessagesAsSeen = async (cid) => {
 		try {
-			await updateSeenByCustomer(caseId);
+			await updateSeenByCustomer(cid);
 		} catch (err) {
 			console.error("Error marking messages as seen", err);
 		}
 	};
 
 	useEffect(() => {
-		scrollToBottom();
+		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [messages]);
 
-	// Fetch hotel details on component mount
 	useEffect(() => {
 		const fetchHotel = async () => {
 			try {
-				const hotelData = await gettingActiveHotelList(); // Fetch hotels
-				setActiveHotels(hotelData); // Set response to activeHotels state
+				const hotelData = await gettingActiveHotelList();
+				setActiveHotels(hotelData);
 			} catch (error) {
 				console.error("Error fetching hotels:", error);
 			}
 		};
-
 		fetchHotel();
 	}, []);
 
 	const handleInputChange = (e) => {
 		setNewMessage(e.target.value);
+
+		// local typing guard
+		setIsUserTypingLocal(true);
+		if (userTypingLocalTimeoutRef.current)
+			clearTimeout(userTypingLocalTimeoutRef.current);
+		userTypingLocalTimeoutRef.current = setTimeout(
+			() => setIsUserTypingLocal(false),
+			1200
+		);
+
+		// notify server (guest typing)
 		socket.emit("typing", { name: customerName, caseId });
-	};
 
-	// eslint-disable-next-line
-	const handleInputBlur = () => {
-		socket.emit("stopTyping", { name: customerName, caseId });
-	};
-
-	// eslint-disable-next-line
-	const handleInputKeyPress = (e) => {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			if (newMessage.trim() === "") {
-				message.error("Please add text to your message.");
-			} else {
-				handleSendMessage();
-			}
-		}
+		// schedule stopTyping
+		if (selfStopTypingRef.current) clearTimeout(selfStopTypingRef.current);
+		selfStopTypingRef.current = setTimeout(() => {
+			socket.emit("stopTyping", { name: customerName, caseId });
+		}, 1500);
 	};
 
 	const handleSubmit = async () => {
 		if (!customerName || !/\s/.test(customerName)) {
-			message.error("Please enter your full name.");
+			message.error(T.v_fullName);
 			return;
 		}
 
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 		const phoneRegex = /^[0-9]{10,15}$/;
 
-		// Validate either email or phone number
 		if (
 			!customerEmail ||
 			(!emailRegex.test(customerEmail) && !phoneRegex.test(customerEmail))
 		) {
-			message.error(
-				chosenLanguage === "Arabic"
-					? "يرجى إدخال بريد إلكتروني أو رقم هاتف صالح."
-					: "Please enter a valid email address or phone number."
-			);
+			message.error(T.v_emailPhone);
 			return;
 		}
 
 		if (!hotelId) {
-			message.error("Please select a hotel.");
+			message.error(T.v_hotel);
 			return;
 		}
 
 		if (!inquiryAbout) {
-			message.error("Please select an inquiry type.");
+			message.error(T.v_inquiryType);
 			return;
 		}
 
@@ -278,7 +560,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 			inquiryAbout === "reservation" &&
 			(!reservationNumber || reservationNumber.trim() === "")
 		) {
-			message.error("Please provide your reservation confirmation number.");
+			message.error(T.v_reservation);
 			return;
 		}
 
@@ -286,7 +568,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 			inquiryAbout === "others" &&
 			(!otherInquiry || otherInquiry.trim() === "")
 		) {
-			message.error("Please provide details for your inquiry.");
+			message.error(T.v_others);
 			return;
 		}
 
@@ -297,28 +579,33 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 				activeHotels.filter((i) => i._id === hotelId)[0].belongsTo) ||
 			"6553f1c6d06c5cea2f98a838";
 
+		const langCode = langCodeOf(preferredLanguage);
+		const inquiryDetailsWithLanguage = `[Preferred Language: ${preferredLanguage} (${langCode})] ${
+			inquiryDetails ? inquiryDetails : `Inquiry To ${inquiryAbout}`
+		}`;
+
 		const data = {
 			customerName: customerName,
 			displayName1: customerName,
 			displayName2: "Fareda Elsheemy",
 			role: 0,
 			customerEmail,
-			hotelId: hotelId || "674cf8997e3780f1f838d458", // Send hotelId along with other data
+			hotelId: hotelId || "674cf8997e3780f1f838d458",
 			inquiryAbout,
-			inquiryDetails: inquiryDetails
-				? inquiryDetails
-				: `Inquiry To ${inquiryAbout}`,
+			inquiryDetails: inquiryDetailsWithLanguage,
 			supporterId: "6553f1c6d06c5cea2f98a838",
 			ownerId: ownerId,
+			preferredLanguage,
+			preferredLanguageCode: langCode,
 		};
 
 		try {
 			const response = await createNewSupportCase(data);
+
 			ReactGA.event({
 				category: "User Started Chat",
 				action: "User Started Chat",
 			});
-
 			ReactPixel.track("User Started Chat", {
 				action: "User Started Chat",
 				page: "Home Page",
@@ -330,22 +617,29 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 				...prev,
 				{
 					messageBy: { customerName: "System" },
-					message: "A representative will be with you in 3 to 5 minutes",
-					date: new Date(), // Add the current date-time
+					message: T.systemHold,
+					date: new Date(),
 				},
-			]); // Add system message
-			fetchSupportCase(response._id); // Fetch the created support case
+			]);
+			fetchSupportCase(response._id);
 		} catch (err) {
 			console.error("Error creating support case", err);
 		}
 	};
 
 	const handleSendMessage = async () => {
+		if (!newMessage.trim()) {
+			message.error(T.v_addText);
+			return;
+		}
+
 		const messageData = {
 			messageBy: { customerName, customerEmail },
 			message: newMessage,
 			date: new Date(),
 			caseId,
+			preferredLanguage,
+			preferredLanguageCode: langCodeOf(preferredLanguage),
 		};
 
 		try {
@@ -369,15 +663,11 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 				caseStatus: "closed",
 				closedBy: customerEmail,
 			});
-			ReactGA.event({
-				category: "User Rated Chat",
-				action: "User Rated Chat",
-			});
+			ReactGA.event({ category: "User Rated Chat", action: "User Rated Chat" });
 			localStorage.removeItem("currentChat");
 			setIsRatingVisible(false);
 			closeChatWindow();
-
-			message.success("Thank you for your feedback!");
+			message.success(T.thanksFeedback);
 		} catch (err) {
 			console.error("Error rating support case", err);
 		}
@@ -402,50 +692,27 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		setShowEmojiPicker(false);
 	};
 
-	const handleFileChange = ({ fileList }) => {
-		setFileList(fileList);
-	};
-
-	const scrollToBottom = () => {
-		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-	};
-
-	// Handle hotel selection and set hotelId
-	const handleHotelChange = (value, option) => {
-		setHotelName(option.children); // Set hotel name
-		setHotelId(value); // Store the hotelId
-	};
-
-	const handleInquiryChange = (value) => {
-		setInquiryAbout(value);
-		if (value !== "others") {
-			setOtherInquiry(""); // Reset other inquiry field if not selected
-		}
-		if (value !== "reservation") {
-			setReservationNumber(""); // Reset reservation number field if not reservation
-		}
+	const handleFileChange = ({ fileList: files }) => {
+		setFileList(files);
 	};
 
 	return (
 		<ChatWindowWrapper
 			isMinimized={isMinimized}
-			dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+			dir={isRTL(preferredLanguage) ? "rtl" : "ltr"}
 		>
 			<ChatWindowHeader>
-				<h3>
-					{chosenLanguage === "Arabic" ? "دعم العملاء" : "Customer Support"}
-				</h3>
+				<h3>{T.customerSupport}</h3>
 				<Button
 					type='text'
 					icon={<CloseOutlined />}
 					onClick={closeChatWindow}
 				/>
 			</ChatWindowHeader>
+
 			{isRatingVisible ? (
 				<RatingSection>
-					<h4>
-						{chosenLanguage === "Arabic" ? "قيم خدمتنا" : "Rate Our Service"}
-					</h4>
+					<h4>{T.rateOurService}</h4>
 					<StarRatings
 						rating={rating}
 						starRatedColor='var(--secondary-color)'
@@ -456,17 +723,10 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 						starSpacing='2px'
 					/>
 					<RatingButtons>
-						<Button
-							type='primary'
-							onClick={() => {
-								handleRateService(rating);
-							}}
-						>
-							{chosenLanguage === "Arabic" ? "إرسال التقييم" : "Submit Rating"}
+						<Button type='primary' onClick={() => handleRateService(rating)}>
+							{T.submitRating}
 						</Button>
-						<Button onClick={handleSkipRating}>
-							{chosenLanguage === "Arabic" ? "تخطي" : "Skip"}
-						</Button>
+						<Button onClick={handleSkipRating}>{T.skip}</Button>
 					</RatingButtons>
 				</RatingSection>
 			) : submitted && !isMinimized ? (
@@ -477,12 +737,12 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 								<Message
 									key={index}
 									isAdminMessage={
-										msg.messageBy.customerEmail ===
+										msg.messageBy?.customerEmail ===
 											"management@xhotelpro.com" ||
-										msg.messageBy.customerName === "Admin"
+										msg.messageBy?.customerName === "Admin"
 									}
 								>
-									<strong>{msg.messageBy.customerName}:</strong>{" "}
+									<strong>{msg.messageBy?.customerName}:</strong>{" "}
 									{renderMessageWithLinks(msg.message)}
 								</Message>
 							))}
@@ -490,23 +750,23 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 					</MessagesContainer>
 
 					{typingStatus && <TypingStatus>{typingStatus}</TypingStatus>}
+
 					<Form.Item>
 						<ChatInputContainer>
 							<Input.TextArea
-								placeholder={
-									chosenLanguage === "Arabic"
-										? "اكتب رسالتك..."
-										: "Type your message..."
-								}
+								placeholder={T.typeMessage}
 								value={newMessage}
 								onChange={handleInputChange}
+								onBlur={() =>
+									socket.emit("stopTyping", { name: customerName, caseId })
+								}
 								onKeyDown={(e) => {
 									if (e.key === "Enter" && !e.shiftKey) {
-										e.preventDefault(); // Prevent default Enter behavior
-										handleSendMessage(); // Send the message
+										e.preventDefault();
+										handleSendMessage();
 									}
 								}}
-								autoSize={{ minRows: 1, maxRows: 5 }} // Allows dynamic resizing
+								autoSize={{ minRows: 1, maxRows: 5 }}
 								style={{ flexGrow: 1 }}
 							/>
 							<Button onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
@@ -530,24 +790,36 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 							</Upload>
 						</ChatInputContainer>
 						<SendButton type='primary' onClick={handleSendMessage}>
-							{chosenLanguage === "Arabic" ? "إرسال" : "Send"}
+							{T.send}
 						</SendButton>
-						<CloseButton type='danger' onClick={handleCloseChat}>
-							<CloseOutlined />{" "}
-							{chosenLanguage === "Arabic" ? "إغلاق المحادثة" : "Close Chat"}
+						<CloseButton danger onClick={handleCloseChat}>
+							<CloseOutlined /> {T.closeChat}
 						</CloseButton>
 					</Form.Item>
 				</div>
-			) : !isMinimized ? (
+			) : (
 				<Form layout='vertical' onFinish={handleSubmit}>
-					<Form.Item
-						label={chosenLanguage === "Arabic" ? "الاسم الكامل" : "Full Name"}
-						required
-					>
+					{/* Preferred Language */}
+					<Form.Item label={T.preferredLanguage} required>
+						<Select
+							value={preferredLanguage}
+							onChange={(val) => setPreferredLanguage(val)}
+							dropdownMatchSelectWidth
+							style={{ textAlign: isRTL(preferredLanguage) ? "right" : "left" }}
+						>
+							{LANGUAGES.map((l) => (
+								<Option key={l.label} value={l.label}>
+									{l.label}
+								</Option>
+							))}
+						</Select>
+					</Form.Item>
+
+					<Form.Item label={T.fullName} required>
 						<Input
 							value={customerName}
 							placeholder={
-								chosenLanguage === "Arabic"
+								preferredLanguage === "Arabic" || preferredLanguage === "Urdu"
 									? "الاسم الأول الاسم الأخير"
 									: "FirstName LastName"
 							}
@@ -555,32 +827,21 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 							disabled={isAuthenticated()}
 						/>
 					</Form.Item>
+
 					<Form.Item
-						label={
-							chosenLanguage === "Arabic"
-								? "البريد الإلكتروني أو رقم الهاتف"
-								: "Email or Phone Number"
-						}
+						label={T.emailOrPhone}
 						required
 						rules={[
 							{
 								required: true,
-								message:
-									chosenLanguage === "Arabic"
-										? "يرجى إدخال بريد إلكتروني أو رقم هاتف صحيح"
-										: "Please enter a valid email or phone number",
+								message: T.v_emailPhone,
 								validator: (_, value) => {
-									if (!value) {
-										return Promise.reject();
-									}
-									// Regex for validating email
+									if (!value) return Promise.reject();
 									const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-									// Regex for validating phone number
 									const phoneRegex = /^[0-9]{10,15}$/;
-									if (emailRegex.test(value) || phoneRegex.test(value)) {
-										return Promise.resolve();
-									}
-									return Promise.reject();
+									return emailRegex.test(value) || phoneRegex.test(value)
+										? Promise.resolve()
+										: Promise.reject();
 								},
 							},
 						]}
@@ -588,32 +849,30 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 						<Input
 							value={customerEmail}
 							placeholder={
-								chosenLanguage === "Arabic"
-									? "على سبيل المثال client@gmail.com أو 1234567890"
+								preferredLanguage === "Arabic" || preferredLanguage === "Urdu"
+									? "مثال: client@gmail.com أو 1234567890"
 									: "e.g. client@gmail.com or 1234567890"
 							}
 							onChange={(e) => setCustomerEmail(e.target.value)}
 							disabled={isAuthenticated()}
 						/>
 					</Form.Item>
-					<Form.Item
-						label={chosenLanguage === "Arabic" ? "اختر الفندق" : "Select Hotel"}
-						required
-					>
+
+					<Form.Item label={T.selectHotel} required>
 						<Select
 							showSearch
-							placeholder={
-								chosenLanguage === "Arabic" ? "اختر فندقًا" : "Select a hotel"
-							}
+							placeholder={T.selectAHotel}
 							optionFilterProp='children'
 							value={hotelId || undefined}
-							onChange={handleHotelChange}
+							onChange={(value) => setHotelId(value)}
 							filterOption={(input, option) =>
-								option.children.toLowerCase().includes(input.toLowerCase())
+								typeof option.children === "string"
+									? option.children.toLowerCase().includes(input.toLowerCase())
+									: false
 							}
 							style={{
 								textTransform: "capitalize",
-								textAlign: chosenLanguage === "Arabic" ? "right" : "",
+								textAlign: isRTL(preferredLanguage) ? "right" : "left",
 							}}
 						>
 							<Option
@@ -625,9 +884,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 									color: "darkred",
 								}}
 							>
-								{chosenLanguage === "Arabic"
-									? "التحدث مع إدارة جنات"
-									: "Speak With Jannat Booking"}
+								{T.speakWithJB}
 							</Option>
 							{activeHotels &&
 								activeHotels.map((hotel) => (
@@ -641,65 +898,27 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 								))}
 						</Select>
 					</Form.Item>
-					<Form.Item
-						label={
-							chosenLanguage === "Arabic" ? "الاستفسار عن" : "Inquiry About"
-						}
-						required
-					>
+
+					<Form.Item label={T.inquiryAbout} required>
 						<Select
 							value={inquiryAbout}
-							onChange={handleInquiryChange}
-							style={{ textAlign: chosenLanguage === "Arabic" ? "right" : "" }}
+							onChange={(value) => {
+								setInquiryAbout(value);
+								if (value !== "others") setOtherInquiry("");
+								if (value !== "reservation") setReservationNumber("");
+							}}
+							style={{ textAlign: isRTL(preferredLanguage) ? "right" : "left" }}
 						>
-							{(selectedHotel && selectedHotel.hotelName) ||
-							hotelName ||
-							hotelId ? null : (
-								<Option
-									value='Speak With Jannat Booking'
-									style={{
-										textTransform: "capitalize",
-										fontWeight: "bold",
-										color: "darkred",
-									}}
-								>
-									{chosenLanguage === "Arabic"
-										? "التحدث مع حجز جنات"
-										: "Speak With Jannat Booking"}
-								</Option>
-							)}
-
-							<Option value='reserve_room'>
-								{chosenLanguage === "Arabic" ? "حجز غرفة" : "Reserve A Room"}
-							</Option>
-							<Option value='reserve_bed'>
-								{chosenLanguage === "Arabic" ? "حجز سرير" : "Reserve A Bed"}
-							</Option>
-							<Option value='payment_inquiry'>
-								{chosenLanguage === "Arabic"
-									? "استفسار عن الدفع"
-									: "Payment Inquiry"}
-							</Option>
-							<Option value='reservation'>
-								{chosenLanguage === "Arabic"
-									? "استفسار عن الحجز"
-									: "Reservation Inquiry"}
-							</Option>
-							<Option value='others'>
-								{chosenLanguage === "Arabic" ? "أخرى" : "Others"}
-							</Option>
+							<Option value='reserve_room'>{T.reserveRoom}</Option>
+							<Option value='reserve_bed'>{T.reserveBed}</Option>
+							<Option value='payment_inquiry'>{T.paymentInquiry}</Option>
+							<Option value='reservation'>{T.reservationInquiry}</Option>
+							<Option value='others'>{T.others}</Option>
 						</Select>
 					</Form.Item>
 
 					{inquiryAbout === "others" && (
-						<Form.Item
-							label={
-								chosenLanguage === "Arabic"
-									? "يرجى تحديد استفسارك"
-									: "Please specify your inquiry"
-							}
-							required
-						>
+						<Form.Item label={T.specifyInquiry} required>
 							<Input
 								value={otherInquiry}
 								onChange={(e) => setOtherInquiry(e.target.value)}
@@ -708,14 +927,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 					)}
 
 					{inquiryAbout === "reservation" && (
-						<Form.Item
-							label={
-								chosenLanguage === "Arabic"
-									? "رقم تأكيد الحجز"
-									: "Reservation Confirmation Number"
-							}
-							required
-						>
+						<Form.Item label={T.reservationNumber} required>
 							<Input
 								value={reservationNumber}
 								onChange={(e) => setReservationNumber(e.target.value)}
@@ -725,18 +937,18 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 
 					<Form.Item>
 						<Button type='primary' htmlType='submit'>
-							{chosenLanguage === "Arabic" ? "بدء المحادثة" : "Start Chat"}
+							{T.startChat}
 						</Button>
 					</Form.Item>
 				</Form>
-			) : null}
+			)}
 		</ChatWindowWrapper>
 	);
 };
 
 export default ChatWindow;
 
-// Styled-components
+/** ---------------- Styled-components ---------------- */
 
 const ChatWindowWrapper = styled.div`
 	position: fixed;
@@ -783,13 +995,13 @@ const MessagesContainer = styled.div`
 	max-height: 55vh;
 	margin-bottom: 10px;
 	overflow-x: hidden;
-	overflow-y: auto; /* Added for y-axis scrolling */
+	overflow-y: auto;
 	scroll-behavior: smooth;
 `;
 
 const Message = styled.p`
 	word-wrap: break-word;
-	white-space: pre-wrap; /* This preserves new lines */
+	white-space: pre-wrap;
 	background-color: ${(props) =>
 		props.isAdminMessage
 			? "var(--admin-message-bg)"
@@ -858,8 +1070,9 @@ const RatingButtons = styled.div`
 `;
 
 const TypingStatus = styled.div`
-	margin-top: -20px;
-	margin-bottom: 10px;
+	/* improved spacing so it's not cramped against messages above */
+	margin-top: 8px;
+	margin-bottom: 12px;
 	color: var(--text-color-dark);
 	font-style: italic;
 	font-size: 0.85rem;
