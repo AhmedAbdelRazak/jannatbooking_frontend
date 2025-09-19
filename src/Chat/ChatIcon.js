@@ -1,14 +1,13 @@
+// ChatIcon.jsx
 import React, { useState, useEffect, useCallback } from "react";
-// eslint-disable-next-line
-import { MessageOutlined } from "@ant-design/icons";
 import ChatWindow from "./ChatWindow";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import {
 	gettingSingleHotel,
 	getUnseenMessagesCountByCustomer,
-} from "../apiCore"; // Import the function to fetch unseen messages count
-import notificationSound from "./Notification.wav"; // Import the notification sound
-import socket from "./socket"; // Ensure this is correctly imported
+} from "../apiCore";
+import notificationSound from "./Notification.wav";
+import socket from "./socket";
 import ReactGA from "react-ga4";
 import { useCartContext } from "../cart_context";
 import ReactPixel from "react-facebook-pixel";
@@ -20,6 +19,7 @@ const ChatIconWrapper = styled.div`
 	z-index: 1000;
 	display: flex;
 	align-items: center;
+	padding-bottom: env(safe-area-inset-bottom, 0px);
 
 	div,
 	p,
@@ -38,23 +38,30 @@ const ChatIconWrapper = styled.div`
 	}
 
 	@media (max-width: 750px) {
-		bottom: 30px;
+		right: 12px;
+		bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 	}
+`;
+
+const blink = keyframes`
+  0%   { opacity: 1;   }
+  50%  { opacity: 0.45;}
+  100% { opacity: 1;   }
 `;
 
 const ChatMessage = styled.div`
 	cursor: pointer;
-	color: #1890ff;
+	color: #fff;
 	font-weight: bold;
 	text-transform: capitalize;
 	background-color: var(--primaryBlue);
 	font-size: 15px;
-	padding: 5px;
-	border-radius: 10px;
-	text-align: left; /* Align text to the left */
+	padding: 8px 10px;
+	border-radius: 12px;
+	text-align: left;
 	display: flex;
 	flex-direction: column;
-	box-shadow: 5px 5px 5px 5px rgba(0, 0, 0, 0.25);
+	box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.25);
 
 	.chat-name {
 		font-size: 15px;
@@ -63,34 +70,36 @@ const ChatMessage = styled.div`
 	}
 
 	.chat-status {
-		font-size: 12px; /* Adjust font size for the status text */
-		font-weight: normal; /* Normal font weight for the text */
-		color: white; /* White color for the text */
+		font-size: 12px;
+		font-weight: normal;
+		color: white;
+		display: flex;
+		align-items: center;
+		gap: 6px;
 
 		.status-dot {
-			width: 8px; /* Set the width of the dot */
-			height: 8px; /* Set the height of the dot */
-			background-color: #00ff00; /* Green color for the dot */
-			border-radius: 50%; /* Make the dot circular */
-			display: inline-block; /* Inline block for inline positioning */
-			margin-right: 5px; /* Add space between the dot and text */
-
-			/* Animation for blinking effect */
-			animation: blink 3s infinite; /* Apply the 'blink' animation, repeating infinitely */
+			width: 8px;
+			height: 8px;
+			background-color: #00c853;
+			border-radius: 50%;
+			display: inline-block;
+			animation: ${blink} 2.2s infinite;
 		}
 	}
 
 	.unseen-count {
 		background-color: red;
 		color: white;
-		border-radius: 50%;
-		font-size: 10px;
-		width: 20px;
-		height: 20px;
-		display: flex;
+		border-radius: 999px;
+		font-size: 11px;
+		min-width: 22px;
+		height: 18px;
+		padding: 0 6px;
+		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		margin-left: 10px;
+		margin-left: 6px;
+		line-height: 18px;
 	}
 
 	&:hover {
@@ -99,31 +108,39 @@ const ChatMessage = styled.div`
 
 	@media (max-width: 750px) {
 		.chat-name {
-			font-size: 12.5px;
+			font-size: 13.5px;
 		}
-
 		.chat-status {
-			font-size: 10px;
+			font-size: 11px;
 		}
 	}
 `;
 
+const STATUS_I18N = {
+	English: "Chat Available",
+	"Arabic (Fos7a)": "الدردشة متاحة",
+	"Arabic (Egyptian)": "الدردشة متاحة",
+	Spanish: "Chat disponible",
+	French: "Chat disponible",
+	Urdu: "چیٹ دستیاب",
+	Hindi: "चैट उपलब्ध",
+};
+
 const ChatIcon = () => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [unseenCount, setUnseenCount] = useState(0);
-	const [hasInteracted, setHasInteracted] = useState(false); // Track user interaction
-	const [selectedHotel, setSelectedHotel] = useState(null); // Track selected hotel
+	const [hasInteracted, setHasInteracted] = useState(false);
+	const [selectedHotel, setSelectedHotel] = useState(null);
 	const { chosenLanguage } = useCartContext();
 
-	// Extract the hotelNameSlug from window.location.pathname
+	// Auto-detect hotel from URL
 	useEffect(() => {
 		const path = window.location.pathname;
 		if (path.includes("/single-hotel/")) {
 			const slug = path.split("/single-hotel/")[1];
-			if (slug) {
-				fetchHotel(slug);
-			}
+			if (slug) fetchHotel(slug);
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	useEffect(() => {
@@ -132,10 +149,9 @@ const ChatIcon = () => {
 
 		if (hotelNameSlug) {
 			fetchHotel(hotelNameSlug);
-			setIsOpen(true); // Automatically open chat window if slug is present
+			setIsOpen(true); // auto-open when slug is present
 		}
 
-		// Listen for custom event when search changes
 		const handleSearchChange = () => {
 			const updatedParams = new URLSearchParams(window.location.search);
 			const updatedSlug = updatedParams.get("hotelNameSlug");
@@ -146,11 +162,9 @@ const ChatIcon = () => {
 		};
 
 		window.addEventListener("searchChange", handleSearchChange);
-
-		return () => {
-			window.removeEventListener("searchChange", handleSearchChange);
-		};
-	}, []); // Only run on mount, no unnecessary dependencies
+		return () => window.removeEventListener("searchChange", handleSearchChange);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 	const fetchHotel = async (slug) => {
 		try {
@@ -172,9 +186,10 @@ const ChatIcon = () => {
 			action: "User Opened Chat Window Main Icon",
 			page: "Home Page",
 		});
-		setIsOpen(!isOpen);
-		if (isOpen) {
-			// Reset unseen count when chat window is opened
+
+		const willOpen = !isOpen;
+		setIsOpen(willOpen);
+		if (willOpen) {
 			setUnseenCount(0);
 		}
 	};
@@ -194,7 +209,7 @@ const ChatIcon = () => {
 	const playNotificationSound = useCallback(() => {
 		if (hasInteracted) {
 			const audio = new Audio(notificationSound);
-			audio.play();
+			audio.play().catch(() => {});
 		}
 	}, [hasInteracted]);
 
@@ -203,54 +218,74 @@ const ChatIcon = () => {
 		document.removeEventListener("click", handleUserInteraction);
 	}, []);
 
+	// Periodic unseen count while collapsed
 	useEffect(() => {
 		if (!isOpen) {
-			// Fetch unseen messages count when the chat window is collapsed
 			fetchUnseenMessagesCount();
-
-			// Set an interval to periodically fetch unseen messages count
-			const interval = setInterval(() => {
-				fetchUnseenMessagesCount();
-			}, 10000); // Fetch every 10 seconds
-
-			return () => clearInterval(interval); // Clear interval on component unmount
+			const interval = setInterval(fetchUnseenMessagesCount, 10000);
+			return () => clearInterval(interval);
 		}
 	}, [isOpen, fetchUnseenMessagesCount]);
 
+	// Live unseen updates only for our caseId and NOT from ourselves
 	useEffect(() => {
-		socket.on("receiveMessage", () => {
-			if (!isOpen) {
-				playNotificationSound();
-				fetchUnseenMessagesCount();
-			}
-		});
+		const onReceiveMessage = (payload) => {
+			if (!payload) return;
 
+			const saved = JSON.parse(localStorage.getItem("currentChat")) || {};
+			const currentCaseId = saved.caseId;
+			const myEmailOrPhone = saved.customerEmail;
+			const fromSelf =
+				payload?.messageBy?.customerEmail &&
+				myEmailOrPhone &&
+				payload.messageBy.customerEmail === myEmailOrPhone;
+
+			if (!currentCaseId || payload.caseId !== currentCaseId) return;
+
+			if (!isOpen && !fromSelf) {
+				playNotificationSound();
+				setUnseenCount((c) => c + 1);
+			}
+		};
+
+		const onReconnect = () => {
+			if (!isOpen) fetchUnseenMessagesCount();
+		};
+
+		socket.on("receiveMessage", onReceiveMessage);
+		socket.on("connect", onReconnect);
 		return () => {
-			socket.off("receiveMessage");
+			socket.off("receiveMessage", onReceiveMessage);
+			socket.off("connect", onReconnect);
 		};
 	}, [isOpen, playNotificationSound, fetchUnseenMessagesCount]);
 
-	// Listen for user interaction to allow playing sound
 	useEffect(() => {
 		document.addEventListener("click", handleUserInteraction);
-		return () => {
-			document.removeEventListener("click", handleUserInteraction);
-		};
+		return () => document.removeEventListener("click", handleUserInteraction);
 	}, [handleUserInteraction]);
 
+	const isArabicUI = /Arabic/.test(chosenLanguage || "");
+	const statusText = STATUS_I18N[chosenLanguage] || STATUS_I18N.English;
+
 	return (
-		<ChatIconWrapper isArabic={chosenLanguage === "Arabic"}>
-			<ChatMessage onClick={toggleChatWindow}>
+		<ChatIconWrapper isArabic={isArabicUI}>
+			<ChatMessage
+				onClick={toggleChatWindow}
+				role='button'
+				aria-label='Open chat'
+			>
 				<div className='chat-name'>
 					{selectedHotel ? selectedHotel.hotelName : "Jannat Booking"}
 				</div>
 				<div className='chat-status'>
-					<span className='status-dot'></span> Chat Available
+					<span className='status-dot' /> {statusText}
 					{unseenCount > 0 && (
 						<span className='unseen-count'>{unseenCount}</span>
 					)}
 				</div>
 			</ChatMessage>
+
 			{isOpen && (
 				<ChatWindow
 					closeChatWindow={toggleChatWindow}

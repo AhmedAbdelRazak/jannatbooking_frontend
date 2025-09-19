@@ -1,8 +1,8 @@
-// src/Chat/ChatWindow.js
-import React, { useState, useEffect, useRef } from "react";
+// ChatWindow.jsx
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { Button, Input, Select, Form, Upload, message } from "antd";
 import { UploadOutlined, CloseOutlined } from "@ant-design/icons";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import { isAuthenticated } from "../auth";
 import {
 	createNewSupportCase,
@@ -22,7 +22,8 @@ const { Option } = Select;
 /** ---------------- Language helpers ---------------- */
 const LANGUAGES = [
 	{ label: "English", code: "en", rtl: false },
-	{ label: "Arabic", code: "ar", rtl: true },
+	{ label: "Arabic (Fos7a)", code: "ar", rtl: true },
+	{ label: "Arabic (Egyptian)", code: "ar-eg", rtl: true },
 	{ label: "Spanish", code: "es", rtl: false },
 	{ label: "French", code: "fr", rtl: false },
 	{ label: "Urdu", code: "ur", rtl: true },
@@ -32,7 +33,8 @@ const LANG_BY_LABEL = Object.fromEntries(LANGUAGES.map((l) => [l.label, l]));
 const isRTL = (label) => LANG_BY_LABEL[label]?.rtl ?? false;
 const langCodeOf = (label) => LANG_BY_LABEL[label]?.code ?? "en";
 
-/** ---------------- i18n ---------------- */
+/** ---------------- i18n (UI strings) ---------------- */
+// For brevity: reuse Arabic UI text for both "Arabic (Fos7a)" and "Arabic (Egyptian)"
 const I18N = {
 	English: {
 		customerSupport: "Customer Support",
@@ -60,7 +62,7 @@ const I18N = {
 		systemHold: "A representative will be with you in 3 to 5 minutes",
 		isTyping: "is typing…",
 		aiPaused:
-			"Our AI assistant is paused for this hotel. A human will assist you shortly.",
+			"We’re temporarily away. A representative will assist you shortly.",
 		v_fullName: "Please enter your full name.",
 		v_emailPhone: "Please enter a valid email address or phone number.",
 		v_hotel: "Please select a hotel.",
@@ -70,7 +72,7 @@ const I18N = {
 		v_addText: "Please add text to your message.",
 		thanksFeedback: "Thank you for your feedback!",
 	},
-	Arabic: {
+	"Arabic (Fos7a)": {
 		customerSupport: "دعم العملاء",
 		rateOurService: "قيّم خدمتنا",
 		submitRating: "إرسال التقييم",
@@ -95,8 +97,42 @@ const I18N = {
 		preferredLanguage: "اللغة المفضلة",
 		systemHold: "سيتواصل معك ممثل خلال 3 إلى 5 دقائق",
 		isTyping: "يكتب…",
-		aiPaused:
-			"المساعد الذكي متوقف لهذا الفندق حاليًا. سيتم تحويلك إلى موظف خلال لحظات.",
+		aiPaused: "نحن غير متاحين مؤقتًا. سيتواصل معك ممثل قريبًا.",
+		v_fullName: "يرجى إدخال اسمك الكامل.",
+		v_emailPhone: "يرجى إدخال بريد إلكتروني أو رقم هاتف صالح.",
+		v_hotel: "يرجى اختيار فندق.",
+		v_inquiryType: "يرجى اختيار نوع الاستفسار.",
+		v_reservation: "يرجى إدخال رقم تأكيد الحجز.",
+		v_others: "يرجى توضيح تفاصيل الاستفسار.",
+		v_addText: "يرجى إضافة نص إلى رسالتك.",
+		thanksFeedback: "شكرًا لملاحظاتك!",
+	},
+	"Arabic (Egyptian)": {
+		customerSupport: "دعم العملاء",
+		rateOurService: "قيّم خدمتنا",
+		submitRating: "إرسال التقييم",
+		skip: "تخطي",
+		typeMessage: "اكتب رسالتك...",
+		send: "إرسال",
+		closeChat: "إغلاق المحادثة",
+		fullName: "الاسم الكامل",
+		emailOrPhone: "البريد الإلكتروني أو رقم الهاتف",
+		selectHotel: "اختر الفندق",
+		selectAHotel: "اختر فندقًا",
+		inquiryAbout: "الاستفسار عن",
+		speakWithJB: "التحدث مع حجز جنات",
+		reserveRoom: "حجز غرفة",
+		reserveBed: "حجز سرير",
+		paymentInquiry: "استفسار عن الدفع",
+		reservationInquiry: "استفسار عن الحجز",
+		others: "أخرى",
+		specifyInquiry: "يرجى تحديد استفسارك",
+		reservationNumber: "رقم تأكيد الحجز",
+		startChat: "بدء المحادثة",
+		preferredLanguage: "اللغة المفضلة",
+		systemHold: "سيتواصل معك ممثل خلال 3 إلى 5 دقائق",
+		isTyping: "يكتب…",
+		aiPaused: "نحن غير متاحين مؤقتًا. سيتواصل معك ممثل قريبًا.",
 		v_fullName: "يرجى إدخال اسمك الكامل.",
 		v_emailPhone: "يرجى إدخال بريد إلكتروني أو رقم هاتف صالح.",
 		v_hotel: "يرجى اختيار فندق.",
@@ -131,8 +167,7 @@ const I18N = {
 		preferredLanguage: "Idioma preferido",
 		systemHold: "Un representante te atenderá en 3 a 5 minutos",
 		isTyping: "está escribiendo…",
-		aiPaused:
-			"El asistente de IA está pausado para este hotel. Un agente humano te ayudará en breve.",
+		aiPaused: "Estamos temporalmente ausentes. Un agente te atenderá en breve.",
 		v_fullName: "Por favor, introduce tu nombre completo.",
 		v_emailPhone: "Introduce un correo o teléfono válido.",
 		v_hotel: "Por favor, selecciona un hotel.",
@@ -167,8 +202,7 @@ const I18N = {
 		preferredLanguage: "Langue préférée",
 		systemHold: "Un agent sera avec vous dans 3 à 5 minutes",
 		isTyping: "est en train d’écrire…",
-		aiPaused:
-			"L’assistant IA est en pause pour cet hôtel. Un agent humain vous aidera sous peu.",
+		aiPaused: "Nous sommes momentanément indisponibles. Un agent arrive.",
 		v_fullName: "Veuillez saisir votre nom complet.",
 		v_emailPhone: "Veuillez saisir un e-mail ou un téléphone valide.",
 		v_hotel: "Veuillez sélectionner un hôtel.",
@@ -203,8 +237,7 @@ const I18N = {
 		preferredLanguage: "پسندیدہ زبان",
 		systemHold: "ایک نمائندہ 3 سے 5 منٹ میں آپ سے رابطہ کرے گا",
 		isTyping: "لکھ رہے ہیں…",
-		aiPaused:
-			"اس ہوٹل کے لیے AI اسسٹنٹ عارضی طور پر معطل ہے، جلد ہی انسانی ایجنٹ مدد کرے گا۔",
+		aiPaused: "ہم عارضی طور پر دستیاب نہیں۔ نمائندہ جلد رابطہ کرے گا۔",
 		v_fullName: "براہِ کرم اپنا پورا نام درج کریں.",
 		v_emailPhone: "براہِ کرم درست ای میل یا فون نمبر درج کریں.",
 		v_hotel: "براہِ کرم ہوٹل منتخب کریں.",
@@ -239,8 +272,7 @@ const I18N = {
 		preferredLanguage: "पसंदीदा भाषा",
 		systemHold: "एक प्रतिनिधि 3 से 5 मिनट में आपसे जुड़ेगा",
 		isTyping: "टाइप कर रहे हैं…",
-		aiPaused:
-			"इस होटल के लिए AI सहायक रुका हुआ है। जल्द ही एक प्रतिनिधि आपकी सहायता करेगा।",
+		aiPaused: "हम अस्थायी रूप से उपलब्ध नहीं हैं। प्रतिनिधि शीघ्र ही जोड़ेगा।",
 		v_fullName: "कृपया अपना पूरा नाम दर्ज करें.",
 		v_emailPhone: "कृपया मान्य ईमेल पता या फ़ोन नंबर दर्ज करें.",
 		v_hotel: "कृपया एक होटल चुनें.",
@@ -252,6 +284,208 @@ const I18N = {
 	},
 };
 
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+`;
+
+const typingAnim = keyframes`
+  0% { opacity: .2; transform: translateY(0); }
+  20% { opacity: 1; transform: translateY(-1px); }
+  40% { opacity: .2; transform: translateY(0); }
+`;
+
+const ChatWindowWrapper = styled.div`
+	position: fixed;
+	display: flex;
+	flex-direction: column;
+	right: 20px;
+	bottom: 70px;
+	width: 360px;
+	max-width: 92vw;
+	height: calc(var(--app-vh, 1vh) * 70);
+	max-height: calc(var(--app-vh, 1vh) * 80);
+	background-color: var(--background-light);
+	border: 1px solid var(--border-color-dark);
+	border-radius: 12px;
+	box-shadow: var(--box-shadow-dark);
+	padding: 16px;
+	z-index: 1001;
+	overflow: hidden;
+	touch-action: manipulation;
+	-webkit-overflow-scrolling: touch;
+	padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+
+	@media (max-width: 768px) {
+		right: 0;
+		left: 0;
+		bottom: 0;
+		width: 100%;
+		max-width: 100%;
+		height: calc(var(--app-vh, 1vh) * 85);
+		max-height: calc(var(--app-vh, 1vh) * 90);
+		border-radius: 12px 12px 0 0;
+		padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) 12px;
+	}
+`;
+
+const ChatWindowHeader = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	border-bottom: 1px solid var(--border-color-light);
+	padding-bottom: 8px;
+	margin-bottom: 8px;
+	background-color: var(--background-light);
+
+	h3 {
+		font-size: 1.2rem;
+		font-weight: bold;
+		color: var(--text-color-dark);
+	}
+`;
+
+const ChatBody = styled.div`
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	flex: 1 1 auto;
+`;
+
+const MessagesContainer = styled.div`
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-x: hidden;
+	overflow-y: auto;
+	scroll-behavior: smooth;
+	padding-right: 2px;
+
+	@media (max-width: 768px) {
+		margin-bottom: 6px;
+	}
+`;
+
+const Message = styled.p`
+	word-wrap: break-word;
+	white-space: pre-wrap;
+	background-color: ${(props) =>
+		props.isAdminMessage
+			? "var(--admin-message-bg)"
+			: "var(--user-message-bg)"};
+	color: ${(props) =>
+		props.isAdminMessage
+			? "var(--admin-message-color)"
+			: "var(--user-message-color)"};
+	padding: 8px;
+	border-radius: 6px;
+	margin: 6px 0;
+	line-height: 1.5;
+	font-size: 0.95rem;
+	animation: ${fadeIn} 120ms ease-out both;
+
+	@media (max-width: 768px) {
+		font-size: 1rem;
+	}
+`;
+
+const TypingStatus = styled.div`
+	margin: 6px 2px 8px 2px;
+	color: var(--text-color-dark);
+	font-style: italic;
+	font-size: 0.85rem;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+
+	.dots {
+		display: inline-flex;
+		gap: 4px;
+	}
+	.dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: var(--text-color-dark);
+		animation: ${typingAnim} 1.2s infinite ease-in-out;
+	}
+	.dot:nth-child(2) {
+		animation-delay: 0.15s;
+	}
+	.dot:nth-child(3) {
+		animation-delay: 0.3s;
+	}
+`;
+
+const ComposerWrapper = styled.div`
+	position: sticky;
+	bottom: 0;
+	background: var(--background-light);
+	padding-top: 8px;
+	border-top: 1px solid var(--border-color-light);
+`;
+
+const ChatInputContainer = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 6px;
+
+	textarea {
+		flex-grow: 1;
+	}
+
+	button {
+		width: auto;
+	}
+`;
+
+const EmojiPickerWrapper = styled.div`
+	position: absolute;
+	bottom: 120px;
+	right: 20px;
+	z-index: 1002;
+	width: 300px;
+	max-width: 90vw;
+	max-height: 50vh;
+	overflow: hidden;
+
+	@media (max-width: 768px) {
+		right: 12px;
+		bottom: 140px;
+	}
+`;
+
+const SendButton = styled(Button)`
+	background-color: var(--button-bg-primary);
+	color: var(--button-font-color);
+	width: 100%;
+	margin-top: 8px;
+	font-weight: bold;
+	height: 40px;
+`;
+
+const CloseButton = styled(Button)`
+	background-color: var(--secondary-color-dark);
+	color: var(--button-font-color);
+	width: 100%;
+	margin-top: 8px;
+	font-weight: bold;
+	height: 40px;
+`;
+
+const RatingSection = styled.div`
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 20px;
+`;
+
+const RatingButtons = styled.div`
+	display: flex;
+	gap: 10px;
+	margin-top: 20px;
+`;
+
+/* ===== Component ===== */
 const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	/** ---------------- State ---------------- */
 	const [activeHotels, setActiveHotels] = useState([]);
@@ -271,10 +505,10 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	const [fileList, setFileList] = useState([]);
 	const [isRatingVisible, setIsRatingVisible] = useState(false);
 	const [rating, setRating] = useState(0);
-	const [typingStatus, setTypingStatus] = useState("");
+	const [typingStatus, setTypingStatus] = useState(""); // display text "X is typing…"
 	const [isMinimized] = useState(false);
 
-	// local guard to suppress AI typing while user is typing locally
+	// local guard to suppress showing counterpart typing while user is typing
 	const [isUserTypingLocal, setIsUserTypingLocal] = useState(false);
 
 	// refs
@@ -282,21 +516,64 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	const selfStopTypingRef = useRef(null);
 	const userTypingLocalTimeoutRef = useRef(null);
 	const messagesEndRef = useRef(null);
-	const isUserTypingLocalRef = useRef(false);
 
-	// NEW: use ref for i18n to keep socket listeners stable (no re-binding)
+	const caseIdRef = useRef(caseId);
+	const nameRef = useRef(customerName);
+	const isUserTypingLocalRef = useRef(false);
+	const TRef = useRef(I18N.English);
+	const lastAgentNameRef = useRef(""); // remember latest agent display name
+
+	// Dedup for optimistic echo
+	const seenTagsRef = useRef(new Set());
+
+	// i18n
 	const defaultLang = I18N[chosenLanguage] ? chosenLanguage : "English";
 	const [preferredLanguage, setPreferredLanguage] = useState(defaultLang);
 	const T = I18N[preferredLanguage] || I18N.English;
-	const TRef = useRef(T);
 
 	useEffect(() => {
 		TRef.current = T;
 	}, [T]);
 
 	useEffect(() => {
+		caseIdRef.current = caseId;
+	}, [caseId]);
+
+	useEffect(() => {
+		nameRef.current = customerName;
+	}, [customerName]);
+
+	useEffect(() => {
 		isUserTypingLocalRef.current = isUserTypingLocal;
 	}, [isUserTypingLocal]);
+
+	/** ---------------- Mobile viewport/keyboard handling ---------------- */
+	useLayoutEffect(() => {
+		const setVh = () => {
+			const vh =
+				(window.visualViewport
+					? window.visualViewport.height
+					: window.innerHeight) * 0.01;
+			document.documentElement.style.setProperty("--app-vh", `${vh}px`);
+			scrollToBottom();
+		};
+		setVh();
+
+		window.addEventListener("resize", setVh);
+		window.addEventListener("orientationchange", setVh);
+		if (window.visualViewport) {
+			window.visualViewport.addEventListener("resize", setVh);
+			window.visualViewport.addEventListener("scroll", setVh);
+		}
+		return () => {
+			window.removeEventListener("resize", setVh);
+			window.removeEventListener("orientationchange", setVh);
+			if (window.visualViewport) {
+				window.visualViewport.removeEventListener("resize", setVh);
+				window.visualViewport.removeEventListener("scroll", setVh);
+			}
+		};
+	}, []);
 
 	/** ---------------- Prefill selected hotel ---------------- */
 	useEffect(() => {
@@ -309,7 +586,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		}
 	}, [selectedHotel]);
 
-	/** ---------------- Prefill user & restore chat + sockets ---------------- */
+	/** ---------------- Prefill user & restore chat ---------------- */
 	useEffect(() => {
 		if (isAuthenticated()) {
 			const { user } = isAuthenticated();
@@ -332,71 +609,131 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 				setPreferredLanguage(savedChat.preferredLanguage);
 			fetchSupportCase(savedChat.caseId);
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
-		// --- stable socket handlers (only depend on caseId) ---
-		const onReceiveMessage = (messageData) => {
-			if (messageData.caseId === caseId) {
-				setMessages((prev) => [...prev, messageData]);
-				markMessagesAsSeen(caseId);
+	/** ---------------- Socket handlers (register once) ---------------- */
+	useEffect(() => {
+		const pushMessageIfNew = (msg) => {
+			const tag =
+				msg.clientTag ||
+				`${msg.messageBy?.customerName || ""}|${msg.message || ""}|${
+					msg.date ? new Date(msg.date).getTime() : Date.now()
+				}`;
+			if (seenTagsRef.current.has(tag)) return;
+			seenTagsRef.current.add(tag);
+			if (seenTagsRef.current.size > 500) {
+				const first = seenTagsRef.current.values().next().value;
+				seenTagsRef.current.delete(first);
 			}
+			setMessages((prev) => [...prev, msg]);
+			setTypingStatus(""); // ensure any typing indicator is cleared when a message lands
+			markMessagesAsSeen(caseIdRef.current);
+			setTimeout(scrollToBottom, 20);
+		};
+
+		const onReceiveMessage = (messageData) => {
+			if (!messageData) return;
+			if (messageData.caseId && messageData.caseId !== caseIdRef.current)
+				return;
+			pushMessageIfNew(messageData);
 		};
 
 		const onCloseCase = (data) => {
-			if (data.case?._id === caseId) setIsRatingVisible(true);
+			if (data.case?._id === caseIdRef.current) setIsRatingVisible(true);
 		};
+
 		const onCaseClosed = (data) => {
-			if (data.caseId === caseId) setIsRatingVisible(true);
+			if (data.caseId === caseIdRef.current) setIsRatingVisible(true);
 		};
 
 		const onTyping = (data) => {
-			if (data.caseId === caseId && data.isAi) {
-				if (isUserTypingLocalRef.current) return; // suppress while user types
-				setTypingStatus(`${data.name} ${TRef.current.isTyping}`);
-				if (agentTypingTimeoutRef.current)
-					clearTimeout(agentTypingTimeoutRef.current);
-				agentTypingTimeoutRef.current = setTimeout(() => {
-					setTypingStatus("");
-				}, 5000);
+			if (!data || data.caseId !== caseIdRef.current) return;
+
+			// Use server-sent name (AI agent or human agent)
+			const otherName = data.name || "";
+			if (otherName) lastAgentNameRef.current = otherName;
+
+			// Do not show "typing…" if we're locally typing (no overlap)
+			if (isUserTypingLocalRef.current) return;
+
+			// Prevent echoing our own typing status
+			if (otherName && otherName === nameRef.current) return;
+
+			const label = otherName || "Agent";
+			setTypingStatus(`${label} ${TRef.current.isTyping}`);
+
+			// Auto-clear typing indicator if server didn't send stopTyping
+			if (agentTypingTimeoutRef.current)
+				clearTimeout(agentTypingTimeoutRef.current);
+			agentTypingTimeoutRef.current = setTimeout(() => {
+				setTypingStatus("");
+			}, 5000);
+		};
+
+		// Clear instantly on stop
+		const onStopTyping = (data) => {
+			if (!data || data.caseId !== caseIdRef.current) return;
+			setTypingStatus("");
+			if (agentTypingTimeoutRef.current) {
+				clearTimeout(agentTypingTimeoutRef.current);
+				agentTypingTimeoutRef.current = null;
 			}
 		};
 
-		const onStopTyping = (data) => {
-			if (data.caseId === caseId && data.isAi) {
-				setTypingStatus("");
-				if (agentTypingTimeoutRef.current) {
-					clearTimeout(agentTypingTimeoutRef.current);
-					agentTypingTimeoutRef.current = null;
-				}
+		const onConnected = () => {
+			if (caseIdRef.current) {
+				socket.emit("joinRoom", { caseId: caseIdRef.current });
+				setTimeout(() => fetchSupportCase(caseIdRef.current), 800);
 			}
 		};
 
 		const onAiPaused = (data) => {
-			if (data.caseId === caseId) {
-				setMessages((prev) => [
-					...prev,
-					{
-						messageBy: { customerName: "System" },
-						message: TRef.current.aiPaused,
-						date: new Date(),
-					},
-				]);
+			if (data.caseId === caseIdRef.current) {
+				pushMessageIfNew({
+					messageBy: { customerName: "System" },
+					message: TRef.current.aiPaused,
+					date: new Date(),
+					caseId: caseIdRef.current,
+					isAi: true,
+				});
 			}
 		};
 
+		const onNewChat = (payload) => {
+			// case inserted—backend watcher may emit this; optional
+			if (payload?.caseId && payload.caseId === caseIdRef.current) {
+				setTimeout(() => fetchSupportCase(caseIdRef.current), 400);
+			}
+		};
+
+		socket.on("connect", onConnected);
 		socket.on("receiveMessage", onReceiveMessage);
 		socket.on("closeCase", onCloseCase);
 		socket.on("caseClosed", onCaseClosed);
 		socket.on("typing", onTyping);
 		socket.on("stopTyping", onStopTyping);
 		socket.on("aiPaused", onAiPaused);
+		socket.on("newChat", onNewChat);
+
+		const onVisibility = () => {
+			if (document.visibilityState === "visible" && caseIdRef.current) {
+				fetchSupportCase(caseIdRef.current);
+			}
+		};
+		document.addEventListener("visibilitychange", onVisibility);
 
 		return () => {
+			socket.off("connect", onConnected);
 			socket.off("receiveMessage", onReceiveMessage);
 			socket.off("closeCase", onCloseCase);
 			socket.off("caseClosed", onCaseClosed);
 			socket.off("typing", onTyping);
 			socket.off("stopTyping", onStopTyping);
 			socket.off("aiPaused", onAiPaused);
+			socket.off("newChat", onNewChat);
+			document.removeEventListener("visibilitychange", onVisibility);
+
 			if (agentTypingTimeoutRef.current)
 				clearTimeout(agentTypingTimeoutRef.current);
 			if (selfStopTypingRef.current) clearTimeout(selfStopTypingRef.current);
@@ -404,12 +741,13 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 				clearTimeout(userTypingLocalTimeoutRef.current);
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [caseId]); // stable listeners per case
+	}, []); // register once
 
 	/** ---------------- Join/leave room per case ---------------- */
 	useEffect(() => {
 		if (caseId) {
 			socket.emit("joinRoom", { caseId });
+			setTimeout(() => fetchSupportCase(caseId), 700);
 			return () => socket.emit("leaveRoom", { caseId });
 		}
 	}, [caseId]);
@@ -448,26 +786,27 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 
 	/** ---------------- Helpers ---------------- */
 	const renderMessageWithLinks = (text) => {
+		const safeText = typeof text === "string" ? text : "";
+		if (!safeText) return null;
 		const urlRegex = /(https?:\/\/[^\s]+)/g;
-		return String(text)
-			.split(urlRegex)
-			.map((part, index) =>
-				part.match(urlRegex) ? (
-					<a key={index} href={part} target='_blank' rel='noopener noreferrer'>
-						{part}
-					</a>
-				) : (
-					part
-				)
-			);
+		return safeText.split(urlRegex).map((part, index) =>
+			urlRegex.test(part) ? (
+				<a key={index} href={part} target='_blank' rel='noopener noreferrer'>
+					{part}
+				</a>
+			) : (
+				part
+			)
+		);
 	};
 
 	const fetchSupportCase = async (id) => {
 		try {
 			if (!id) return;
 			const supportCase = await getSupportCaseById(id);
-			if (supportCase.conversation && supportCase.conversation.length > 0) {
+			if (Array.isArray(supportCase.conversation)) {
 				setMessages(supportCase.conversation);
+				seenTagsRef.current = new Set();
 			}
 		} catch (err) {
 			console.error("Error fetching support case", err);
@@ -476,15 +815,23 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 
 	const markMessagesAsSeen = async (cid) => {
 		try {
+			if (!cid) return;
 			await updateSeenByCustomer(cid);
 		} catch (err) {
 			console.error("Error marking messages as seen", err);
 		}
 	};
 
+	const scrollToBottom = () => {
+		messagesEndRef.current?.scrollIntoView({
+			behavior: "smooth",
+			block: "end",
+		});
+	};
+
 	useEffect(() => {
-		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-	}, [messages]);
+		scrollToBottom();
+	}, [messages, typingStatus]);
 
 	useEffect(() => {
 		const fetchHotel = async () => {
@@ -501,7 +848,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	const handleInputChange = (e) => {
 		setNewMessage(e.target.value);
 
-		// local typing guard
+		// local typing guard (do not show agent typing while guest is typing)
 		setIsUserTypingLocal(true);
 		if (userTypingLocalTimeoutRef.current)
 			clearTimeout(userTypingLocalTimeoutRef.current);
@@ -595,7 +942,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 			inquiryDetails: inquiryDetailsWithLanguage,
 			supporterId: "6553f1c6d06c5cea2f98a838",
 			ownerId: ownerId,
-			preferredLanguage,
+			preferredLanguage: preferredLanguage,
 			preferredLanguageCode: langCode,
 		};
 
@@ -613,25 +960,34 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 
 			setCaseId(response._id);
 			setSubmitted(true);
+
+			// Join the room right away for real-time greeting
+			socket.emit("joinRoom", { caseId: response._id });
+
 			setMessages((prev) => [
 				...prev,
 				{
 					messageBy: { customerName: "System" },
 					message: T.systemHold,
 					date: new Date(),
+					caseId: response._id,
 				},
 			]);
-			fetchSupportCase(response._id);
+
+			setTimeout(() => fetchSupportCase(response._id), 1200);
+			setTimeout(() => fetchSupportCase(response._id), 3500);
 		} catch (err) {
 			console.error("Error creating support case", err);
 		}
 	};
 
 	const handleSendMessage = async () => {
-		if (!newMessage.trim()) {
+		if (!newMessage || !newMessage.trim()) {
 			message.error(T.v_addText);
 			return;
 		}
+
+		const clientTag = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
 		const messageData = {
 			messageBy: { customerName, customerEmail },
@@ -640,13 +996,21 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 			caseId,
 			preferredLanguage,
 			preferredLanguageCode: langCodeOf(preferredLanguage),
+			clientTag, // for dedup on echo
 		};
+
+		// Optimistic UI
+		setMessages((prev) => [...prev, messageData]);
+		seenTagsRef.current.add(clientTag);
+		scrollToBottom();
 
 		try {
 			await updateSupportCase(caseId, { conversation: messageData });
 			socket.emit("sendMessage", messageData);
 			setNewMessage("");
 			socket.emit("stopTyping", { name: customerName, caseId });
+
+			setTimeout(() => fetchSupportCase(caseId), 1200);
 		} catch (err) {
 			console.error("Error sending message", err);
 		}
@@ -688,7 +1052,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	};
 
 	const handleEmojiClick = (emojiObject) => {
-		setNewMessage((prevMessage) => prevMessage + emojiObject.emoji);
+		setNewMessage((prevMessage) => (prevMessage || "") + emojiObject.emoji);
 		setShowEmojiPicker(false);
 	};
 
@@ -696,10 +1060,39 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		setFileList(files);
 	};
 
+	const onComposerFocus = () => {
+		setTimeout(scrollToBottom, 50);
+	};
+
+	// Heuristics: mark message as "admin/agent"
+	const isAgentMessage = (msg) => {
+		const senderEmail = msg?.messageBy?.customerEmail || "";
+		const senderName = msg?.messageBy?.customerName || "";
+		const sys = senderName === "System";
+		const fromSelf = senderEmail && senderEmail === (customerEmail || "");
+		if (sys || fromSelf) return false;
+		if (msg?.isAi) return true; // backend flag for AI agent
+		if (senderEmail === "management@xhotelpro.com") return true;
+		if (senderName === "Admin") return true;
+		// If there is no senderEmail but there's a name different than the guest, assume agent
+		if (!senderEmail && senderName && senderName !== customerName) return true;
+		return false;
+	};
+
+	const typingName = () => {
+		if (typingStatus) {
+			// typingStatus already includes the translated "is typing"
+			return typingStatus.split(" ")[0];
+		}
+		return lastAgentNameRef.current || "Agent";
+	};
+
 	return (
 		<ChatWindowWrapper
 			isMinimized={isMinimized}
 			dir={isRTL(preferredLanguage) ? "rtl" : "ltr"}
+			aria-live='polite'
+			aria-relevant='additions'
 		>
 			<ChatWindowHeader>
 				<h3>{T.customerSupport}</h3>
@@ -719,8 +1112,8 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 						changeRating={setRating}
 						numberOfStars={5}
 						name='rating'
-						starDimension='20px'
-						starSpacing='2px'
+						starDimension='22px'
+						starSpacing='4px'
 					/>
 					<RatingButtons>
 						<Button type='primary' onClick={() => handleRateService(rating)}>
@@ -730,33 +1123,47 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 					</RatingButtons>
 				</RatingSection>
 			) : submitted && !isMinimized ? (
-				<div>
-					<MessagesContainer>
-						{messages &&
-							messages.map((msg, index) => (
-								<Message
-									key={index}
-									isAdminMessage={
-										msg.messageBy?.customerEmail ===
-											"management@xhotelpro.com" ||
-										msg.messageBy?.customerName === "Admin"
-									}
-								>
-									<strong>{msg.messageBy?.customerName}:</strong>{" "}
-									{renderMessageWithLinks(msg.message)}
-								</Message>
-							))}
+				<ChatBody>
+					<MessagesContainer role='log' aria-live='polite'>
+						{Array.isArray(messages) &&
+							messages
+								.filter(
+									(msg) =>
+										typeof msg?.message === "string" &&
+										msg.message.trim() !== ""
+								)
+								.map((msg, index) => (
+									<Message
+										key={`${index}-${msg.clientTag || ""}`}
+										isAdminMessage={isAgentMessage(msg)}
+									>
+										<strong>{msg.messageBy?.customerName || "Agent"}:</strong>{" "}
+										{renderMessageWithLinks(msg.message)}
+									</Message>
+								))}
+
+						{/* Agent typing indicator (animated dots). Suppressed while the user is typing locally. */}
+						{!!typingStatus && !isUserTypingLocal && (
+							<TypingStatus aria-live='polite' aria-label={typingStatus}>
+								<strong>{typingName()}:</strong> {T.isTyping}
+								<span className='dots' aria-hidden='true'>
+									<span className='dot' />
+									<span className='dot' />
+									<span className='dot' />
+								</span>
+							</TypingStatus>
+						)}
+
 						<div ref={messagesEndRef} />
 					</MessagesContainer>
 
-					{typingStatus && <TypingStatus>{typingStatus}</TypingStatus>}
-
-					<Form.Item>
+					<ComposerWrapper>
 						<ChatInputContainer>
 							<Input.TextArea
 								placeholder={T.typeMessage}
 								value={newMessage}
 								onChange={handleInputChange}
+								onFocus={onComposerFocus}
 								onBlur={() =>
 									socket.emit("stopTyping", { name: customerName, caseId })
 								}
@@ -766,10 +1173,13 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 										handleSendMessage();
 									}
 								}}
-								autoSize={{ minRows: 1, maxRows: 5 }}
+								autoSize={{ minRows: 1, maxRows: 6 }}
 								style={{ flexGrow: 1 }}
 							/>
-							<Button onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+							<Button
+								aria-label='Emoji'
+								onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+							>
 								😀
 							</Button>
 							{showEmojiPicker && (
@@ -777,7 +1187,6 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 									<EmojiPicker
 										onEmojiClick={handleEmojiClick}
 										disableAutoFocus={true}
-										pickerStyle={{ width: "100%" }}
 									/>
 								</EmojiPickerWrapper>
 							)}
@@ -786,7 +1195,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 								onChange={handleFileChange}
 								beforeUpload={() => false}
 							>
-								<Button icon={<UploadOutlined />} />
+								<Button icon={<UploadOutlined />} aria-label='Attach file' />
 							</Upload>
 						</ChatInputContainer>
 						<SendButton type='primary' onClick={handleSendMessage}>
@@ -795,8 +1204,8 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 						<CloseButton danger onClick={handleCloseChat}>
 							<CloseOutlined /> {T.closeChat}
 						</CloseButton>
-					</Form.Item>
-				</div>
+					</ComposerWrapper>
+				</ChatBody>
 			) : (
 				<Form layout='vertical' onFinish={handleSubmit}>
 					{/* Preferred Language */}
@@ -819,7 +1228,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 						<Input
 							value={customerName}
 							placeholder={
-								preferredLanguage === "Arabic" || preferredLanguage === "Urdu"
+								/Arabic/.test(preferredLanguage)
 									? "الاسم الأول الاسم الأخير"
 									: "FirstName LastName"
 							}
@@ -849,7 +1258,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 						<Input
 							value={customerEmail}
 							placeholder={
-								preferredLanguage === "Arabic" || preferredLanguage === "Urdu"
+								/Arabic/.test(preferredLanguage)
 									? "مثال: client@gmail.com أو 1234567890"
 									: "e.g. client@gmail.com or 1234567890"
 							}
@@ -866,7 +1275,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 							value={hotelId || undefined}
 							onChange={(value) => setHotelId(value)}
 							filterOption={(input, option) =>
-								typeof option.children === "string"
+								typeof option?.children === "string"
 									? option.children.toLowerCase().includes(input.toLowerCase())
 									: false
 							}
@@ -936,7 +1345,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 					)}
 
 					<Form.Item>
-						<Button type='primary' htmlType='submit'>
+						<Button type='primary' htmlType='submit' block>
 							{T.startChat}
 						</Button>
 					</Form.Item>
@@ -947,133 +1356,3 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 };
 
 export default ChatWindow;
-
-/** ---------------- Styled-components ---------------- */
-
-const ChatWindowWrapper = styled.div`
-	position: fixed;
-	bottom: ${({ isMinimized }) => (isMinimized ? "10px" : "70px")};
-	right: 20px;
-	width: ${({ isMinimized }) => (isMinimized ? "200px" : "350px")};
-	max-width: ${({ isMinimized }) => (isMinimized ? "200px" : "350px")};
-	height: ${({ isMinimized }) => (isMinimized ? "40px" : "70vh")};
-	max-height: ${({ isMinimized }) => (isMinimized ? "40px" : "70vh")};
-	background-color: var(--background-light);
-	border: 1px solid var(--border-color-dark);
-	border-radius: 8px;
-	box-shadow: var(--box-shadow-dark);
-	padding: ${({ isMinimized }) => (isMinimized ? "5px" : "20px")};
-	z-index: 1001;
-	overflow: hidden;
-
-	@media (max-width: 768px) {
-		width: ${({ isMinimized }) => (isMinimized ? "200px" : "90%")};
-		right: 5%;
-		bottom: 85px;
-		max-height: ${({ isMinimized }) => (isMinimized ? "40px" : "80vh")};
-		height: ${({ isMinimized }) => (isMinimized ? "40px" : "80vh")};
-	}
-`;
-
-const ChatWindowHeader = styled.div`
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	border-bottom: 1px solid var(--border-color-light);
-	padding-bottom: 10px;
-	margin-bottom: 10px;
-	background-color: var(--background-light);
-
-	h3 {
-		font-size: 1.2rem;
-		font-weight: bold;
-		color: var(--text-color-dark);
-	}
-`;
-
-const MessagesContainer = styled.div`
-	max-height: 55vh;
-	margin-bottom: 10px;
-	overflow-x: hidden;
-	overflow-y: auto;
-	scroll-behavior: smooth;
-`;
-
-const Message = styled.p`
-	word-wrap: break-word;
-	white-space: pre-wrap;
-	background-color: ${(props) =>
-		props.isAdminMessage
-			? "var(--admin-message-bg)"
-			: "var(--user-message-bg)"};
-	color: ${(props) =>
-		props.isAdminMessage
-			? "var(--admin-message-color)"
-			: "var(--user-message-color)"};
-	padding: 8px;
-	border-radius: 5px;
-	margin: 5px 0;
-	line-height: 1.5;
-`;
-
-const ChatInputContainer = styled.div`
-	display: flex;
-	align-items: center;
-	gap: 5px;
-
-	input {
-		flex-grow: 1;
-	}
-
-	button {
-		width: auto;
-	}
-`;
-
-const EmojiPickerWrapper = styled.div`
-	position: absolute;
-	bottom: 60px;
-	right: 20px;
-	z-index: 1002;
-	width: 300px;
-	height: 300px;
-	overflow: hidden;
-`;
-
-const SendButton = styled(Button)`
-	background-color: var(--button-bg-primary);
-	color: var(--button-font-color);
-	width: 100%;
-	margin-top: 10px;
-	font-weight: bold;
-`;
-
-const CloseButton = styled(Button)`
-	background-color: var(--secondary-color-dark);
-	color: var(--button-font-color);
-	width: 100%;
-	margin-top: 10px;
-	font-weight: bold;
-`;
-
-const RatingSection = styled.div`
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	padding: 20px;
-`;
-
-const RatingButtons = styled.div`
-	display: flex;
-	gap: 10px;
-	margin-top: 20px;
-`;
-
-const TypingStatus = styled.div`
-	/* improved spacing so it's not cramped against messages above */
-	margin-top: 8px;
-	margin-bottom: 12px;
-	color: var(--text-color-dark);
-	font-style: italic;
-	font-size: 0.85rem;
-`;
