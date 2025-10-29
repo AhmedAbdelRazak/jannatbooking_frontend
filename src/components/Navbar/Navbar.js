@@ -155,7 +155,7 @@ const Navbar = () => {
 							</li>
 
 							{/* NEW: Conditional Our Offers Link (Arabic) */}
-							{hasOffers && (
+							{/* {hasOffers && (
 								<li
 									onClick={() => {
 										window.location.href =
@@ -169,7 +169,7 @@ const Navbar = () => {
 										عروضنا
 									</Link>
 								</li>
-							)}
+							)} */}
 
 							<li>
 								<Link to='/about' onClick={() => window.scrollTo({ top: 8 })}>
@@ -207,7 +207,7 @@ const Navbar = () => {
 							</li>
 
 							{/* NEW: Conditional Our Offers Link (English) */}
-							{hasOffers && (
+							{/* {hasOffers && (
 								<li
 									onClick={() => {
 										window.location.href =
@@ -221,7 +221,7 @@ const Navbar = () => {
 										Our Offers
 									</Link>
 								</li>
-							)}
+							)} */}
 
 							<li
 								onClick={() => {
@@ -329,7 +329,7 @@ const Navbar = () => {
 						</li>
 
 						{/* NEW: Conditional Our Offers in Drawer (Arabic) */}
-						{hasOffers && (
+						{/* {hasOffers && (
 							<li
 								dir='rtl'
 								onClick={() => {
@@ -341,7 +341,7 @@ const Navbar = () => {
 									<FaRegBell /> عروضنا
 								</Link>
 							</li>
-						)}
+						)} */}
 
 						<li
 							dir='rtl'
@@ -433,7 +433,7 @@ const Navbar = () => {
 						</li>
 
 						{/* NEW: Conditional Our Offers in Drawer (English) */}
-						{hasOffers && (
+						{/* {hasOffers && (
 							<li
 								onClick={() => {
 									setIsDrawerOpen(false);
@@ -444,7 +444,7 @@ const Navbar = () => {
 									<FaRegBell /> Our Offers
 								</Link>
 							</li>
-						)}
+						)} */}
 
 						<li
 							onClick={() => {
