@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import styled from "styled-components";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Autoplay, Thumbs } from "swiper/modules";
@@ -165,11 +171,6 @@ const SingleHotel = ({ selectedHotel }) => {
 	const history = useHistory();
 	const location = useLocation();
 
-	// eslint-disable-next-line
-	const [thumbsSwiper, setThumbsSwiper] = useState(null);
-	// eslint-disable-next-line
-	const [roomThumbsSwipers, setRoomThumbsSwipers] = useState([]);
-
 	const [dateRange, setDateRange] = useState([
 		dayjs().add(1, "day"),
 		dayjs().add(6, "day"),
@@ -184,6 +185,48 @@ const SingleHotel = ({ selectedHotel }) => {
 	const { addRoomToCart, openSidebar2, chosenLanguage } = useCartContext();
 	const t = translations[chosenLanguage] || translations.English;
 
+	// Refs for sections (hooks must run on every render, before any early return)
+	const overviewRef = useRef(null);
+	const aboutRef = useRef(null);
+	const roomsRef = useRef(null);
+	const packagesRef = useRef(null);
+	const policiesRef = useRef(null);
+	const comparisonsRef = useRef(null);
+
+	// Stable map id -> ref
+	const refById = useMemo(
+		() => ({
+			overview: overviewRef,
+			about: aboutRef,
+			rooms: roomsRef,
+			packages: packagesRef,
+			policies: policiesRef,
+			comparisons: comparisonsRef,
+		}),
+		[]
+	);
+
+	// Sections for Tabs
+	const sections = useMemo(
+		() => [
+			{ id: "overview", label: t.overview, ref: overviewRef },
+			{ id: "about", label: t.about, ref: aboutRef },
+			{ id: "rooms", label: t.rooms, ref: roomsRef },
+			{ id: "packages", label: t.packages, ref: packagesRef },
+			{ id: "policies", label: t.policies, ref: policiesRef },
+			{ id: "comparisons", label: t.comparisons, ref: comparisonsRef },
+		],
+		[
+			t,
+			overviewRef,
+			aboutRef,
+			roomsRef,
+			packagesRef,
+			policiesRef,
+			comparisonsRef,
+		]
+	);
+
 	useEffect(() => {
 		const currency = (
 			localStorage.getItem("selectedCurrency") || "sar"
@@ -196,47 +239,17 @@ const SingleHotel = ({ selectedHotel }) => {
 		setCurrencyRates(rates);
 	}, []);
 
-	const handleAmenitiesToggle = () => setShowAllAmenities((prev) => !prev);
-
-	const combinedFeatures = [
-		...new Set([
-			...selectedHotel.roomCountDetails.flatMap((r) => r.amenities || []),
-			...selectedHotel.roomCountDetails.flatMap((r) => r.views || []),
-			...selectedHotel.roomCountDetails.flatMap((r) => r.extraAmenities || []),
-		]),
-	];
-	const visibleFeatures = showAllAmenities
-		? combinedFeatures
-		: combinedFeatures.slice(0, 4);
-
-	/* ===== Tabs + URL sync ===== */
-	const tabRefs = useRef({});
-	const overviewRef = useRef(null);
-	const aboutRef = useRef(null);
-	const roomsRef = useRef(null);
-	const packagesRef = useRef(null);
-	const policiesRef = useRef(null);
-	const comparisonsRef = useRef(null);
-
-	const sections = [
-		{ id: "overview", label: t.overview, ref: overviewRef },
-		{ id: "about", label: t.about, ref: aboutRef },
-		{ id: "rooms", label: t.rooms, ref: roomsRef },
-		{ id: "packages", label: t.packages, ref: packagesRef },
-		{ id: "policies", label: t.policies, ref: policiesRef },
-		{ id: "comparisons", label: t.comparisons, ref: comparisonsRef },
-	];
-
-	useEffect(() => {
-		sections.forEach((s) => (tabRefs.current[s.id] = s.ref.current));
-		// eslint-disable-next-line
-	}, []);
+	// Redirect if hotel is deactivated (side-effect; not during render)
+	// useEffect(() => {
+	// 	if (selectedHotel && selectedHotel.activateHotel === false) {
+	// 		history.replace("/our-hotels");
+	// 	}
+	// }, [selectedHotel, history]);
 
 	const updateSectionInURL = useCallback(
 		(sectionId, replace = true) => {
 			const params = new URLSearchParams(location.search);
 			params.set("section", sectionId);
-			// clean synonyms if someone linked with them
 			["tab", "goto", "offers", "deals"].forEach((k) => params.delete(k));
 			const search = `?${params.toString()}`;
 			const dest = { pathname: location.pathname, search };
@@ -248,18 +261,18 @@ const SingleHotel = ({ selectedHotel }) => {
 
 	const handleTabClick = useCallback(
 		(sectionId) => {
-			const el = tabRefs.current[sectionId];
+			const el = refById[sectionId]?.current;
 			if (!el) return;
 			const headerOffset = 80;
 			const targetTop =
 				el.getBoundingClientRect().top + window.scrollY - headerOffset;
 			window.scrollTo({ top: targetTop, behavior: "smooth" });
-			updateSectionInURL(sectionId, false); // push
+			updateSectionInURL(sectionId, false);
 		},
-		[updateSectionInURL]
+		[refById, updateSectionInURL]
 	);
 
-	// Auto-scroll from URL (with ~300ms delay after window 'load'). Avoid loops.
+	// Auto-scroll from URL on load
 	const lastScrolledRef = useRef(null);
 	const scrollFromURL = useCallback(() => {
 		const params = new URLSearchParams(location.search);
@@ -275,17 +288,16 @@ const SingleHotel = ({ selectedHotel }) => {
 		if (section === "offers" || section === "deals") section = "packages";
 		if (!section) return;
 
-		if (lastScrolledRef.current === section) return; // prevent loops
+		if (lastScrolledRef.current === section) return;
 		lastScrolledRef.current = section;
 
 		const doScroll = () => {
-			const el = tabRefs.current[section];
+			const el = refById[section]?.current;
 			if (!el) return;
 			const headerOffset = 80;
 			const targetTop =
 				el.getBoundingClientRect().top + window.scrollY - headerOffset;
 			window.scrollTo({ top: targetTop, behavior: "smooth" });
-			// normalize URL value
 			updateSectionInURL(section, true);
 		};
 
@@ -299,32 +311,22 @@ const SingleHotel = ({ selectedHotel }) => {
 			};
 			window.addEventListener("load", onLoad);
 		}
-	}, [location.search, updateSectionInURL]);
+	}, [location.search, refById, updateSectionInURL]);
 
 	useEffect(() => {
 		scrollFromURL();
 	}, [scrollFromURL]);
-	/* ===== /Tabs + URL sync ===== */
 
 	const handleDateChange = (dates) => {
 		if (dates && dates.length === 2) setDateRange(dates);
 		else setDateRange([dayjs().add(1, "day"), dayjs().add(6, "day")]);
 	};
 
-	if (!selectedHotel) return null;
+	const handleAmenitiesToggle = () => setShowAllAmenities((prev) => !prev);
 
-	const formatAddress = (address) => {
+	const formatAddress = (address = "") => {
 		const parts = address.split(",");
 		return parts.slice(1).join(", ").trim();
-	};
-
-	// eslint-disable-next-line
-	const handleRoomThumbsSwiper = (idx) => (swiper) => {
-		setRoomThumbsSwipers((prev) => {
-			const cp = [...prev];
-			cp[idx] = swiper;
-			return cp;
-		});
 	};
 
 	const handleAddRoomToCart = (room) => {
@@ -343,8 +345,9 @@ const SingleHotel = ({ selectedHotel }) => {
 			commissionRate * 100
 		);
 
-		// eslint-disable-next-line
-		const _pricingByDayWithCommission = calculatePricingByDayWithCommission(
+		// Keep for parity (not used directly in UI)
+		// eslint purposefully satisfied (const used)
+		const pricingByDayWithCommission = calculatePricingByDayWithCommission(
 			room.pricingRate || [],
 			startDate,
 			endDate,
@@ -352,6 +355,7 @@ const SingleHotel = ({ selectedHotel }) => {
 			room.defaultCost,
 			commissionRate * 100
 		);
+		void pricingByDayWithCommission; // prevent unused var warning
 
 		const nights = pricingByDay.length;
 		const totalPrice = pricingByDay.reduce((s, d) => s + d.price, 0);
@@ -407,410 +411,442 @@ const SingleHotel = ({ selectedHotel }) => {
 		return amount.toFixed(2); // sar
 	};
 
+	// ---------- RENDER ----------
 	return (
 		<SingleHotelWrapper>
-			{(selectedHotel && selectedHotel.activateHotel === false) ||
-			!selectedHotel
-				? (window.location.href = "/our-hotels")
-				: null}
-
-			{/* Hero */}
-			<HeroSection dir='ltr'>
-				<Swiper
-					modules={[Pagination, Autoplay, Thumbs]}
-					spaceBetween={10}
-					slidesPerView={1}
-					pagination={{ clickable: true }}
-					autoplay={{ delay: 4000, disableOnInteraction: false }}
-					thumbs={{ swiper: thumbsSwiper }}
-					loop
-					className='main-swiper'
-				>
-					{selectedHotel.hotelPhotos.map((photo, i) => (
-						<SwiperSlide key={i}>
-							<img
-								src={photo.url}
-								alt={`${selectedHotel.hotelName} - ${i + 1}`}
-								className='hotel-image'
-							/>
-						</SwiperSlide>
-					))}
-				</Swiper>
-			</HeroSection>
-
-			{/* Tabs */}
-			<div dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
-				<Tabs
-					sections={sections.map(({ id }) => ({
-						id,
-						label:
-							id === "overview"
-								? t.overview
-								: id === "about"
-									? t.about
-									: id === "rooms"
-										? t.rooms
-										: id === "packages"
-											? t.packages
-											: id === "policies"
-												? t.policies
-												: null,
-					}))}
-					onTabClick={handleTabClick}
-					onActiveTabChange={(id) => updateSectionInURL(id, true)}
-					chosenLanguage={chosenLanguage}
-				/>
-			</div>
-
-			{/* Overview */}
-			<HotelInfo
-				ref={overviewRef}
-				id='overview'
-				isArabic={chosenLanguage === "Arabic"}
-				dir='ltr'
-				style={{
-					textAlign: chosenLanguage === "Arabic" ? "right" : "left",
-					marginRight: chosenLanguage === "Arabic" ? "10px" : "",
-				}}
-			>
-				<h1>
-					{chosenLanguage === "Arabic"
-						? selectedHotel.hotelName_OtherLanguage || selectedHotel.hotelName
-						: selectedHotel.hotelName}
-				</h1>
-				<p>
-					{formatAddress(selectedHotel.hotelAddress)
-						.split(",")
-						.slice(0, 2)
-						.join(", ")}
-				</p>
-				<Distances isArabic={chosenLanguage === "Arabic"}>
-					<FaCar />
-					{` ${selectedHotel.distances?.drivingToElHaram} ${t.drivingToHaram}`}
-				</Distances>
-				<Distances>
-					<FaWalking />
-					{` ${selectedHotel.distances?.walkingToElHaram} ${t.walkingToHaram}`}
-				</Distances>
-				<StarRatings
-					rating={selectedHotel.hotelRating || 0}
-					starRatedColor='orange'
-					numberOfStars={5}
-					name='rating'
-					starDimension='15px'
-					starSpacing='1px'
-				/>
-				<div>
-					<StaticRating
-						selectedHotel={selectedHotel}
-						chosenLanguage={chosenLanguage}
-					/>
-				</div>
-			</HotelInfo>
-
-			{/* About + Map */}
-			<HotelOverview
-				isArabic={chosenLanguage === "Arabic"}
-				ref={aboutRef}
-				id='about'
-				style={{
-					textAlign: chosenLanguage === "Arabic" ? "right" : "",
-					marginRight: chosenLanguage === "Arabic" ? "10px" : "",
-				}}
-				dir='rtl'
-			>
-				<h2>{t.about}</h2>
-				<p>
-					{chosenLanguage === "Arabic"
-						? selectedHotel.aboutHotelArabic || selectedHotel.aboutHotel
-						: selectedHotel.aboutHotel || "About Hotel"}
-				</p>
-
-				<AmenitiesWrapper>
-					{visibleFeatures.map((feature, idx) => (
-						<AmenityItem key={idx}>
-							{getIcon(feature)} <span>{feature}</span>
-						</AmenityItem>
-					))}
-				</AmenitiesWrapper>
-
-				{combinedFeatures.length > 4 && (
-					<ToggleText onClick={handleAmenitiesToggle}>
-						{showAllAmenities
-							? chosenLanguage === "Arabic"
-								? "إخفاء..."
-								: "Hide..."
-							: chosenLanguage === "Arabic"
-								? "عرض المزيد..."
-								: "Show More..."}
-					</ToggleText>
-				)}
-
-				<LoadScript googleMapsApiKey={process.env.REACT_APP_MAPS_API_KEY}>
-					<MapContainer>
-						<GoogleMap
-							mapContainerStyle={{ width: "100%", height: "100%" }}
-							center={{
-								lat: parseFloat(selectedHotel.location.coordinates[1]),
-								lng: parseFloat(selectedHotel.location.coordinates[0]),
-							}}
-							zoom={14}
+			{/* Guard the main content; no early return before hooks */}
+			{selectedHotel ? (
+				<>
+					{/* Hero */}
+					<HeroSection dir='ltr'>
+						<Swiper
+							modules={[Pagination, Autoplay, Thumbs]}
+							spaceBetween={10}
+							slidesPerView={1}
+							pagination={{ clickable: true }}
+							autoplay={{ delay: 4000, disableOnInteraction: false }}
+							loop
+							className='main-swiper'
 						>
-							<Marker
-								position={{
-									lat: parseFloat(selectedHotel.location.coordinates[1]),
-									lng: parseFloat(selectedHotel.location.coordinates[0]),
-								}}
-								draggable={false}
+							{selectedHotel.hotelPhotos.map((photo, i) => (
+								<SwiperSlide key={i}>
+									<img
+										src={photo.url}
+										alt={`${selectedHotel.hotelName} - ${i + 1}`}
+										className='hotel-image'
+									/>
+								</SwiperSlide>
+							))}
+						</Swiper>
+					</HeroSection>
+
+					{/* Tabs */}
+					<div dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
+						<Tabs
+							sections={sections.map(({ id }) => ({
+								id,
+								label:
+									id === "overview"
+										? t.overview
+										: id === "about"
+											? t.about
+											: id === "rooms"
+												? t.rooms
+												: id === "packages"
+													? t.packages
+													: id === "policies"
+														? t.policies
+														: null,
+							}))}
+							onTabClick={handleTabClick}
+							onActiveTabChange={(id) => updateSectionInURL(id, true)}
+							chosenLanguage={chosenLanguage}
+						/>
+					</div>
+
+					{/* Overview */}
+					<HotelInfo
+						ref={overviewRef}
+						id='overview'
+						isArabic={chosenLanguage === "Arabic"}
+						dir='ltr'
+						style={{
+							textAlign: chosenLanguage === "Arabic" ? "right" : "left",
+							marginRight: chosenLanguage === "Arabic" ? "10px" : "",
+						}}
+					>
+						<h1>
+							{chosenLanguage === "Arabic"
+								? selectedHotel.hotelName_OtherLanguage ||
+									selectedHotel.hotelName
+								: selectedHotel.hotelName}
+						</h1>
+						<p>
+							{formatAddress(selectedHotel.hotelAddress)
+								.split(",")
+								.slice(0, 2)
+								.join(", ")}
+						</p>
+						<Distances isArabic={chosenLanguage === "Arabic"}>
+							<FaCar />
+							{` ${selectedHotel.distances?.drivingToElHaram} ${t.drivingToHaram}`}
+						</Distances>
+						<Distances>
+							<FaWalking />
+							{` ${selectedHotel.distances?.walkingToElHaram} ${t.walkingToHaram}`}
+						</Distances>
+						<StarRatings
+							rating={selectedHotel.hotelRating || 0}
+							starRatedColor='orange'
+							numberOfStars={5}
+							name='rating'
+							starDimension='15px'
+							starSpacing='1px'
+						/>
+						<div>
+							<StaticRating
+								selectedHotel={selectedHotel}
+								chosenLanguage={chosenLanguage}
 							/>
-						</GoogleMap>
-					</MapContainer>
-				</LoadScript>
-			</HotelOverview>
+						</div>
+					</HotelInfo>
 
-			{/* Rooms */}
-			<RoomsSection
-				ref={roomsRef}
-				id='rooms'
-				isArabic={chosenLanguage === "Arabic"}
-			>
-				<h2 style={{ textAlign: chosenLanguage === "Arabic" ? "center" : "" }}>
-					{t.rooms}
-				</h2>
+					{/* About + Map */}
+					<HotelOverview
+						isArabic={chosenLanguage === "Arabic"}
+						ref={aboutRef}
+						id='about'
+						style={{
+							textAlign: chosenLanguage === "Arabic" ? "right" : "",
+							marginRight: chosenLanguage === "Arabic" ? "10px" : "",
+						}}
+						dir='rtl'
+					>
+						<h2>{t.about}</h2>
+						<p>
+							{chosenLanguage === "Arabic"
+								? selectedHotel.aboutHotelArabic || selectedHotel.aboutHotel
+								: selectedHotel.aboutHotel || "About Hotel"}
+						</p>
 
-				<DateRangeWrapper>
-					<ResponsiveRangePicker
-						format='YYYY-MM-DD'
-						value={dateRange}
-						onChange={handleDateChange}
-						disabledDate={(current) =>
-							current && current < dayjs().endOf("day")
-						}
-						panelRender={panelRender}
-						inputReadOnly
-					/>
-				</DateRangeWrapper>
+						{(() => {
+							const combinedFeatures = [
+								...new Set([
+									...selectedHotel.roomCountDetails.flatMap(
+										(r) => r.amenities || []
+									),
+									...selectedHotel.roomCountDetails.flatMap(
+										(r) => r.views || []
+									),
+									...selectedHotel.roomCountDetails.flatMap(
+										(r) => r.extraAmenities || []
+									),
+								]),
+							];
+							const visibleFeatures = showAllAmenities
+								? combinedFeatures
+								: combinedFeatures.slice(0, 4);
+							return (
+								<>
+									<AmenitiesWrapper>
+										{visibleFeatures.map((feature, idx) => (
+											<AmenityItem key={idx}>
+												{getIcon(feature)} <span>{feature}</span>
+											</AmenityItem>
+										))}
+									</AmenitiesWrapper>
 
-				{selectedHotel.roomCountDetails.map((room, index) => {
-					const all = [
-						...new Set([
-							...(room.amenities || []),
-							...(room.views || []),
-							...(room.extraAmenities || []),
-						]),
-					];
-					const vis = showAllAmenities2 ? all : all.slice(0, 3);
-
-					const start = dateRange[0].format("YYYY-MM-DD");
-					const end = dateRange[1].format("YYYY-MM-DD");
-
-					const pbd = calculatePricingByDay(
-						room.pricingRate || [],
-						start,
-						end,
-						room.price.basePrice,
-						room.defaultCost,
-						room.roomCommission || selectedHotel.commission
-					);
-
-					const nights = pbd.length;
-					const isAvailable = !pbd.some((d) => d.price <= 0);
-
-					const total = pbd.reduce(
-						(s, d) => s + (d.price + (d.rootPrice * d.commissionRate || 0)),
-						0
-					);
-					const pricePerNight = total / nights;
-
-					return (
-						<RoomCardWrapper key={room._id || index}>
-							<RoomImageWrapper dir='ltr'>
-								<Swiper
-									modules={[Pagination, Autoplay, Thumbs]}
-									spaceBetween={10}
-									slidesPerView={1}
-									pagination={{ clickable: true }}
-									autoplay={{ delay: 4000, disableOnInteraction: false }}
-									loop
-									thumbs={{ swiper: roomThumbsSwipers[index] }}
-									className='room-swiper'
-								>
-									{room.photos.map((photo, idx) => (
-										<SwiperSlide key={idx}>
-											<RoomImage
-												src={photo.url}
-												alt={`${room.displayName} - ${idx + 1}`}
-											/>
-										</SwiperSlide>
-									))}
-								</Swiper>
-							</RoomImageWrapper>
-
-							<RoomDetails
-								dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
-								style={{
-									textAlign: chosenLanguage === "Arabic" ? "right" : "",
-								}}
-							>
-								<h3
-									style={{
-										textAlign: chosenLanguage === "Arabic" ? "right" : "",
-									}}
-								>
-									{chosenLanguage === "Arabic"
-										? room.displayName_OtherLanguage || room.displayName
-										: room.displayName}
-								</h3>
-
-								<p className='m-0'>
-									{chosenLanguage === "Arabic"
-										? showFullDescription
-											? room.description_OtherLanguage || room.description
-											: (room.description_OtherLanguage || room.description)
-													.split(" ")
-													.slice(0, 8)
-													.join(" ")
-										: showFullDescription
-											? room.description
-											: room.description.split(" ").slice(0, 9).join(" ")}
-									...
-									{!showFullDescription && (
-										<div
-											onClick={() => setShowFullDescription(true)}
-											style={{
-												color: "var(--primaryBlue)",
-												cursor: "pointer",
-												fontWeight: "bold",
-												textDecoration: "underline",
-											}}
-										>
-											{chosenLanguage === "Arabic"
-												? "إظهار المزيد..."
-												: "show more..."}
-										</div>
-									)}
-								</p>
-
-								{showFullDescription && (
-									<span
-										onClick={() => setShowFullDescription(false)}
-										style={{
-											color: "var(--primaryBlue)",
-											cursor: "pointer",
-											fontWeight: "bold",
-											textDecoration: "underline",
-										}}
-									>
-										{chosenLanguage === "Arabic" ? "إظهار أقل" : "show less..."}
-									</span>
-								)}
-
-								<AmenitiesWrapper>
-									<h4>
-										{chosenLanguage === "Arabic"
-											? "وسائل الراحة:"
-											: "Amenities:"}
-									</h4>
-									{vis.map((f, idx) => (
-										<AmenityItem key={idx}>
-											{getIcon(f)} <span>{f}</span>
-										</AmenityItem>
-									))}
-									{all.length > 4 && (
-										<ToggleText
-											onClick={() => setShowAllAmenities2(!showAllAmenities2)}
-										>
-											{showAllAmenities2
+									{combinedFeatures.length > 4 && (
+										<ToggleText onClick={handleAmenitiesToggle}>
+											{showAllAmenities
 												? chosenLanguage === "Arabic"
-													? "إخفاء"
-													: "Hide"
+													? "إخفاء..."
+													: "Hide..."
 												: chosenLanguage === "Arabic"
 													? "عرض المزيد..."
 													: "Show More..."}
 										</ToggleText>
 									)}
-								</AmenitiesWrapper>
-							</RoomDetails>
+								</>
+							);
+						})()}
 
-							<PriceSection dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}>
-								<FinalPrice>
-									<span className='original-price'>
-										<s>
-											{convertCurrency(pricePerNight * 1.1)}{" "}
-											{t[selectedCurrency.toUpperCase()]}{" "}
-											{chosenLanguage === "Arabic" ? "لكل ليلة" : "/ Night"}
-										</s>
-									</span>
-									<span className='current-price'>
-										{convertCurrency(pricePerNight)}{" "}
-										{t[selectedCurrency.toUpperCase()]}{" "}
-										{chosenLanguage === "Arabic" ? "لكل ليلة" : "/ Night"}
-									</span>
-									<div className='nights'>
-										{nights} {chosenLanguage === "Arabic" ? "ليالٍ" : "nights"}
-									</div>
-								</FinalPrice>
-							</PriceSection>
-
-							<div
-								onClick={() => {
-									ReactGA.event({
-										category:
-											"User Added Reservation To Cart From Single Hotel",
-										action: "User Added Reservation To Cart From Single Hotel",
-										label: `User Added Reservation To Cart From Single Hotel`,
-									});
-									ReactPixel.track("Add_To_Reservation", {
-										action: "User Added A Room To The Cart",
-										page: "Single Hotel Page",
-									});
-								}}
-								style={{
-									display: "flex",
-									flexDirection: "column",
-									alignItems: "center",
-								}}
-							>
-								<StyledButton
-									disabled={!isAvailable}
-									style={{
-										backgroundColor: !isAvailable
-											? "#ccc"
-											: "var(--primaryBlue)",
-										cursor: !isAvailable ? "not-allowed" : "pointer",
+						<LoadScript googleMapsApiKey={process.env.REACT_APP_MAPS_API_KEY}>
+							<MapContainer>
+								<GoogleMap
+									mapContainerStyle={{ width: "100%", height: "100%" }}
+									center={{
+										lat: parseFloat(selectedHotel.location.coordinates[1]),
+										lng: parseFloat(selectedHotel.location.coordinates[0]),
 									}}
-									onClick={() => isAvailable && handleAddRoomToCart(room)}
+									zoom={14}
 								>
-									{chosenLanguage === "Arabic"
-										? "إضافة الغرفة إلى الحجز"
-										: "Add Room To Reservation"}
-								</StyledButton>
-								{!isAvailable && (
-									<UnavailableBadge>
-										{chosenLanguage === "Arabic"
-											? "غير متوفر"
-											: "Not Available"}
-									</UnavailableBadge>
-								)}
-							</div>
-						</RoomCardWrapper>
-					);
-				})}
-			</RoomsSection>
+									<Marker
+										position={{
+											lat: parseFloat(selectedHotel.location.coordinates[1]),
+											lng: parseFloat(selectedHotel.location.coordinates[0]),
+										}}
+										draggable={false}
+									/>
+								</GoogleMap>
+							</MapContainer>
+						</LoadScript>
+					</HotelOverview>
 
-			{/* Packages & Offers */}
-			<OffersSection
-				ref={packagesRef}
-				id='packages'
-				isArabic={chosenLanguage === "Arabic"}
-			>
-				<SingleHotelOffers
-					selectedHotel={selectedHotel}
-					chosenLanguage={chosenLanguage}
-					selectedCurrency={selectedCurrency}
-					currencyRates={currencyRates}
-				/>
-			</OffersSection>
+					{/* Rooms */}
+					<RoomsSection
+						ref={roomsRef}
+						id='rooms'
+						isArabic={chosenLanguage === "Arabic"}
+					>
+						<h2
+							style={{ textAlign: chosenLanguage === "Arabic" ? "center" : "" }}
+						>
+							{t.rooms}
+						</h2>
+
+						<DateRangeWrapper>
+							<ResponsiveRangePicker
+								format='YYYY-MM-DD'
+								value={dateRange}
+								onChange={handleDateChange}
+								disabledDate={(current) =>
+									current && current < dayjs().endOf("day")
+								}
+								panelRender={panelRender}
+								inputReadOnly
+							/>
+						</DateRangeWrapper>
+
+						{selectedHotel.roomCountDetails.map((room, index) => {
+							const all = [
+								...new Set([
+									...(room.amenities || []),
+									...(room.views || []),
+									...(room.extraAmenities || []),
+								]),
+							];
+							const vis = showAllAmenities2 ? all : all.slice(0, 3);
+
+							const start = dateRange[0].format("YYYY-MM-DD");
+							const end = dateRange[1].format("YYYY-MM-DD");
+
+							const pbd = calculatePricingByDay(
+								room.pricingRate || [],
+								start,
+								end,
+								room.price.basePrice,
+								room.defaultCost,
+								room.roomCommission || selectedHotel.commission
+							);
+
+							const nights = pbd.length;
+							const isAvailable = !pbd.some((d) => d.price <= 0);
+
+							const total = pbd.reduce(
+								(s, d) => s + (d.price + (d.rootPrice * d.commissionRate || 0)),
+								0
+							);
+							const pricePerNight = total / nights;
+
+							return (
+								<RoomCardWrapper key={room._id || index}>
+									<RoomImageWrapper dir='ltr'>
+										<Swiper
+											modules={[Pagination, Autoplay, Thumbs]}
+											spaceBetween={10}
+											slidesPerView={1}
+											pagination={{ clickable: true }}
+											autoplay={{ delay: 4000, disableOnInteraction: false }}
+											loop
+											className='room-swiper'
+										>
+											{room.photos.map((photo, idx) => (
+												<SwiperSlide key={idx}>
+													<RoomImage
+														src={photo.url}
+														alt={`${room.displayName} - ${idx + 1}`}
+													/>
+												</SwiperSlide>
+											))}
+										</Swiper>
+									</RoomImageWrapper>
+
+									<RoomDetails
+										dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+										style={{
+											textAlign: chosenLanguage === "Arabic" ? "right" : "",
+										}}
+									>
+										<h3
+											style={{
+												textAlign: chosenLanguage === "Arabic" ? "right" : "",
+											}}
+										>
+											{chosenLanguage === "Arabic"
+												? room.displayName_OtherLanguage || room.displayName
+												: room.displayName}
+										</h3>
+
+										<p className='m-0'>
+											{chosenLanguage === "Arabic"
+												? showFullDescription
+													? room.description_OtherLanguage || room.description
+													: (room.description_OtherLanguage || room.description)
+															.split(" ")
+															.slice(0, 8)
+															.join(" ")
+												: showFullDescription
+													? room.description
+													: room.description.split(" ").slice(0, 9).join(" ")}
+											...
+											{!showFullDescription && (
+												<div
+													onClick={() => setShowFullDescription(true)}
+													style={{
+														color: "var(--primaryBlue)",
+														cursor: "pointer",
+														fontWeight: "bold",
+														textDecoration: "underline",
+													}}
+												>
+													{chosenLanguage === "Arabic"
+														? "إظهار المزيد..."
+														: "show more..."}
+												</div>
+											)}
+										</p>
+
+										{showFullDescription && (
+											<span
+												onClick={() => setShowFullDescription(false)}
+												style={{
+													color: "var(--primaryBlue)",
+													cursor: "pointer",
+													fontWeight: "bold",
+													textDecoration: "underline",
+												}}
+											>
+												{chosenLanguage === "Arabic"
+													? "إظهار أقل"
+													: "show less..."}
+											</span>
+										)}
+
+										<AmenitiesWrapper>
+											<h4>
+												{chosenLanguage === "Arabic"
+													? "وسائل الراحة:"
+													: "Amenities:"}
+											</h4>
+											{vis.map((f, idx) => (
+												<AmenityItem key={idx}>
+													{getIcon(f)} <span>{f}</span>
+												</AmenityItem>
+											))}
+											{all.length > 4 && (
+												<ToggleText
+													onClick={() =>
+														setShowAllAmenities2(!showAllAmenities2)
+													}
+												>
+													{showAllAmenities2
+														? chosenLanguage === "Arabic"
+															? "إخفاء"
+															: "Hide"
+														: chosenLanguage === "Arabic"
+															? "عرض المزيد..."
+															: "Show More..."}
+												</ToggleText>
+											)}
+										</AmenitiesWrapper>
+									</RoomDetails>
+
+									<PriceSection
+										dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
+									>
+										<FinalPrice>
+											<span className='original-price'>
+												<s>
+													{convertCurrency(pricePerNight * 1.1)}{" "}
+													{t[selectedCurrency.toUpperCase()]}{" "}
+													{chosenLanguage === "Arabic" ? "لكل ليلة" : "/ Night"}
+												</s>
+											</span>
+											<span className='current-price'>
+												{convertCurrency(pricePerNight)}{" "}
+												{t[selectedCurrency.toUpperCase()]}{" "}
+												{chosenLanguage === "Arabic" ? "لكل ليلة" : "/ Night"}
+											</span>
+											<div className='nights'>
+												{nights}{" "}
+												{chosenLanguage === "Arabic" ? "ليالٍ" : "nights"}
+											</div>
+										</FinalPrice>
+									</PriceSection>
+
+									<div
+										onClick={() => {
+											ReactGA.event({
+												category:
+													"User Added Reservation To Cart From Single Hotel",
+												action:
+													"User Added Reservation To Cart From Single Hotel",
+												label: `User Added Reservation To Cart From Single Hotel`,
+											});
+											ReactPixel.track("Add_To_Reservation", {
+												action: "User Added A Room To The Cart",
+												page: "Single Hotel Page",
+											});
+										}}
+										style={{
+											display: "flex",
+											flexDirection: "column",
+											alignItems: "center",
+										}}
+									>
+										<StyledButton
+											disabled={!isAvailable}
+											style={{
+												backgroundColor: !isAvailable
+													? "#ccc"
+													: "var(--primaryBlue)",
+												cursor: !isAvailable ? "not-allowed" : "pointer",
+											}}
+											onClick={() => isAvailable && handleAddRoomToCart(room)}
+										>
+											{chosenLanguage === "Arabic"
+												? "إضافة الغرفة إلى الحجز"
+												: "Add Room To Reservation"}
+										</StyledButton>
+										{!isAvailable && (
+											<UnavailableBadge>
+												{chosenLanguage === "Arabic"
+													? "غير متوفر"
+													: "Not Available"}
+											</UnavailableBadge>
+										)}
+									</div>
+								</RoomCardWrapper>
+							);
+						})}
+					</RoomsSection>
+
+					{/* Packages & Offers */}
+					<OffersSection
+						ref={packagesRef}
+						id='packages'
+						isArabic={chosenLanguage === "Arabic"}
+					>
+						<SingleHotelOffers
+							selectedHotel={selectedHotel}
+							chosenLanguage={chosenLanguage}
+							selectedCurrency={selectedCurrency}
+							currencyRates={currencyRates}
+						/>
+					</OffersSection>
+				</>
+			) : null}
 		</SingleHotelWrapper>
 	);
 };
