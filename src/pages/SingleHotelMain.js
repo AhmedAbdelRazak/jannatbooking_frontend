@@ -14,6 +14,7 @@ const SingleHotelMain = () => {
 	const [selectedHotel, setSelectedHotel] = useState(null);
 	const [loading, setLoading] = useState(true);
 
+	// Parse initial section from URL (rooms/packages/offers)
 	const initialSection = useMemo(() => {
 		const params = new URLSearchParams(location.search);
 		const raw = (
@@ -22,6 +23,7 @@ const SingleHotelMain = () => {
 			params.get("goto") ||
 			""
 		).toLowerCase();
+
 		const s = location.search.toLowerCase();
 		const normalize = (x) => (x === "offers" ? "packages" : x);
 
@@ -29,7 +31,7 @@ const SingleHotelMain = () => {
 		if (s.includes("packages") || s.includes("offers") || s.includes("deals"))
 			return "packages";
 		if (s.includes("rooms")) return "rooms";
-		return "";
+		return ""; // no auto-scroll
 	}, [location.search]);
 
 	useEffect(() => {
@@ -40,7 +42,6 @@ const SingleHotelMain = () => {
 				setSelectedHotel(hotelData);
 			} catch (error) {
 				console.error("Error fetching hotel:", error);
-				setSelectedHotel(null);
 			} finally {
 				setLoading(false);
 			}
@@ -55,16 +56,6 @@ const SingleHotelMain = () => {
 			.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
 			.join(" ");
 	};
-
-	const toSlug = (str) =>
-		typeof str === "string" && str.trim()
-			? str.trim().replace(/\s+/g, "-").toLowerCase()
-			: "";
-
-	const hotelSlugForSeo = useMemo(
-		() => toSlug(selectedHotel?.hotelName),
-		[selectedHotel?.hotelName]
-	);
 
 	const generateCapitalizedAmenities = (hotel) => {
 		if (!hotel || !hotel.roomCountDetails) return "Top Amenities";
@@ -91,24 +82,32 @@ const SingleHotelMain = () => {
 
 				<meta
 					name='description'
-					content={`Discover ${capitalize(selectedHotel?.hotelName)} located in ${capitalize(
-						selectedHotel?.hotelCity
-					)}, ${capitalize(selectedHotel?.hotelCountry)}. Enjoy amenities like ${generateCapitalizedAmenities(
+					content={`Discover ${capitalize(
+						selectedHotel?.hotelName
+					)} located in ${capitalize(selectedHotel?.hotelCity)}, ${capitalize(
+						selectedHotel?.hotelCountry
+					)}. Enjoy amenities like ${generateCapitalizedAmenities(
 						selectedHotel
-					)}. Walking to Al Haram: ${selectedHotel?.distances?.walkingToElHaram}. Book a comfortable and affordable stay for Haj and Umrah now.`}
+					)}. Walking to Al Haram: ${
+						selectedHotel?.distances?.walkingToElHaram
+					}. Book a comfortable and affordable stay for Haj and Umrah now.`}
 				/>
 				<meta
 					name='keywords'
-					content={`Haj Hotels, Umrah Hotels, ${capitalize(selectedHotel?.hotelName)}, Hotels Near Al Haram, ${generateCapitalizedAmenities(
+					content={`Haj Hotels, Umrah Hotels, ${capitalize(
+						selectedHotel?.hotelName
+					)}, Hotels Near Al Haram, ${generateCapitalizedAmenities(
 						selectedHotel
-					)}, Hotels In ${capitalize(selectedHotel?.hotelCity)}, Luxury Rooms, Family Rooms`}
+					)}, Hotels In ${capitalize(
+						selectedHotel?.hotelCity
+					)}, Luxury Rooms, Family Rooms`}
 				/>
 
 				<meta
 					property='og:title'
-					content={`Stay at ${capitalize(selectedHotel?.hotelName)} in ${capitalize(
-						selectedHotel?.hotelCity
-					)} - Book Now`}
+					content={`Stay at ${capitalize(
+						selectedHotel?.hotelName
+					)} in ${capitalize(selectedHotel?.hotelCity)} - Book Now`}
 				/>
 				<meta
 					property='og:description'
@@ -127,7 +126,9 @@ const SingleHotelMain = () => {
 				/>
 				<meta
 					property='og:url'
-					content={`https://jannatbooking.com/single-hotel/${hotelSlugForSeo}`}
+					content={`https://jannatbooking.com/single-hotel/${selectedHotel?.hotelName
+						?.replace(/\s+/g, "-")
+						.toLowerCase()}`}
 				/>
 				<meta property='og:type' content='website' />
 
@@ -138,7 +139,9 @@ const SingleHotelMain = () => {
 				/>
 				<meta
 					name='twitter:description'
-					content={`Book ${capitalize(selectedHotel?.hotelName)} in ${capitalize(
+					content={`Book ${capitalize(
+						selectedHotel?.hotelName
+					)} in ${capitalize(
 						selectedHotel?.hotelCity
 					)}, close to Al Haram. Enjoy great amenities and spacious rooms for Haj & Umrah.`}
 				/>
@@ -152,7 +155,9 @@ const SingleHotelMain = () => {
 
 				<link
 					rel='canonical'
-					href={`https://jannatbooking.com/single-hotel/${hotelSlugForSeo}`}
+					href={`https://jannatbooking.com/single-hotel/${selectedHotel?.hotelName
+						?.replace(/\s+/g, "-")
+						.toLowerCase()}`}
 				/>
 				<link rel='icon' href={favicon} />
 			</Helmet>
