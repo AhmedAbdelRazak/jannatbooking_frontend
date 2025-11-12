@@ -1,3 +1,4 @@
+// src/components/checkout/CheckoutContent.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
@@ -9,7 +10,7 @@ import {
 	currencyConversion,
 	gettingSingleHotel,
 	gettingRoomByIds,
-	createReservationViaPayPal, // ✅ PayPal server create
+	createReservationViaPayPal, // ✅ PayPal server create (AUTHORIZE)
 } from "../../apiCore";
 import { FaMinus, FaPlus } from "react-icons/fa";
 import { authenticate, isAuthenticated, signin } from "../../auth";
@@ -30,7 +31,7 @@ const safeParseFloat = (value, fallback = 0) => {
 };
 
 // ────────────────────────────────────────────────────────────────────
-// Deposit math helpers (unchanged logic)
+// Deposit math helpers (legacy deposit kept for non-deposit branches)
 // ────────────────────────────────────────────────────────────────────
 const calculateDepositDetails = (roomCart) => {
 	if (!roomCart || roomCart.length === 0) {
@@ -216,10 +217,19 @@ const CheckoutContent = ({
 
 	const {
 		averageCommissionRate,
-		depositAmount,
+		depositAmount, // legacy deposit, still used in non-deposit flows
 		totalRoomsPricePerNight,
 		overallAverageCommissionRate,
 	} = useMemo(() => calculateDepositDetails(roomCart), [roomCart]);
+
+	// NEW: helper to get 15% of total (SAR)
+	const depositSar15 = useMemo(
+		() =>
+			Number(
+				(safeParseFloat(total_price_with_commission, 0) * 0.15).toFixed(2)
+			),
+		[total_price_with_commission]
+	);
 
 	useEffect(() => {
 		if (roomCart && roomCart.length > 0) {
@@ -262,28 +272,37 @@ const CheckoutContent = ({
 		setCurrencyRates(rates);
 	}, []);
 
+	// ────────────────────────────────────────────────────────────────
+	// USD conversion — normalize depositUSD to 15% of totalUSD
+	// ────────────────────────────────────────────────────────────────
 	useEffect(() => {
 		const fetchConversion = async () => {
-			const deposit = depositAmount;
+			const depositLegacy = depositAmount; // legacy deposit (not used for USD deposit anymore)
 			const total = total_price_with_commission;
 			const totalRoomsPricePerNight_SAR = totalRoomsPricePerNight;
-			const amounts = [deposit, total, totalRoomsPricePerNight_SAR];
+			const amounts = [depositLegacy, total, totalRoomsPricePerNight_SAR];
 
 			try {
 				const conversions = await currencyConversion(amounts);
+
+				const totalUsdNum =
+					conversions?.[1]?.amountInUSD != null
+						? Number(conversions[1].amountInUSD)
+						: 0;
+
+				const trppUsdNum =
+					conversions?.[2]?.amountInUSD != null
+						? Number(conversions[2].amountInUSD)
+						: 0;
+
+				const depositUsd15 = Number((totalUsdNum * 0.15).toFixed(2));
+
 				setConvertedAmounts({
-					depositUSD:
-						conversions?.[0]?.amountInUSD != null
-							? Number(conversions[0].amountInUSD).toFixed(2)
-							: "0.00",
-					totalUSD:
-						conversions?.[1]?.amountInUSD != null
-							? Number(conversions[1].amountInUSD).toFixed(2)
-							: "0.00",
-					totalRoomsPricePerNightUSD:
-						conversions?.[2]?.amountInUSD != null
-							? Number(conversions[2].amountInUSD).toFixed(2)
-							: "0.00",
+					// ✅ critical: this is what we actually charge for deposit
+					depositUSD: depositUsd15.toFixed(2),
+					// keep total as the single source-of-truth for 15% math
+					totalUSD: totalUsdNum.toFixed(2),
+					totalRoomsPricePerNightUSD: trppUsdNum.toFixed(2),
 				});
 			} catch (error) {
 				console.error("Currency conversion failed", error);
@@ -529,19 +548,19 @@ const CheckoutContent = ({
 			const hotelNames = roomCart.map((room) => room.hotelName);
 			const uniqueHotelNames = [...new Set(hotelNames)];
 
+			// Defaults
 			let payment = "Not Paid";
 			let commissionPaid = false;
 			let commission = safeParseFloat(depositAmount, 0);
 			let paid_amount = 0;
 			let totalAmount = safeParseFloat(total_price_with_commission, 0);
 
+			// ===== NEW (15%): When user selected deposit, only 15% is paid/commission
 			if (selectedPaymentOption === "acceptDeposit") {
 				payment = "Deposit Paid";
 				commissionPaid = true;
-				commission = safeParseFloat(depositAmount, 0);
-				paid_amount =
-					safeParseFloat(depositAmount, 0) +
-					safeParseFloat(totalRoomsPricePerNight, 0);
+				commission = depositSar15; // 15% of total
+				paid_amount = depositSar15; // 15% paid now
 			} else if (selectedPaymentOption === "acceptPayWholeAmount") {
 				payment = "Paid Online";
 				commissionPaid = true;
@@ -601,7 +620,7 @@ const CheckoutContent = ({
 				total_amount: safeParseFloat(totalAmount, 0),
 				payment,
 				paid_amount: safeParseFloat(paid_amount, 0),
-				commission: commission ? safeParseFloat(commission, 0) : depositAmount,
+				commission: commission,
 				commissionPaid,
 				checkin_date: roomCart[0].startDate || "",
 				checkout_date: roomCart[0].endDate || "",
@@ -634,7 +653,7 @@ const CheckoutContent = ({
 		}
 	};
 
-	// Reserve‑Now (Not Paid) flow — no PAN/CVV, no PayPal payload → backend will send verification link
+	// Reserve‑Now (Not Paid) flow — unchanged
 	const createNewReservation = async () => {
 		const { name, phone, email, passport, passportExpiry, password } =
 			customerDetails;
@@ -761,7 +780,6 @@ const CheckoutContent = ({
 			pickedRoomsType,
 			convertedAmounts,
 			usePassword: password || "",
-			// ⛔ No paypal{} here → backend will send verification link for this branch
 		};
 
 		try {
@@ -802,7 +820,7 @@ const CheckoutContent = ({
 	};
 
 	// ────────────────────────────────────────────────────────────────
-	// Approval handler for PayPal (Deposit / Full) — FIXED WIRING
+	// Approval handler for PayPal (Deposit / Full) — with 15% for deposit
 	// ────────────────────────────────────────────────────────────────
 	const handlePayPalApproved = async (payload) => {
 		try {
@@ -824,20 +842,17 @@ const CheckoutContent = ({
 				return;
 			}
 
-			// Always pass the expected USD amount to the backend
 			const expectedUsdAmount =
 				paypal?.expectedUsdAmount != null
 					? String(paypal.expectedUsdAmount)
-					: option === "deposit"
-						? String(conv?.depositUSD ?? "")
-						: String(conv?.totalUSD ?? "");
+					: "";
 
 			if (!expectedUsdAmount) {
 				message.error("Missing expected USD amount.");
 				return;
 			}
 
-			const mode = paypal?.mode || "authorize"; // defaults to AUTHORIZE for your use case
+			const mode = paypal?.mode || "authorize"; // defaults to AUTHORIZE
 			const cmid = paypal?.cmid || null;
 
 			const {
@@ -867,15 +882,15 @@ const CheckoutContent = ({
 				false
 			);
 
-			const commission = safeParseFloat(depositAmount, 0);
-			const totalAmount = safeParseFloat(total_price_with_commission, 0);
+			// NEW (15%): commission for deposit branch is 15% of total, otherwise keep your original commission
+			const commissionForPayload =
+				option === "deposit" ? depositSar15 : safeParseFloat(depositAmount, 0);
 
-			// Keep current semantics: mark paid_amount in SAR (even for authorizations backend can ignore/override)
+			const totalAmount = safeParseFloat(total_price_with_commission, 0);
 			const paid_amount = safeParseFloat(sarAmount, 0);
 
 			const body = {
 				sentFrom: "client",
-				// Keep your present label behavior; backend will set final status
 				payment: paymentLabelFor(option),
 				option, // <-- crucial for backend amounts/branch
 				hotelId: roomCart[0].hotelId,
@@ -896,7 +911,7 @@ const CheckoutContent = ({
 				paymentClicked,
 				payment_method: "PayPal",
 				paid_amount, // SAR paid/authorized now
-				commission,
+				commission: commissionForPayload,
 				commissionPaid: true, // backend may overwrite on authorize-only
 				checkin_date: roomCart[0].startDate || "",
 				checkout_date: roomCart[0].endDate || "",
@@ -1179,11 +1194,11 @@ const CheckoutContent = ({
 							type='tel'
 							name='phone'
 							placeholder={t.phoneNumber}
-							pattern='[0-9\s+-]*'
+							pattern='[0-9\\s+-]*'
 							inputMode='numeric'
 							value={customerDetails.phone}
 							onChange={(e) => {
-								const inputValue = e.target.value.replace(/[^\d\s+-]/g, "");
+								const inputValue = e.target.value.replace(/[^\\d\\s+-]/g, "");
 								setCustomerDetails({
 									...customerDetails,
 									phone: inputValue,
@@ -1243,7 +1258,7 @@ const CheckoutContent = ({
 									depositAmount={depositAmount}
 									averageCommissionRate={averageCommissionRate}
 									total_price_with_commission={total_price_with_commission}
-									convertedAmounts={convertedAmounts}
+									convertedAmounts={convertedAmounts} // NEW: pass through
 									selectedPaymentOption={selectedPaymentOption}
 									setSelectedPaymentOption={setSelectedPaymentOption}
 									overallAverageCommissionRate={overallAverageCommissionRate}
@@ -1334,7 +1349,8 @@ const CheckoutContent = ({
 									overallAverageCommissionRate={overallAverageCommissionRate}
 									totalRoomsPricePerNight={totalRoomsPricePerNight}
 									createUncompletedDocument={createUncompletedDocument}
-									onPayApproved={handlePayPalApproved} // ✅ fixed wiring
+									onPayApproved={handlePayPalApproved}
+									payMode='capture' // ✅ use capute or authorize
 								/>
 							</>
 						)}
@@ -1396,7 +1412,8 @@ const CheckoutContent = ({
 				disabledCheckInDate={disabledCheckInDate}
 				checkOut={checkOut}
 				disabledCheckOutDate={disabledCheckOutDate}
-				handlePayPalApproved={handlePayPalApproved} // ✅ fixed wiring
+				handlePayPalApproved={handlePayPalApproved}
+				payMode='capture' // ✅ use capture
 			/>
 		</CheckoutContentWrapper>
 	);

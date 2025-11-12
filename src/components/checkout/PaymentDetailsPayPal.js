@@ -18,12 +18,7 @@ import {
 } from "@paypal/react-paypal-js";
 import { getPayPalClientToken } from "../../apiCore";
 
-/** Utility: pick a valid PayPal locale */
-function mapLocale(isArabic) {
-	return isArabic ? "ar_EG" : "en_US";
-}
-
-/** Non-crypto visible signature for quick FE vs BE app checks */
+// --- helpers ---
 const idSig = (s) => {
 	try {
 		const t = String(s || "");
@@ -34,13 +29,13 @@ const idSig = (s) => {
 		return "na";
 	}
 };
+const mapLocale = (isArabic) => (isArabic ? "ar_EG" : "en_US");
 
-/** Submit button that works with both the new + legacy Card Fields contexts */
+// --- Card submit button (compatible with old+new CardFields contexts) ---
 function CardSubmit({ allowInteract, labels }) {
 	const ctx = usePayPalCardFields();
 	const cardFieldsForm = ctx?.cardFieldsForm;
 	const cardFields = ctx?.cardFields;
-
 	const [busy, setBusy] = useState(false);
 	const [ready, setReady] = useState(false);
 
@@ -86,9 +81,8 @@ function CardSubmit({ allowInteract, labels }) {
 					return;
 				}
 			}
-			await submitFn(); // 3‑D Secure if needed → then onApprove runs
+			await submitFn();
 		} catch (e) {
-			// eslint-disable-next-line no-console
 			console.error("CardFields submit error:", e);
 			message.error(labels?.failed || "Card payment failed.");
 		} finally {
@@ -97,14 +91,12 @@ function CardSubmit({ allowInteract, labels }) {
 	};
 
 	const disabled = !allowInteract || !ready || busy;
-
 	return (
 		<PayCardButton
 			type='button'
 			onClick={submit}
 			disabled={disabled}
 			aria-disabled={disabled}
-			title={!ready ? "Initializing secure card fields..." : undefined}
 		>
 			{busy
 				? labels?.processing || "Processing…"
@@ -113,63 +105,79 @@ function CardSubmit({ allowInteract, labels }) {
 	);
 }
 
-export default function PaymentDetailsPayPal(props) {
-	const {
-		chosenLanguage,
-		selectedPaymentOption,
-		guestAgreedOnTermsAndConditions = true,
-		depositAmount,
-		total_price_with_commission,
-		convertedAmounts = {},
-		createUncompletedDocument,
-		onPayApproved, // parent must call your backend
-	} = props;
-
+/**
+ * Drop-in PayPal checkout that supports:
+ *  - payMode="capture" | "authorize" (default "capture")
+ *  - Deposit=15% logic preserved
+ *  - Clear amount-bar above the buttons
+ */
+export default function PaymentDetailsPayPal({
+	chosenLanguage,
+	selectedPaymentOption,
+	guestAgreedOnTermsAndConditions = true,
+	depositAmount, // kept for compatibility (not used for deposit math)
+	total_price_with_commission,
+	convertedAmounts = {},
+	createUncompletedDocument,
+	onPayApproved, // parent handler will call the right backend endpoint
+	payMode = "capture", // <<< NEW: default capture
+}) {
 	const isArabic = chosenLanguage === "Arabic";
 	const locale = mapLocale(isArabic);
 
-	// Single source of truth: AUTHORIZE (hold now, capture later)
-	const INTENT = "AUTHORIZE";
+	// Deposit = 15% of total
+	const DEPOSIT_PERCENT = 0.15;
+	const totalSar = useMemo(
+		() => Number(total_price_with_commission ?? 0),
+		[total_price_with_commission]
+	);
+	const totalUsd = useMemo(
+		() => Number(convertedAmounts?.totalUSD ?? 0),
+		[convertedAmounts]
+	);
+	const sarDeposit15 = useMemo(
+		() => Number((totalSar * DEPOSIT_PERCENT).toFixed(2)),
+		[totalSar]
+	);
+	const usdDeposit15 = useMemo(
+		() => Number((totalUsd * DEPOSIT_PERCENT).toFixed(2)),
+		[totalUsd]
+	);
+	const pretty = (n) => Number(n || 0).toFixed(2);
+
+	// Intent based on payMode (CAPTURE by default)
+	const INTENT =
+		payMode?.toUpperCase() === "AUTHORIZE" ? "AUTHORIZE" : "CAPTURE";
 	const isAuthorize = INTENT === "AUTHORIZE";
 
-	// Client token + env coming from backend
+	// Client token & env from backend
 	const [clientToken, setClientToken] = useState(null);
-	const [isLive, setIsLive] = useState(null); // ← authoritative env from backend
+	const [isLive, setIsLive] = useState(null);
 	const [tokenError, setTokenError] = useState(null);
-	const [reloadKey, setReloadKey] = useState(0); // for “Reload payment” action
-
-	// Wallet-only fallback: if the SDK rejects with card-fields, retry with buttons only
+	const [reloadKey, setReloadKey] = useState(0);
 	const [walletOnly, setWalletOnly] = useState(false);
 
 	useEffect(() => {
 		let mounted = true;
 		(async () => {
 			try {
-				const tok = await getPayPalClientToken(); // should return { clientToken, env, diag? }
+				const tok = await getPayPalClientToken();
 				const ct = typeof tok === "string" ? tok : tok?.clientToken;
-				let env = (tok?.env || "").toLowerCase(); // "live" | "sandbox"
+				let env = (tok?.env || "").toLowerCase();
 				if (!ct) throw new Error("Missing PayPal client token");
 
 				if (env !== "live" && env !== "sandbox") {
 					const node = (process.env.REACT_APP_NODE_ENV || "").toUpperCase();
 					env = node === "PRODUCTION" ? "live" : "sandbox";
-					console.warn(
-						"[PayPal] 'env' not returned by API. Falling back to",
-						env
-					);
 				}
-
 				if (mounted) {
 					setClientToken(ct);
 					setIsLive(env === "live");
 				}
-
-				// Optional FE/BE diag: show short signature of client-ids to spot mismatches
 				const feClientId =
 					env === "live"
 						? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE
 						: process.env.REACT_APP_PAYPAL_CLIENT_ID_SANDBOX;
-				// eslint-disable-next-line no-console
 				console.log(
 					"[PP][diag] FE clientIdSig:",
 					idSig(feClientId || "na"),
@@ -181,7 +189,6 @@ export default function PaymentDetailsPayPal(props) {
 					!!tok?.cached
 				);
 			} catch (e) {
-				// eslint-disable-next-line no-console
 				console.error("PayPal init failed:", e);
 				setTokenError(e);
 				if (mounted) {
@@ -195,34 +202,21 @@ export default function PaymentDetailsPayPal(props) {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isArabic, reloadKey]);
 
-	const usdDeposit = useMemo(
-		() =>
-			convertedAmounts?.depositUSD != null
-				? Number(convertedAmounts.depositUSD).toFixed(2)
-				: "0.00",
-		[convertedAmounts]
-	);
-	const usdTotal = useMemo(
-		() =>
-			convertedAmounts?.totalUSD != null
-				? Number(convertedAmounts.totalUSD).toFixed(2)
-				: "0.00",
-		[convertedAmounts]
-	);
-
+	// Amounts to pay now
 	const selectedUsdAmount = useMemo(() => {
-		if (selectedPaymentOption === "acceptDeposit") return usdDeposit;
-		if (selectedPaymentOption === "acceptPayWholeAmount") return usdTotal;
+		if (selectedPaymentOption === "acceptDeposit") return pretty(usdDeposit15);
+		if (selectedPaymentOption === "acceptPayWholeAmount")
+			return pretty(totalUsd);
 		return "0.00";
-	}, [selectedPaymentOption, usdDeposit, usdTotal]);
+	}, [selectedPaymentOption, usdDeposit15, totalUsd]);
 
 	const selectedSarAmount = useMemo(() => {
 		if (selectedPaymentOption === "acceptDeposit")
-			return Number(depositAmount ?? 0);
+			return Number(pretty(sarDeposit15));
 		if (selectedPaymentOption === "acceptPayWholeAmount")
-			return Number(total_price_with_commission ?? 0);
+			return Number(pretty(totalSar));
 		return 0;
-	}, [selectedPaymentOption, depositAmount, total_price_with_commission]);
+	}, [selectedPaymentOption, sarDeposit15, totalSar]);
 
 	const allowInteract =
 		(selectedPaymentOption === "acceptDeposit" ||
@@ -308,14 +302,14 @@ export default function PaymentDetailsPayPal(props) {
 			},
 		];
 
-		const createOrder = async (data, actions) => {
+		const createOrder = async (_data, actions) => {
 			if (!requireSelectionAndTerms()) return;
 
 			const label =
 				selectedPaymentOption === "acceptDeposit"
 					? isArabic
-						? "دفعة مقدمة"
-						: "Deposit"
+						? "دفعة مقدمة (15%)"
+						: "Deposit (15%)"
 					: isArabic
 						? "المبلغ الكامل"
 						: "Full Amount";
@@ -336,7 +330,7 @@ export default function PaymentDetailsPayPal(props) {
 				});
 			}
 
-			// Card Fields flow — create on the server and return order id
+			// Card fields flow: create on server
 			const res = await fetch(
 				`${process.env.REACT_APP_API_URL}/paypal/order/create`,
 				{
@@ -356,7 +350,6 @@ export default function PaymentDetailsPayPal(props) {
 					}),
 				}
 			);
-
 			const json = await res.json();
 			if (!res.ok || !json?.id) {
 				throw new Error(
@@ -366,7 +359,7 @@ export default function PaymentDetailsPayPal(props) {
 			return json.id;
 		};
 
-		const onApprove = async (data /* , actions */) => {
+		const onApprove = async (data) => {
 			try {
 				if (!onPayApproved) {
 					message.error("Missing onPayApproved handler.");
@@ -387,7 +380,7 @@ export default function PaymentDetailsPayPal(props) {
 						order_id: data?.orderID,
 						expectedUsdAmount: String(selectedUsdAmount),
 						cmid: getCMID(),
-						mode: isAuthorize ? "authorize" : "capture",
+						mode: isAuthorize ? "authorize" : "capture", // <<< tell the handler which backend endpoint to call
 					},
 				};
 
@@ -395,11 +388,13 @@ export default function PaymentDetailsPayPal(props) {
 
 				ReactGA.event({
 					category: "Reservation Payment",
-					action: "Checkout Pay Success",
+					action: isAuthorize
+						? "Checkout Authorize Success"
+						: "Checkout Capture Success",
 					label: optionNormalized,
 					value: Number(selectedSarAmount),
 				});
-				ReactPixel.track("Purchase", {
+				ReactPixel.track(isAuthorize ? "Authorize" : "Purchase", {
 					value: Number(selectedSarAmount),
 					currency: "SAR",
 				});
@@ -414,7 +409,6 @@ export default function PaymentDetailsPayPal(props) {
 							: "Payment successful!"
 				);
 			} catch (e) {
-				// eslint-disable-next-line no-console
 				console.error("PayPal onApprove error:", e);
 				message.error(
 					e?.message ||
@@ -426,31 +420,25 @@ export default function PaymentDetailsPayPal(props) {
 		};
 
 		const onError = (e) => {
-			// eslint-disable-next-line no-console
 			console.error("PayPal error:", e);
 			message.error(
 				isArabic ? "خطأ في الدفع عبر PayPal" : "PayPal payment error."
 			);
 		};
 
-		// If the script failed, log the exact SDK URL and offer fallback/retry
 		if (isRejected) {
 			try {
 				const p = new URL("https://www.paypal.com/sdk/js");
 				Object.entries(options || {}).forEach(([k, v]) => {
-					if (v === undefined || v === null || v === "") return;
+					if (v == null || v === "") return;
 					p.searchParams.set(k, String(v));
 				});
-				// eslint-disable-next-line no-console
 				console.log("[PP][script] url:", p.toString(), {
 					options,
 					isRejected,
 					isResolved: false,
 				});
-			} catch {
-				/* noop */
-			}
-
+			} catch {}
 			if (!walletOnly) {
 				return (
 					<div>
@@ -464,8 +452,8 @@ export default function PaymentDetailsPayPal(props) {
 							}
 							description={
 								isArabic
-									? "سنحاول استخدام محفظة PayPal أو البطاقة المستضافة فقط. إذا استمر الخطأ، عطّل مانع الإعلانات أو جرّب شبكة مختلفة."
-									: "We’ll try a wallet-only (buttons) fallback. If it persists, disable ad blockers or try another network."
+									? "سنحاول استخدام محفظة PayPal فقط. إذا استمر الخطأ، عطّل مانع الإعلانات أو جرّب شبكة مختلفة."
+									: "We’ll try a wallet-only fallback. If it persists, disable ad blockers or try another network."
 							}
 						/>
 						<div style={{ textAlign: "center", marginTop: 10 }}>
@@ -483,14 +471,12 @@ export default function PaymentDetailsPayPal(props) {
 					</div>
 				);
 			}
-
-			// When walletOnly is true, the provider is recreated outside with fallback options
 			return null;
 		}
 
 		if (!isResolved) return <Spin />;
 
-		// Card Fields eligibility (avoid runtime crash if SDK doesn't expose CardFields)
+		// Inline card fields eligibility
 		let supportsCardFields = false;
 		try {
 			supportsCardFields = !!window?.paypal?.CardFields;
@@ -506,8 +492,27 @@ export default function PaymentDetailsPayPal(props) {
 
 		return (
 			<>
+				{/* amount bar */}
+				{allowInteract ? (
+					<AmountBar>
+						<AmountLine>
+							{selectedPaymentOption === "acceptDeposit"
+								? isArabic
+									? "ستدفع الآن (عربون 15%): "
+									: "You will pay now (Deposit 15%): "
+								: isArabic
+									? "ستدفع الآن (المبلغ الكامل): "
+									: "You will pay now (Full amount): "}
+							<strong>
+								SAR {pretty(selectedSarAmount)} • USD{" "}
+								{pretty(selectedUsdAmount)}
+							</strong>
+						</AmountLine>
+					</AmountBar>
+				) : null}
+
 				<ButtonsBox>
-					{/* Wallet (PayPal) */}
+					{/* PayPal wallet */}
 					<PayPalButtons
 						fundingSource='paypal'
 						style={{ layout: "vertical", label: "paypal" }}
@@ -516,7 +521,7 @@ export default function PaymentDetailsPayPal(props) {
 						onError={onError}
 						disabled={!allowInteract}
 					/>
-					{/* Wallet card (hosted card button) */}
+					{/* Pay with card (hosted button) */}
 					<PayPalButtons
 						fundingSource='card'
 						style={{ layout: "vertical", label: "pay" }}
@@ -532,7 +537,7 @@ export default function PaymentDetailsPayPal(props) {
 				</BrandFootnote>
 				<Divider />
 
-				{/* Inline Card Fields section */}
+				{/* Inline card fields (if available) */}
 				{supportsCardFields && !walletOnly ? (
 					<CardBox
 						dir={isArabic ? "rtl" : "ltr"}
@@ -541,7 +546,6 @@ export default function PaymentDetailsPayPal(props) {
 						<CardTitle>
 							{isArabic ? "أو ادفع مباشرة بالبطاقة" : "Or pay directly by card"}
 						</CardTitle>
-
 						<PayPalCardFieldsProvider
 							createOrder={createOrder}
 							onApprove={onApprove}
@@ -556,14 +560,12 @@ export default function PaymentDetailsPayPal(props) {
 										<PayPalNameField />
 									</div>
 								</div>
-
 								<div className='field'>
 									<label>{isArabic ? "رقم البطاقة" : "Card number"}</label>
 									<div className='hosted'>
 										<PayPalNumberField />
 									</div>
 								</div>
-
 								<Row>
 									<div className='field half'>
 										<label>{isArabic ? "تاريخ الانتهاء" : "Expiry date"}</label>
@@ -584,7 +586,9 @@ export default function PaymentDetailsPayPal(props) {
 								<CardSubmit
 									allowInteract={allowInteract}
 									labels={{
-										pay: isArabic ? "ادفع بالبطاقة" : "Pay by Card",
+										pay: isArabic
+											? `ادفع ${pretty(selectedSarAmount)} SAR (${pretty(selectedUsdAmount)} USD) بالبطاقة`
+											: `Pay SAR ${pretty(selectedSarAmount)} (USD ${pretty(selectedUsdAmount)}) by Card`,
 										processing: isArabic ? "جار المعالجة..." : "Processing…",
 										incomplete: isArabic
 											? "يرجى إكمال بيانات البطاقة."
@@ -641,7 +645,6 @@ export default function PaymentDetailsPayPal(props) {
 		);
 	}
 
-	/** Build PayPal SDK options (primary vs wallet-only fallback) */
 	const feClientId =
 		(isLive
 			? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE
@@ -658,7 +661,6 @@ export default function PaymentDetailsPayPal(props) {
 					"enable-funding": "paypal,card",
 					"disable-funding": "credit,venmo,paylater",
 					locale,
-					// No "buyer-country" here — let PayPal pick automatically to avoid region conflicts
 				}
 			: null;
 
@@ -670,24 +672,22 @@ export default function PaymentDetailsPayPal(props) {
 					currency: "USD",
 					intent: INTENT.toLowerCase(),
 					commit: true,
-					"enable-funding": "paypal,card", // both wallet options still available
+					"enable-funding": "paypal,card",
 					"disable-funding": "credit,venmo,paylater",
 					locale,
 				}
 			: null;
 
 	const paypalOptions = primaryOptions || fallbackOptions;
-
-	if (!paypalOptions) {
+	if (!paypalOptions)
 		return (
 			<Centered>
 				<Spin />
 			</Centered>
 		);
-	}
 
 	return (
-		<ScriptShell key={`${reloadKey}-${walletOnly ? "w" : "p"}`}>
+		<ScriptShell key={`${reloadKey}-${walletOnly ? "w" : "p"}-${INTENT}`}>
 			<PayPalScriptProvider options={paypalOptions}>
 				<PayArea />
 			</PayPalScriptProvider>
@@ -695,7 +695,7 @@ export default function PaymentDetailsPayPal(props) {
 	);
 }
 
-/* styles */
+/* styles (same as before) */
 const ScriptShell = styled.div`
 	width: 100%;
 	margin-top: 30px;
@@ -750,15 +750,10 @@ const CardBox = styled.div`
 		padding: 0 10px;
 		min-height: 42px;
 		line-height: 42px;
-		transition:
-			border-color 0.15s,
-			box-shadow 0.15s,
-			background 0.15s;
 	}
 	.hosted:focus-within {
 		border-color: #1677ff;
 		box-shadow: 0 0 0 4px rgba(22, 119, 255, 0.12);
-		background: #fff;
 	}
 	&[aria-disabled="true"] {
 		opacity: 0.6;
@@ -824,4 +819,18 @@ const ReloadBtn = styled.button`
 	padding: 8px 14px;
 	font-weight: 700;
 	cursor: pointer;
+`;
+const AmountBar = styled.div`
+	width: 100%;
+	max-width: 520px;
+	margin: 0 auto 10px auto;
+	padding: 10px 12px;
+	border: 1px solid #e6f0ff;
+	background: #f6faff;
+	border-radius: 10px;
+	text-align: center;
+`;
+const AmountLine = styled.div`
+	font-size: 14px;
+	color: #0f172a;
 `;

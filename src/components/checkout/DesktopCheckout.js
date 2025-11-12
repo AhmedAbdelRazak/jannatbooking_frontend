@@ -66,6 +66,7 @@ const DesktopCheckout = ({
 	checkOut,
 	disabledCheckOutDate,
 	handlePayPalApproved,
+	payMode = "capture",
 }) => {
 	return (
 		<DesktopWrapper>
@@ -291,6 +292,7 @@ const DesktopCheckout = ({
 									totalRoomsPricePerNight={totalRoomsPricePerNight}
 									createUncompletedDocument={createUncompletedDocument}
 									onPayApproved={handlePayPalApproved}
+									payMode={payMode}
 								/>
 							</>
 						)}

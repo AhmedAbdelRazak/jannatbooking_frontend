@@ -611,3 +611,17 @@ export const createReservationViaPayPal = async (body, opts = {}) => {
 
 	return data; // { message, data: <reservation> }
 };
+
+export const createReservationViaPayPalCapture = async (body) => {
+	const res = await fetch(
+		`${process.env.REACT_APP_API_URL}/reservations/paypal/create-capture`,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(body),
+		}
+	);
+	const data = await res.json();
+	if (!res.ok) throw new Error(data?.message || "Capture checkout failed");
+	return data;
+};

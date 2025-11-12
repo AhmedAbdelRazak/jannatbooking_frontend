@@ -6,7 +6,7 @@ import { Checkbox, message, Spin, Alert } from "antd";
 import {
 	gettingSingleReservationById,
 	currencyConversion,
-	getPayPalClientToken, // returns { clientToken, env } + diag (when dbg=1)
+	getPayPalClientToken, // { clientToken, env, diag? }
 	payReservationViaPayPalLink,
 } from "../apiCore";
 import { useCartContext } from "../cart_context";
@@ -56,6 +56,21 @@ const idSig = (s) => {
 	} catch {
 		return "na";
 	}
+};
+
+/* A tiny rate helper so USD never shows 0.00 when conversion API is down */
+function getSarToUsdRate() {
+	try {
+		const rs = JSON.parse(localStorage.getItem("rates") || "{}");
+		const r = Number(rs?.SAR_USD);
+		if (Number.isFinite(r) && r > 0) return r; // use app’s remembered rate
+	} catch (_) {}
+	return 0.2666667; // SAR is pegged ~3.75 SAR/USD -> 1 SAR ≈ 0.2667 USD
+}
+const toUSD = (sar) => {
+	const rate = getSarToUsdRate();
+	const usd = Number(sar || 0) * rate;
+	return Number.isFinite(usd) ? usd : 0;
 };
 
 /* Hosted Card Fields submit button */
@@ -135,6 +150,15 @@ const PaymentLink = () => {
 	const { reservationId } = useParams();
 	const { chosenLanguage } = useCartContext();
 	const t = translations[chosenLanguage] || translations.English;
+
+	// Pay mode: "capture" by default; supports ?mode=authorize
+	const queryMode =
+		new URLSearchParams(window.location.search).get("mode") || "";
+	const envMode = (process.env.REACT_APP_PAYPAL_PAY_MODE || "").toLowerCase();
+	const PAY_MODE =
+		(queryMode || envMode).toLowerCase() === "authorize"
+			? "authorize"
+			: "capture"; // default capture
 
 	const [reservationData, setReservationData] = useState(null);
 	const [defaultDeposit, setDefaultDeposit] = useState(0);
@@ -232,37 +256,40 @@ const PaymentLink = () => {
 		setEffectiveDeposit(Number(depositToUse.toFixed(2)));
 	}, [reservationData, defaultDeposit]);
 
-	/* 3) SAR → USD conversions (robust defaults so UI always shows USD) */
+	/* 3) SAR → USD conversions with robust fallback (never 0.00) */
 	useEffect(() => {
 		const doConversion = async () => {
 			if (!reservationData) return;
 
-			// Full total SAR & advance/deposit SAR
 			const fullTotalSAR = Number(reservationData.total_amount || 0);
 			const depositSAR = Number(effectiveDeposit || 0);
 
-			// Reset to safe defaults first
-			setTotalUSD("0.00");
-			setEffectiveDepositUSD("0.00");
+			// Start with safe fallbacks so UI never blanks out
+			let totalU = toUSD(fullTotalSAR);
+			let effU = toUSD(depositSAR);
 
 			try {
 				const conversions = await currencyConversion([
 					fullTotalSAR,
 					depositSAR,
 				]);
-				const totalU = Number(conversions?.[0]?.amountInUSD ?? 0);
-				const effU = Number(conversions?.[1]?.amountInUSD ?? 0);
+				const fromApiTotal = Number(conversions?.[0]?.amountInUSD);
+				const fromApiDeposit = Number(conversions?.[1]?.amountInUSD);
 
-				// Always coerce to 2dp strings, never NaN/undefined
-				setTotalUSD(Number.isFinite(totalU) ? totalU.toFixed(2) : "0.00");
-				setEffectiveDepositUSD(
-					Number.isFinite(effU) ? effU.toFixed(2) : "0.00"
-				);
+				// Prefer API values when they’re valid & positive
+				if (Number.isFinite(fromApiTotal) && fromApiTotal > 0) {
+					totalU = fromApiTotal;
+				}
+				if (Number.isFinite(fromApiDeposit) && fromApiDeposit > 0) {
+					effU = fromApiDeposit;
+				}
 			} catch (err) {
 				// eslint-disable-next-line no-console
-				console.error("Error converting currency:", err);
-				// Hard default is already set (0.00) so the UI won't show blanks
+				console.warn("Currency conversion failed; using fallback rate.", err);
 			}
+
+			setTotalUSD((Number(totalU) || 0).toFixed(2));
+			setEffectiveDepositUSD((Number(effU) || 0).toFixed(2));
 		};
 		doConversion();
 	}, [reservationData, effectiveDeposit]);
@@ -271,7 +298,7 @@ const PaymentLink = () => {
 	useEffect(() => {
 		const init = async () => {
 			try {
-				const tokenResp = await getPayPalClientToken(); // { clientToken, env, diag? }
+				const tokenResp = await getPayPalClientToken();
 				const token =
 					typeof tokenResp === "string"
 						? tokenResp
@@ -292,7 +319,6 @@ const PaymentLink = () => {
 				setClientToken(token);
 				setIsLive(env === "live");
 
-				// FE vs BE app signature (helps spot mismatched app config)
 				const feClientId =
 					env === "live"
 						? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE
@@ -301,12 +327,8 @@ const PaymentLink = () => {
 				console.log(
 					"[PP][diag] FE clientIdSig:",
 					idSig(feClientId || "na"),
-					"BE clientIdSig:",
-					tokenResp?.diag?.clientIdSig || "(n/a)",
 					"env:",
-					env,
-					"cached:",
-					!!tokenResp?.cached
+					env
 				);
 			} catch (e) {
 				// eslint-disable-next-line no-console
@@ -401,10 +423,12 @@ const PaymentLink = () => {
 				},
 			];
 
-			// Prefer AUTHORIZE; backend persists AUTH (and vault if present)
+			const intent = PAY_MODE.toUpperCase(); // "CAPTURE" or "AUTHORIZE"
+
+			// For wallet buttons, let the SDK create the order
 			if (actions?.order) {
 				return actions.order.create({
-					intent: "AUTHORIZE",
+					intent,
 					purchase_units,
 					application_context: {
 						brand_name: "Jannat Booking",
@@ -414,14 +438,14 @@ const PaymentLink = () => {
 				});
 			}
 
-			// Card Fields path — create order on server and return id
+			// For Hosted Card Fields, create order server-side and return id
 			const res = await fetch(
 				`${process.env.REACT_APP_API_URL}/paypal/order/create`,
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
-						intent: "AUTHORIZE",
+						intent,
 						purchase_units,
 						application_context: {
 							brand_name: "Jannat Booking",
@@ -429,7 +453,9 @@ const PaymentLink = () => {
 							shipping_preference: "NO_SHIPPING",
 						},
 						payment_source: {
-							card: { attributes: { vault: { store_in_vault: "ON_SUCCESS" } } },
+							card: {
+								attributes: { vault: { store_in_vault: "ON_SUCCESS" } },
+							},
 						},
 					}),
 				}
@@ -457,7 +483,7 @@ const PaymentLink = () => {
 						order_id: orderID,
 						expectedUsdAmount: selectedUsdAmount,
 						cmid: getCMID(),
-						mode: "authorize",
+						mode: PAY_MODE, // 👈 capture or authorize (switchable)
 					},
 				};
 
@@ -475,7 +501,7 @@ const PaymentLink = () => {
 						currency: "SAR",
 						confirmation_number: resp.reservation?.confirmation_number,
 					});
-					setTimeout(() => window.location.reload(), 1200);
+					setTimeout(() => window.location.reload(), 900);
 				} else {
 					message.error(
 						resp?.message || (isArabic ? "تعذر إتمام الدفع" : "Payment failed.")
@@ -497,11 +523,10 @@ const PaymentLink = () => {
 		};
 
 		if (isRejected) {
-			// Log exact SDK URL for remote debugging (copy/paste to see HTTP response)
 			try {
 				const p = new URL("https://www.paypal.com/sdk/js");
 				Object.entries(options || {}).forEach(([k, v]) => {
-					if (v === undefined || v === null || v === "") return;
+					if (v == null || v === "") return;
 					p.searchParams.set(k, String(v));
 				});
 				// eslint-disable-next-line no-console
@@ -514,7 +539,6 @@ const PaymentLink = () => {
 				/* noop */
 			}
 
-			// Offer a wallet-only fallback (no card-fields, no data-client-token)
 			if (!walletOnly) {
 				return (
 					<div>
@@ -545,14 +569,11 @@ const PaymentLink = () => {
 					</div>
 				);
 			}
-
-			// If user chose fallback, render buttons-only below (handled outside via options)
 			return null;
 		}
 
 		if (!isResolved) return <Spin />;
 
-		// Only render Card Fields if the SDK exposes them (avoid runtime crash)
 		let supportsCardFields = false;
 		try {
 			supportsCardFields = !!window?.paypal?.CardFields;
@@ -700,12 +721,11 @@ const PaymentLink = () => {
 					"data-client-token": clientToken,
 					components: "buttons,card-fields",
 					currency: "USD",
-					intent: "authorize",
+					intent: PAY_MODE, // 👈 capture or authorize
 					commit: true,
 					"enable-funding": "paypal,card",
 					"disable-funding": "credit,venmo,paylater",
 					locale,
-					// Let PayPal auto-detect buyer country; avoids regional conflicts
 				}
 			: null;
 
@@ -715,9 +735,9 @@ const PaymentLink = () => {
 					"client-id": feClientId,
 					components: "buttons",
 					currency: "USD",
-					intent: "authorize",
+					intent: PAY_MODE, // 👈 capture or authorize
 					commit: true,
-					"enable-funding": "paypal,card", // keep both wallet options
+					"enable-funding": "paypal,card",
 					"disable-funding": "credit,venmo,paylater",
 					locale,
 				}
@@ -855,7 +875,9 @@ const PaymentLink = () => {
 										<Spin />
 									</Centered>
 								) : (
-									<ScriptShell key={`${reloadKey}-${walletOnly ? "w" : "p"}`}>
+									<ScriptShell
+										key={`${reloadKey}-${walletOnly ? "w" : "p"}-${PAY_MODE}`}
+									>
 										<PayPalScriptProvider options={scriptOptions}>
 											<PayArea />
 										</PayPalScriptProvider>

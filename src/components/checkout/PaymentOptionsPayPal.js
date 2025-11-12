@@ -1,3 +1,4 @@
+// src/components/checkout/PaymentOptionsPayPal.jsx
 import React from "react";
 import styled from "styled-components";
 import ReactGA from "react-ga4";
@@ -11,7 +12,7 @@ export default function PaymentOptionsPayPal({
 	hotelDetails,
 	chosenLanguage,
 	t,
-	depositAmount,
+	depositAmount, // kept for compatibility; not used for 15% math
 	total_price_with_commission,
 	selectedPaymentOption,
 	setSelectedPaymentOption,
@@ -19,7 +20,21 @@ export default function PaymentOptionsPayPal({
 	totalRoomsPricePerNight,
 	fromPage,
 	createUncompletedDocument,
+	convertedAmounts = {}, // NEW: show USD alongside SAR
 }) {
+	const isArabic = chosenLanguage === "Arabic";
+
+	// NEW: Deposit is 15% of total
+	const DEPOSIT_PERCENT = 0.15;
+	const totalSar = Number(total_price_with_commission || 0);
+	const totalUsd = Number(convertedAmounts?.totalUSD || 0);
+	const depositSar15 = (totalSar * DEPOSIT_PERCENT).toFixed(2);
+	const depositUsd15 = (totalUsd * DEPOSIT_PERCENT).toFixed(2);
+	const fullSar = totalSar.toFixed(2);
+	const fullUsd = totalUsd.toFixed(2);
+	const hotelSar = (totalSar * 1.1).toFixed(2);
+	const hotelUsd = (totalUsd * 1.1).toFixed(2);
+
 	const handlePaymentOptionChange = (option) => {
 		setSelectedPaymentOption(option);
 		createUncompletedDocument?.(`User Selected ${option}`);
@@ -36,9 +51,9 @@ export default function PaymentOptionsPayPal({
 
 	return (
 		<Wrapper>
-			<h2>{chosenLanguage === "Arabic" ? "طريقة الدفع" : "Payment Option"}</h2>
+			<h2>{isArabic ? "طريقة الدفع" : "Payment Option"}</h2>
 
-			{/* Accept Deposit */}
+			{/* Accept Deposit (15%) */}
 			{hotelDetails?.guestPaymentAcceptance?.acceptDeposit && (
 				<StyledOption
 					selected={selectedPaymentOption === "acceptDeposit"}
@@ -50,22 +65,18 @@ export default function PaymentOptionsPayPal({
 						checked={selectedPaymentOption === "acceptDeposit"}
 					/>
 					<label>
-						{chosenLanguage === "Arabic"
-							? "قبول دفع العربون"
-							: "Accept Deposit Online"}{" "}
-						({overallAverageCommissionRate}%)
+						{isArabic
+							? "قبول دفع العربون (15%)"
+							: "Accept Deposit Online (15%)"}
 						<span>
-							<s>
-								SAR{" "}
-								{(
-									Number(depositAmount || 0) +
-									(Number(totalRoomsPricePerNight || 0) +
-										Number(depositAmount || 0)) *
-										0.1
-								).toFixed(2)}
-							</s>{" "}
-							SAR {Number(depositAmount || 0).toFixed(2)}
+							SAR {depositSar15} • USD {depositUsd15}
 						</span>
+						{/* {overallAverageCommissionRate ? (
+							<small style={{ opacity: 0.85 }}>
+								{isArabic ? "متوسط العمولة" : "Avg. commission"}:{" "}
+								{overallAverageCommissionRate}%
+							</small>
+						) : null} */}
 					</label>
 				</StyledOption>
 			)}
@@ -82,24 +93,19 @@ export default function PaymentOptionsPayPal({
 						checked={selectedPaymentOption === "acceptPayWholeAmount"}
 					/>
 					<label>
-						{chosenLanguage === "Arabic"
-							? "دفع مبلغ الحجز بالكامل"
-							: "Pay Whole Amount Online"}{" "}
+						{isArabic ? "دفع مبلغ الحجز بالكامل" : "Pay Whole Amount Online"}
 						<span>
 							<s>
-								SAR{" "}
-								{(
-									Number(total_price_with_commission || 0) +
-									Number(total_price_with_commission || 0) * 0.1
-								).toFixed(2)}
+								SAR {(totalSar * 1.1).toFixed(2)} • USD{" "}
+								{(totalUsd * 1.1).toFixed(2)}
 							</s>{" "}
-							SAR {Number(total_price_with_commission || 0).toFixed(2)}
+							SAR {fullSar} • USD {fullUsd}
 						</span>
 					</label>
 				</StyledOption>
 			)}
 
-			{/* Reserve Now, Pay in Hotel */}
+			{/* Reserve Now, Pay in Hotel (+10%) */}
 			{hotelDetails?.guestPaymentAcceptance?.acceptReserveNowPayInHotel && (
 				<StyledOption
 					selected={selectedPaymentOption === "acceptReserveNowPayInHotel"}
@@ -113,15 +119,11 @@ export default function PaymentOptionsPayPal({
 						checked={selectedPaymentOption === "acceptReserveNowPayInHotel"}
 					/>
 					<label>
-						{chosenLanguage === "Arabic"
+						{isArabic
 							? "الدفع عند الوصول بالفندق"
-							: "Reserve Now, Pay in Hotel"}{" "}
+							: "Reserve Now, Pay in Hotel"}
 						<span>
-							SAR{" "}
-							{(
-								Number(total_price_with_commission || 0) +
-								Number(total_price_with_commission || 0) * 0.1
-							).toFixed(2)}
+							SAR {hotelSar} • USD {hotelUsd}
 						</span>
 					</label>
 				</StyledOption>
