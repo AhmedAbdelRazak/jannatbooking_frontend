@@ -181,21 +181,9 @@ const PaymentLink = () => {
 
 	// Wallet-only fallback (retry without card-fields & without client-token)
 	const [walletOnly, setWalletOnly] = useState(false);
-	const [altWalletsEnabled, setAltWalletsEnabled] = useState(true);
-	const [altWalletsFallbackTried, setAltWalletsFallbackTried] = useState(false);
 
 	const isArabic = chosenLanguage === "Arabic";
 	const locale = isArabic ? "ar_EG" : "en_US";
-	const formatDate = (value) => {
-		if (!value) return isArabic ? "غير متوفر" : "N/A";
-		const date = new Date(value);
-		if (Number.isNaN(date.getTime())) return String(value);
-		return new Intl.DateTimeFormat(isArabic ? "ar-SA" : "en-US", {
-			year: "numeric",
-			month: "short",
-			day: "2-digit",
-		}).format(date);
-	};
 
 	const allowInteract =
 		!!selectedOption &&
@@ -540,12 +528,6 @@ const PaymentLink = () => {
 		};
 
 		if (isRejected) {
-			if (altWalletsEnabled && !altWalletsFallbackTried) {
-				setAltWalletsFallbackTried(true);
-				setAltWalletsEnabled(false);
-				reloadPayment();
-				return null;
-			}
 			try {
 				const p = new URL("https://www.paypal.com/sdk/js");
 				Object.entries(options || {}).forEach(([k, v]) => {
@@ -610,14 +592,6 @@ const PaymentLink = () => {
 			supportsCardFields = false;
 		}
 
-		const funding =
-			typeof window !== "undefined" && window.paypal?.FUNDING
-				? window.paypal.FUNDING
-				: {};
-		const applePaySource = funding.APPLEPAY || funding.APPLE_PAY || null;
-		const googlePaySource = funding.GOOGLEPAY || funding.GOOGLE_PAY || null;
-		const showAltWallets = Boolean(applePaySource || googlePaySource);
-
 		return (
 			<>
 				<ButtonsBox>
@@ -640,41 +614,6 @@ const PaymentLink = () => {
 						disabled={!allowInteract}
 					/>
 				</ButtonsBox>
-
-				{showAltWallets ? (
-					<WalletSection>
-						<WalletTitle>
-							{isArabic ? "محافظ رقمية أخرى" : "More Wallet Options"}
-						</WalletTitle>
-						<WalletGrid>
-							{applePaySource ? (
-								<PayPalButtons
-									fundingSource={applePaySource}
-									style={{ layout: "vertical" }}
-									createOrder={createOrder}
-									onApprove={onApprove}
-									onError={onError}
-									disabled={!allowInteract}
-								/>
-							) : null}
-							{googlePaySource ? (
-								<PayPalButtons
-									fundingSource={googlePaySource}
-									style={{ layout: "vertical" }}
-									createOrder={createOrder}
-									onApprove={onApprove}
-									onError={onError}
-									disabled={!allowInteract}
-								/>
-							) : null}
-						</WalletGrid>
-						<WalletHint>
-							{isArabic
-								? "تظهر Apple Pay و Google Pay فقط على الأجهزة والمتصفحات المدعومة ومن خلال حساب PayPal مؤهل."
-								: "Apple Pay and Google Pay appear only on supported devices/browsers and for eligible PayPal accounts."}
-						</WalletHint>
-					</WalletSection>
-				) : null}
 
 				{!walletOnly && (
 					<>
@@ -789,7 +728,7 @@ const PaymentLink = () => {
 					currency: "USD",
 					intent: PAY_MODE, // 👈 capture or authorize
 					commit: true,
-					"enable-funding": "paypal,card,applepay,googlepay",
+					"enable-funding": "paypal,card",
 					"disable-funding": "credit,venmo,paylater",
 					locale,
 				}
@@ -803,7 +742,7 @@ const PaymentLink = () => {
 					currency: "USD",
 					intent: PAY_MODE, // 👈 capture or authorize
 					commit: true,
-					"enable-funding": "paypal,card,applepay,googlepay",
+					"enable-funding": "paypal,card",
 					"disable-funding": "credit,venmo,paylater",
 					locale,
 				}
@@ -831,14 +770,6 @@ const PaymentLink = () => {
 								{isArabic ? "رقم التأكيد:" : "Confirmation Number:"}
 							</strong>
 							<span>{reservationData.confirmation_number}</span>
-						</InfoRow>
-						<InfoRow>
-							<strong>{isArabic ? "تاريخ تسجيل الوصول:" : "Check-in date:"}</strong>
-							<span>{formatDate(reservationData.checkin_date)}</span>
-						</InfoRow>
-						<InfoRow>
-							<strong>{isArabic ? "تاريخ تسجيل المغادرة:" : "Check-out date:"}</strong>
-							<span>{formatDate(reservationData.checkout_date)}</span>
 						</InfoRow>
 						<InfoRow>
 							<strong>{isArabic ? "اسم الضيف:" : "Guest Name:"}</strong>
@@ -1078,30 +1009,6 @@ const ButtonsBox = styled.div`
 	margin: 0 auto;
 	display: grid;
 	gap: 10px;
-`;
-const WalletSection = styled.div`
-	margin-top: 12px;
-`;
-const WalletTitle = styled.h4`
-	margin: 0 0 8px 0;
-	text-align: center;
-	font-size: 15px;
-	font-weight: 700;
-	color: #0f172a;
-`;
-const WalletGrid = styled.div`
-	width: 100%;
-	max-width: 420px;
-	margin: 0 auto;
-	display: grid;
-	gap: 10px;
-`;
-const WalletHint = styled.p`
-	margin: 8px auto 0;
-	text-align: center;
-	font-size: 12px;
-	color: #6b7280;
-	max-width: 520px;
 `;
 const BrandFootnote = styled.div`
 	text-align: center;
