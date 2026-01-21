@@ -181,9 +181,21 @@ const PaymentLink = () => {
 
 	// Wallet-only fallback (retry without card-fields & without client-token)
 	const [walletOnly, setWalletOnly] = useState(false);
+	const [altWalletsEnabled, setAltWalletsEnabled] = useState(true);
+	const [altWalletsFallbackTried, setAltWalletsFallbackTried] = useState(false);
 
 	const isArabic = chosenLanguage === "Arabic";
 	const locale = isArabic ? "ar_EG" : "en_US";
+	const formatDate = (value) => {
+		if (!value) return isArabic ? "غير متوفر" : "N/A";
+		const date = new Date(value);
+		if (Number.isNaN(date.getTime())) return String(value);
+		return new Intl.DateTimeFormat(isArabic ? "ar-SA" : "en-US", {
+			year: "numeric",
+			month: "short",
+			day: "2-digit",
+		}).format(date);
+	};
 
 	const allowInteract =
 		!!selectedOption &&
@@ -528,6 +540,12 @@ const PaymentLink = () => {
 		};
 
 		if (isRejected) {
+			if (altWalletsEnabled && !altWalletsFallbackTried) {
+				setAltWalletsFallbackTried(true);
+				setAltWalletsEnabled(false);
+				reloadPayment();
+				return null;
+			}
 			try {
 				const p = new URL("https://www.paypal.com/sdk/js");
 				Object.entries(options || {}).forEach(([k, v]) => {
@@ -813,6 +831,14 @@ const PaymentLink = () => {
 								{isArabic ? "رقم التأكيد:" : "Confirmation Number:"}
 							</strong>
 							<span>{reservationData.confirmation_number}</span>
+						</InfoRow>
+						<InfoRow>
+							<strong>{isArabic ? "تاريخ تسجيل الوصول:" : "Check-in date:"}</strong>
+							<span>{formatDate(reservationData.checkin_date)}</span>
+						</InfoRow>
+						<InfoRow>
+							<strong>{isArabic ? "تاريخ تسجيل المغادرة:" : "Check-out date:"}</strong>
+							<span>{formatDate(reservationData.checkout_date)}</span>
 						</InfoRow>
 						<InfoRow>
 							<strong>{isArabic ? "اسم الضيف:" : "Guest Name:"}</strong>
