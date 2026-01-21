@@ -907,6 +907,21 @@ const PageWrapper = styled.div`
 	align-items: flex-start;
 	justify-content: center;
 	padding: 24px 12px;
+	direction: ${(props) => (props.dir === "rtl" ? "rtl" : "ltr")};
+	text-align: ${(props) => (props.dir === "rtl" ? "right" : "left")};
+	&[dir="rtl"] {
+		.ant-alert,
+		.ant-alert-message,
+		.ant-alert-description,
+		.ant-checkbox-wrapper {
+			direction: rtl;
+			text-align: right;
+		}
+		.ant-checkbox + span {
+			padding-right: 8px;
+			padding-left: 0;
+		}
+	}
 	@media (max-width: 480px) {
 		padding: 16px 8px;
 	}
