@@ -35,7 +35,7 @@ function computeCommissionAndDeposit(pickedRoomsType = []) {
 			const commissionForRoom =
 				room.pricingByDay.reduce(
 					(acc, day) => acc + (Number(day.price) - Number(day.rootPrice)),
-					0
+					0,
 				) * room.count;
 			totalCommission += commissionForRoom;
 			const firstDayRootPrice = Number(room.pricingByDay[0].rootPrice);
@@ -217,7 +217,7 @@ const PaymentLink = () => {
 					setReservationData(data);
 					if (data.pickedRoomsType?.length) {
 						const { defaultDeposit } = computeCommissionAndDeposit(
-							data.pickedRoomsType
+							data.pickedRoomsType,
 						);
 						setDefaultDeposit(defaultDeposit);
 					}
@@ -226,7 +226,9 @@ const PaymentLink = () => {
 				// eslint-disable-next-line no-console
 				console.error("Error fetching reservation:", e);
 				message.error(
-					isArabic ? "حدث خطأ أثناء تحميل الحجز" : "Failed to load reservation."
+					isArabic
+						? "حدث خطأ أثناء تحميل الحجز"
+						: "Failed to load reservation.",
 				);
 			} finally {
 				setLoading(false);
@@ -312,7 +314,7 @@ const PaymentLink = () => {
 					// eslint-disable-next-line no-console
 					console.warn(
 						"[PayPal] 'env' not returned by API. Falling back to",
-						env
+						env,
 					);
 				}
 
@@ -328,7 +330,7 @@ const PaymentLink = () => {
 					"[PP][diag] FE clientIdSig:",
 					idSig(feClientId || "na"),
 					"env:",
-					env
+					env,
 				);
 			} catch (e) {
 				// eslint-disable-next-line no-console
@@ -360,7 +362,7 @@ const PaymentLink = () => {
 		const requireSelectionAndTerms = () => {
 			if (!selectedOption) {
 				message.error(
-					isArabic ? "اختر خيار الدفع" : "Please choose a payment option."
+					isArabic ? "اختر خيار الدفع" : "Please choose a payment option.",
 				);
 				return false;
 			}
@@ -369,13 +371,15 @@ const PaymentLink = () => {
 					t.acceptTerms ||
 						(isArabic
 							? "يرجى الموافقة على الشروط والأحكام"
-							: "Please accept the Terms & Conditions")
+							: "Please accept the Terms & Conditions"),
 				);
 				return false;
 			}
 			if (!(Number(selectedUsdAmount) > 0)) {
 				message.error(
-					isArabic ? "قيمة الدفع غير صالحة" : "Payment amount is not valid yet."
+					isArabic
+						? "قيمة الدفع غير صالحة"
+						: "Payment amount is not valid yet.",
 				);
 				return false;
 			}
@@ -458,12 +462,12 @@ const PaymentLink = () => {
 							},
 						},
 					}),
-				}
+				},
 			);
 			const json = await res.json();
 			if (!res.ok || !json?.id) {
 				throw new Error(
-					json?.message || "Server failed to create PayPal order"
+					json?.message || "Server failed to create PayPal order",
 				);
 			}
 			return json.id;
@@ -504,7 +508,8 @@ const PaymentLink = () => {
 					setTimeout(() => window.location.reload(), 900);
 				} else {
 					message.error(
-						resp?.message || (isArabic ? "تعذر إتمام الدفع" : "Payment failed.")
+						resp?.message ||
+							(isArabic ? "تعذر إتمام الدفع" : "Payment failed."),
 					);
 				}
 			} catch (e) {
@@ -518,7 +523,7 @@ const PaymentLink = () => {
 			// eslint-disable-next-line no-console
 			console.error("PayPal error:", e);
 			message.error(
-				isArabic ? "خطأ في الدفع عبر PayPal" : "PayPal payment error."
+				isArabic ? "خطأ في الدفع عبر PayPal" : "PayPal payment error.",
 			);
 		};
 
@@ -587,6 +592,14 @@ const PaymentLink = () => {
 			supportsCardFields = false;
 		}
 
+		const funding =
+			typeof window !== "undefined" && window.paypal?.FUNDING
+				? window.paypal.FUNDING
+				: {};
+		const applePaySource = funding.APPLEPAY || funding.APPLE_PAY || null;
+		const googlePaySource = funding.GOOGLEPAY || funding.GOOGLE_PAY || null;
+		const showAltWallets = Boolean(applePaySource || googlePaySource);
+
 		return (
 			<>
 				<ButtonsBox>
@@ -609,6 +622,41 @@ const PaymentLink = () => {
 						disabled={!allowInteract}
 					/>
 				</ButtonsBox>
+
+				{showAltWallets ? (
+					<WalletSection>
+						<WalletTitle>
+							{isArabic ? "محافظ رقمية أخرى" : "More Wallet Options"}
+						</WalletTitle>
+						<WalletGrid>
+							{applePaySource ? (
+								<PayPalButtons
+									fundingSource={applePaySource}
+									style={{ layout: "vertical" }}
+									createOrder={createOrder}
+									onApprove={onApprove}
+									onError={onError}
+									disabled={!allowInteract}
+								/>
+							) : null}
+							{googlePaySource ? (
+								<PayPalButtons
+									fundingSource={googlePaySource}
+									style={{ layout: "vertical" }}
+									createOrder={createOrder}
+									onApprove={onApprove}
+									onError={onError}
+									disabled={!allowInteract}
+								/>
+							) : null}
+						</WalletGrid>
+						<WalletHint>
+							{isArabic
+								? "تظهر Apple Pay و Google Pay فقط على الأجهزة والمتصفحات المدعومة ومن خلال حساب PayPal مؤهل."
+								: "Apple Pay and Google Pay appear only on supported devices/browsers and for eligible PayPal accounts."}
+						</WalletHint>
+					</WalletSection>
+				) : null}
 
 				{!walletOnly && (
 					<>
@@ -723,7 +771,7 @@ const PaymentLink = () => {
 					currency: "USD",
 					intent: PAY_MODE, // 👈 capture or authorize
 					commit: true,
-					"enable-funding": "paypal,card",
+					"enable-funding": "paypal,card,applepay,googlepay",
 					"disable-funding": "credit,venmo,paylater",
 					locale,
 				}
@@ -737,7 +785,7 @@ const PaymentLink = () => {
 					currency: "USD",
 					intent: PAY_MODE, // 👈 capture or authorize
 					commit: true,
-					"enable-funding": "paypal,card",
+					"enable-funding": "paypal,card,applepay,googlepay",
 					"disable-funding": "credit,venmo,paylater",
 					locale,
 				}
@@ -784,7 +832,7 @@ const PaymentLink = () => {
 						</InfoRow>
 
 						{["deposit paid", "paid online"].includes(
-							(reservationData.payment || "").toLowerCase()
+							(reservationData.payment || "").toLowerCase(),
 						) ? (
 							<ThankYou>
 								{isArabic
@@ -1004,6 +1052,30 @@ const ButtonsBox = styled.div`
 	margin: 0 auto;
 	display: grid;
 	gap: 10px;
+`;
+const WalletSection = styled.div`
+	margin-top: 12px;
+`;
+const WalletTitle = styled.h4`
+	margin: 0 0 8px 0;
+	text-align: center;
+	font-size: 15px;
+	font-weight: 700;
+	color: #0f172a;
+`;
+const WalletGrid = styled.div`
+	width: 100%;
+	max-width: 420px;
+	margin: 0 auto;
+	display: grid;
+	gap: 10px;
+`;
+const WalletHint = styled.p`
+	margin: 8px auto 0;
+	text-align: center;
+	font-size: 12px;
+	color: #6b7280;
+	max-width: 520px;
 `;
 const BrandFootnote = styled.div`
 	text-align: center;
