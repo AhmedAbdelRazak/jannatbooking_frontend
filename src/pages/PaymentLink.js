@@ -189,18 +189,37 @@ const PaymentLink = () => {
 
 	const isArabic = chosenLanguage === "Arabic";
 	const locale = isArabic ? "ar_EG" : "en_US";
-	const displayLocale = isArabic ? "ar-EG" : "en-US";
+	const numberLocale = "en-US";
+	const dateLocale = isArabic ? "ar-EG-u-nu-latn" : "en-US";
+	const formatNumber = (value, options = {}) => {
+		const num = Number(value);
+		if (!Number.isFinite(num)) return "0";
+		return new Intl.NumberFormat(numberLocale, options).format(num);
+	};
+	const formatMoney = (value) =>
+		formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 	const formatDate = (value) => {
 		if (!value) return isArabic ? "غير متوفر" : "Not available";
 		const dt = new Date(value);
 		if (Number.isNaN(dt.getTime())) {
 			return isArabic ? "غير متوفر" : "Not available";
 		}
-		return new Intl.DateTimeFormat(displayLocale, {
+		const formatter = new Intl.DateTimeFormat(dateLocale, {
 			year: "numeric",
 			month: "long",
 			day: "numeric",
-		}).format(dt);
+		});
+		if (!isArabic) return formatter.format(dt);
+		return formatter.formatToParts(dt).map((part, index) => {
+			if (part.type === "day" || part.type === "year") {
+				return (
+					<span key={`${part.type}-${index}`} className='latin-digits'>
+						{part.value}
+					</span>
+				);
+			}
+			return part.value;
+		});
 	};
 
 	const allowInteract =
@@ -794,7 +813,9 @@ const PaymentLink = () => {
 							<strong>
 								{isArabic ? "رقم التأكيد:" : "Confirmation Number:"}
 							</strong>
-							<span>{reservationData.confirmation_number}</span>
+							<span className='latin-digits' dir='ltr'>
+								<bdi>{reservationData.confirmation_number}</bdi>
+							</span>
 						</InfoRow>
 						<InfoRow>
 							<strong>{isArabic ? "اسم الضيف:" : "Guest Name:"}</strong>
@@ -805,7 +826,9 @@ const PaymentLink = () => {
 							<span>{formatDate(reservationData.checkin_date)}</span>
 						</InfoRow>
 						<InfoRow>
-							<strong>{isArabic ? "تاريخ المغادرة:" : "Check-out Date:"}</strong>
+							<strong>
+								{isArabic ? "تاريخ المغادرة:" : "Check-out Date:"}
+							</strong>
 							<span>{formatDate(reservationData.checkout_date)}</span>
 						</InfoRow>
 						<InfoRow>
@@ -814,7 +837,9 @@ const PaymentLink = () => {
 						</InfoRow>
 						<InfoRow>
 							<strong>{isArabic ? "إجمالي المبلغ:" : "Total Amount:"}</strong>
-							<span>{Number(reservationData.total_amount).toFixed(2)} SAR</span>
+							<span className='latin-digits' dir='ltr'>
+								<bdi>{formatMoney(reservationData.total_amount)}</bdi> SAR
+							</span>
 						</InfoRow>
 
 						{["deposit paid", "paid online"].includes(
@@ -846,10 +871,14 @@ const PaymentLink = () => {
 											{isArabic ? "دفعة مقدمة" : "Deposit"}
 										</span>
 										<span className='option-amounts' dir='ltr'>
-											<bdi>{effectiveDepositUSD}</bdi> USD{" "}
+											<bdi className='latin-digits'>{effectiveDepositUSD}</bdi>{" "}
+											USD{" "}
 											<span className='sar'>
-												(<bdi>
-													{Number(effectiveDeposit).toLocaleString(displayLocale)}
+												(
+												<bdi className='latin-digits'>
+													{formatNumber(effectiveDeposit, {
+														maximumFractionDigits: 2,
+													})}
 												</bdi>{" "}
 												SAR)
 											</span>
@@ -872,12 +901,13 @@ const PaymentLink = () => {
 											{isArabic ? "المبلغ الكامل" : "Full Amount"}
 										</span>
 										<span className='option-amounts' dir='ltr'>
-											<bdi>{totalUSD}</bdi> USD{" "}
+											<bdi className='latin-digits'>{totalUSD}</bdi> USD{" "}
 											<span className='sar'>
-												(<bdi>
-													{Number(
-														reservationData.total_amount,
-													).toLocaleString(displayLocale)}
+												(
+												<bdi className='latin-digits'>
+													{formatNumber(reservationData.total_amount, {
+														maximumFractionDigits: 2,
+													})}
 												</bdi>{" "}
 												SAR)
 											</span>
@@ -953,6 +983,12 @@ const PageWrapper = styled.div`
 	padding: 24px 12px;
 	direction: ${(props) => (props.dir === "rtl" ? "rtl" : "ltr")};
 	text-align: ${(props) => (props.dir === "rtl" ? "right" : "left")};
+	.latin-digits {
+		font-family: "Montserrat", "Poppins", sans-serif;
+		font-variant-numeric: lining-nums;
+		direction: ltr;
+		unicode-bidi: isolate;
+	}
 	&[dir="rtl"] {
 		.ant-alert,
 		.ant-alert-message,
@@ -1003,6 +1039,9 @@ const InfoRow = styled.p`
 	strong {
 		color: #1d2939;
 		min-width: 180px;
+	}
+	span {
+		text-transform: capitalize;
 	}
 	@media (max-width: 520px) {
 		flex-direction: column;
