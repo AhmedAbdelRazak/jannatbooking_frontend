@@ -59,18 +59,23 @@ const idSig = (s) => {
 };
 
 /* A tiny rate helper so USD never shows 0.00 when conversion API is down */
+const FALLBACK_SAR_PER_USD = 3.8;
+const FALLBACK_SAR_TO_USD = 1 / FALLBACK_SAR_PER_USD;
 function getSarToUsdRate() {
 	try {
 		const rs = JSON.parse(localStorage.getItem("rates") || "{}");
 		const r = Number(rs?.SAR_USD);
-		if (Number.isFinite(r) && r > 0) return r; // use app’s remembered rate
+		if (Number.isFinite(r) && r > 0 && r < 1) return r; // use app’s remembered rate
 	} catch (_) {}
-	return 0.2666667; // SAR is pegged ~3.75 SAR/USD -> 1 SAR ≈ 0.2667 USD
+	return FALLBACK_SAR_TO_USD; // fallback to 3.8 SAR per USD
 }
 const toUSD = (sar) => {
+	const sarNum = Number(sar || 0);
+	if (!Number.isFinite(sarNum) || sarNum <= 0) return 0;
 	const rate = getSarToUsdRate();
-	const usd = Number(sar || 0) * rate;
-	return Number.isFinite(usd) ? usd : 0;
+	const usd = sarNum * rate;
+	if (Number.isFinite(usd) && usd > 0) return usd;
+	return sarNum / FALLBACK_SAR_PER_USD;
 };
 
 /* Hosted Card Fields submit button */
@@ -184,6 +189,19 @@ const PaymentLink = () => {
 
 	const isArabic = chosenLanguage === "Arabic";
 	const locale = isArabic ? "ar_EG" : "en_US";
+	const displayLocale = isArabic ? "ar-EG" : "en-US";
+	const formatDate = (value) => {
+		if (!value) return isArabic ? "غير متوفر" : "Not available";
+		const dt = new Date(value);
+		if (Number.isNaN(dt.getTime())) {
+			return isArabic ? "غير متوفر" : "Not available";
+		}
+		return new Intl.DateTimeFormat(displayLocale, {
+			year: "numeric",
+			month: "long",
+			day: "numeric",
+		}).format(dt);
+	};
 
 	const allowInteract =
 		!!selectedOption &&
@@ -288,6 +306,13 @@ const PaymentLink = () => {
 			} catch (err) {
 				// eslint-disable-next-line no-console
 				console.warn("Currency conversion failed; using fallback rate.", err);
+			}
+
+			if (fullTotalSAR > 0 && !(Number(totalU) > 0)) {
+				totalU = toUSD(fullTotalSAR);
+			}
+			if (depositSAR > 0 && !(Number(effU) > 0)) {
+				effU = toUSD(depositSAR);
 			}
 
 			setTotalUSD((Number(totalU) || 0).toFixed(2));
@@ -776,8 +801,12 @@ const PaymentLink = () => {
 							<span>{reservationData.customer_details?.name}</span>
 						</InfoRow>
 						<InfoRow>
-							<strong>{isArabic ? "البريد الإلكتروني:" : "Email:"}</strong>
-							<span>{reservationData.customer_details?.email}</span>
+							<strong>{isArabic ? "تاريخ الوصول:" : "Check-in Date:"}</strong>
+							<span>{formatDate(reservationData.checkin_date)}</span>
+						</InfoRow>
+						<InfoRow>
+							<strong>{isArabic ? "تاريخ المغادرة:" : "Check-out Date:"}</strong>
+							<span>{formatDate(reservationData.checkout_date)}</span>
 						</InfoRow>
 						<InfoRow>
 							<strong>{isArabic ? "الجنسية:" : "Nationality:"}</strong>
@@ -813,11 +842,18 @@ const PaymentLink = () => {
 										checked={selectedOption === "acceptDeposit"}
 									/>
 									<label>
-										{isArabic ? "دفعة مقدمة" : "Deposit"}{" "}
-										<strong>
-											{effectiveDepositUSD} USD (
-											{Number(effectiveDeposit).toLocaleString()} SAR)
-										</strong>
+										<span className='option-title'>
+											{isArabic ? "دفعة مقدمة" : "Deposit"}
+										</span>
+										<span className='option-amounts' dir='ltr'>
+											<bdi>{effectiveDepositUSD}</bdi> USD{" "}
+											<span className='sar'>
+												(<bdi>
+													{Number(effectiveDeposit).toLocaleString(displayLocale)}
+												</bdi>{" "}
+												SAR)
+											</span>
+										</span>
 									</label>
 								</Option>
 
@@ -832,12 +868,20 @@ const PaymentLink = () => {
 										checked={selectedOption === "acceptPayWholeAmount"}
 									/>
 									<label>
-										{isArabic ? "المبلغ الكامل" : "Full Amount"}{" "}
-										<strong>
-											{totalUSD} USD (
-											{Number(reservationData.total_amount).toLocaleString()}{" "}
-											SAR)
-										</strong>
+										<span className='option-title'>
+											{isArabic ? "المبلغ الكامل" : "Full Amount"}
+										</span>
+										<span className='option-amounts' dir='ltr'>
+											<bdi>{totalUSD}</bdi> USD{" "}
+											<span className='sar'>
+												(<bdi>
+													{Number(
+														reservationData.total_amount,
+													).toLocaleString(displayLocale)}
+												</bdi>{" "}
+												SAR)
+											</span>
+										</span>
 									</label>
 								</Option>
 
@@ -915,6 +959,9 @@ const PageWrapper = styled.div`
 		.ant-alert-description,
 		.ant-checkbox-wrapper {
 			direction: rtl;
+			text-align: right;
+		}
+		.option-amounts {
 			text-align: right;
 		}
 		.ant-checkbox + span {
@@ -1000,11 +1047,20 @@ const Option = styled.div`
 		color: #111827;
 		display: flex;
 		flex-direction: column;
+		gap: 3px;
+		text-align: start;
 	}
-	label strong {
+	label .option-title {
+		font-weight: 600;
+	}
+	label .option-amounts {
 		font-weight: 700;
-		margin-top: 3px;
 		color: #0f172a;
+		display: block;
+	}
+	label .option-amounts .sar {
+		color: #334155;
+		font-weight: 600;
 	}
 `;
 const Terms = styled.div`
