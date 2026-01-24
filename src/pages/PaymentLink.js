@@ -177,6 +177,7 @@ const PaymentLink = () => {
 	// USD conversions
 	const [effectiveDepositUSD, setEffectiveDepositUSD] = useState("0.00");
 	const [totalUSD, setTotalUSD] = useState("0.00");
+	const [remainingUSD, setRemainingUSD] = useState("0.00");
 
 	// PayPal client token + env (from backend) + diag
 	const [clientToken, setClientToken] = useState(null);
@@ -222,12 +223,12 @@ const PaymentLink = () => {
 		});
 	};
 
-	const allowInteract =
-		!!selectedOption &&
-		!!guestAgreed &&
-		(selectedOption === "acceptDeposit"
-			? Number(effectiveDepositUSD) > 0
-			: Number(totalUSD) > 0);
+	const totalSar = Number(reservationData?.total_amount || 0);
+	const paidSar = Number(reservationData?.paid_amount || 0);
+	const remainingSar = Math.max(totalSar - paidSar, 0);
+	const hasPaidAmount = paidSar > 0;
+	const hasPartialBalance = hasPaidAmount && remainingSar > 0;
+	const isFullyPaid = totalSar > 0 && paidSar >= totalSar;
 
 	const getCMID = () => {
 		try {
@@ -302,18 +303,24 @@ const PaymentLink = () => {
 
 			const fullTotalSAR = Number(reservationData.total_amount || 0);
 			const depositSAR = Number(effectiveDeposit || 0);
+			const paidSAR = Number(reservationData.paid_amount || 0);
+			const remainingSAR = Math.max(fullTotalSAR - paidSAR, 0);
+			const includeRemaining = remainingSAR > 0;
 
 			// Start with safe fallbacks so UI never blanks out
 			let totalU = toUSD(fullTotalSAR);
 			let effU = toUSD(depositSAR);
+			let remainingU = includeRemaining ? toUSD(remainingSAR) : 0;
 
 			try {
-				const conversions = await currencyConversion([
-					fullTotalSAR,
-					depositSAR,
-				]);
+				const amounts = [fullTotalSAR, depositSAR];
+				if (includeRemaining) amounts.push(remainingSAR);
+				const conversions = await currencyConversion(amounts);
 				const fromApiTotal = Number(conversions?.[0]?.amountInUSD);
 				const fromApiDeposit = Number(conversions?.[1]?.amountInUSD);
+				const fromApiRemaining = includeRemaining
+					? Number(conversions?.[2]?.amountInUSD)
+					: 0;
 
 				// Prefer API values when they’re valid & positive
 				if (Number.isFinite(fromApiTotal) && fromApiTotal > 0) {
@@ -321,6 +328,13 @@ const PaymentLink = () => {
 				}
 				if (Number.isFinite(fromApiDeposit) && fromApiDeposit > 0) {
 					effU = fromApiDeposit;
+				}
+				if (
+					includeRemaining &&
+					Number.isFinite(fromApiRemaining) &&
+					fromApiRemaining > 0
+				) {
+					remainingU = fromApiRemaining;
 				}
 			} catch (err) {
 				// eslint-disable-next-line no-console
@@ -333,12 +347,35 @@ const PaymentLink = () => {
 			if (depositSAR > 0 && !(Number(effU) > 0)) {
 				effU = toUSD(depositSAR);
 			}
+			if (includeRemaining && remainingSAR > 0 && !(Number(remainingU) > 0)) {
+				remainingU = toUSD(remainingSAR);
+			}
 
 			setTotalUSD((Number(totalU) || 0).toFixed(2));
 			setEffectiveDepositUSD((Number(effU) || 0).toFixed(2));
+			setRemainingUSD(
+				includeRemaining ? (Number(remainingU) || 0).toFixed(2) : "0.00",
+			);
 		};
 		doConversion();
 	}, [reservationData, effectiveDeposit]);
+
+	useEffect(() => {
+		if (!reservationData) return;
+		if (hasPartialBalance) {
+			if (selectedOption !== "acceptRemaining") {
+				setSelectedOption("acceptRemaining");
+			}
+			return;
+		}
+		if (isFullyPaid) {
+			setSelectedOption(null);
+			return;
+		}
+		if (selectedOption === "acceptRemaining") {
+			setSelectedOption(null);
+		}
+	}, [hasPartialBalance, isFullyPaid, reservationData, selectedOption]);
 
 	/* 4) PayPal client token + env (with diagnostics) */
 	useEffect(() => {
@@ -388,16 +425,22 @@ const PaymentLink = () => {
 
 	const selectedUsdAmount = useMemo(() => {
 		const val =
-			selectedOption === "acceptDeposit" ? effectiveDepositUSD : totalUSD;
+			selectedOption === "acceptRemaining"
+				? remainingUSD
+				: selectedOption === "acceptDeposit"
+					? effectiveDepositUSD
+					: totalUSD;
 		const n = Number(val);
 		return Number.isFinite(n) ? n.toFixed(2) : "0.00";
-	}, [selectedOption, effectiveDepositUSD, totalUSD]);
+	}, [selectedOption, effectiveDepositUSD, remainingUSD, totalUSD]);
 
 	const selectedSarAmount = useMemo(() => {
-		return selectedOption === "acceptDeposit"
-			? effectiveDeposit
-			: Number(reservationData?.total_amount || 0);
-	}, [selectedOption, effectiveDeposit, reservationData]);
+		if (selectedOption === "acceptRemaining") return remainingSar;
+		return selectedOption === "acceptDeposit" ? effectiveDeposit : totalSar;
+	}, [selectedOption, effectiveDeposit, remainingSar, totalSar]);
+
+	const allowInteract =
+		!!selectedOption && !!guestAgreed && Number(selectedUsdAmount) > 0;
 
 	/* Inner PayPal area */
 	const PayArea = () => {
@@ -519,13 +562,21 @@ const PaymentLink = () => {
 
 		const onApprove = async ({ orderID }) => {
 			try {
+				const isRemainingPayment = selectedOption === "acceptRemaining";
+				const option =
+					selectedOption === "acceptDeposit" || isRemainingPayment
+						? "deposit"
+						: "full";
 				const payload = {
 					reservationKey:
 						reservationData?._id ||
 						reservationData?.confirmation_number ||
 						reservationId,
-					option: selectedOption === "acceptDeposit" ? "deposit" : "full",
-					convertedAmounts: { depositUSD: effectiveDepositUSD, totalUSD },
+					option,
+					convertedAmounts: {
+						depositUSD: isRemainingPayment ? remainingUSD : effectiveDepositUSD,
+						totalUSD,
+					},
 					sarAmount: Number(selectedSarAmount).toFixed(2),
 					paypal: {
 						order_id: orderID,
@@ -841,10 +892,16 @@ const PaymentLink = () => {
 								<bdi>{formatMoney(reservationData.total_amount)}</bdi> SAR
 							</span>
 						</InfoRow>
+						{hasPaidAmount && (
+							<InfoRow>
+								<strong>{isArabic ? "المبلغ المدفوع:" : "Paid Amount:"}</strong>
+								<span className='latin-digits' dir='ltr'>
+									<bdi>{formatMoney(paidSar)}</bdi> SAR
+								</span>
+							</InfoRow>
+						)}
 
-						{["deposit paid", "paid online"].includes(
-							(reservationData.payment || "").toLowerCase(),
-						) ? (
+						{isFullyPaid ? (
 							<ThankYou>
 								{isArabic
 									? `شكرًا على الدفع ${reservationData.customer_details?.name}!`
@@ -853,67 +910,107 @@ const PaymentLink = () => {
 						) : (
 							<>
 								<SubHeader>
-									{isArabic ? "اختر خيار الدفع" : "Choose Payment Option"}
+									{hasPartialBalance
+										? isArabic
+											? "ادفع المبلغ المتبقي"
+											: "Pay Remaining Amount"
+										: isArabic
+											? "اختر خيار الدفع"
+											: "Choose Payment Option"}
 								</SubHeader>
 
-								{/* Deposit */}
-								<Option
-									onClick={() => setSelectedOption("acceptDeposit")}
-									selected={selectedOption === "acceptDeposit"}
-								>
-									<input
-										type='radio'
-										readOnly
-										checked={selectedOption === "acceptDeposit"}
-									/>
-									<label>
-										<span className='option-title'>
-											{isArabic ? "دفعة مقدمة" : "Deposit"}
-										</span>
-										<span className='option-amounts' dir='ltr'>
-											<bdi className='latin-digits'>{effectiveDepositUSD}</bdi>{" "}
-											USD{" "}
-											<span className='sar'>
-												(
-												<bdi className='latin-digits'>
-													{formatNumber(effectiveDeposit, {
-														maximumFractionDigits: 2,
-													})}
-												</bdi>{" "}
-												SAR)
+								{hasPartialBalance ? (
+									<Option
+										onClick={() => setSelectedOption("acceptRemaining")}
+										selected={selectedOption === "acceptRemaining"}
+									>
+										<input
+											type='radio'
+											readOnly
+											checked={selectedOption === "acceptRemaining"}
+										/>
+										<label>
+											<span className='option-title'>
+												{isArabic ? "المبلغ المتبقي" : "Remaining Amount"}
 											</span>
-										</span>
-									</label>
-								</Option>
+											<span className='option-amounts' dir='ltr'>
+												<bdi className='latin-digits'>{remainingUSD}</bdi> USD{" "}
+												<span className='sar'>
+													(
+													<bdi className='latin-digits'>
+														{formatNumber(remainingSar, {
+															maximumFractionDigits: 2,
+														})}
+													</bdi>{" "}
+													SAR)
+												</span>
+											</span>
+										</label>
+									</Option>
+								) : (
+									<>
+										{/* Deposit */}
+										<Option
+											onClick={() => setSelectedOption("acceptDeposit")}
+											selected={selectedOption === "acceptDeposit"}
+										>
+											<input
+												type='radio'
+												readOnly
+												checked={selectedOption === "acceptDeposit"}
+											/>
+											<label>
+												<span className='option-title'>
+													{isArabic ? "دفعة مقدمة" : "Deposit"}
+												</span>
+												<span className='option-amounts' dir='ltr'>
+													<bdi className='latin-digits'>
+														{effectiveDepositUSD}
+													</bdi>{" "}
+													USD{" "}
+													<span className='sar'>
+														(
+														<bdi className='latin-digits'>
+															{formatNumber(effectiveDeposit, {
+																maximumFractionDigits: 2,
+															})}
+														</bdi>{" "}
+														SAR)
+													</span>
+												</span>
+											</label>
+										</Option>
 
-								{/* Full amount */}
-								<Option
-									onClick={() => setSelectedOption("acceptPayWholeAmount")}
-									selected={selectedOption === "acceptPayWholeAmount"}
-								>
-									<input
-										type='radio'
-										readOnly
-										checked={selectedOption === "acceptPayWholeAmount"}
-									/>
-									<label>
-										<span className='option-title'>
-											{isArabic ? "المبلغ الكامل" : "Full Amount"}
-										</span>
-										<span className='option-amounts' dir='ltr'>
-											<bdi className='latin-digits'>{totalUSD}</bdi> USD{" "}
-											<span className='sar'>
-												(
-												<bdi className='latin-digits'>
-													{formatNumber(reservationData.total_amount, {
-														maximumFractionDigits: 2,
-													})}
-												</bdi>{" "}
-												SAR)
-											</span>
-										</span>
-									</label>
-								</Option>
+										{/* Full amount */}
+										<Option
+											onClick={() => setSelectedOption("acceptPayWholeAmount")}
+											selected={selectedOption === "acceptPayWholeAmount"}
+										>
+											<input
+												type='radio'
+												readOnly
+												checked={selectedOption === "acceptPayWholeAmount"}
+											/>
+											<label>
+												<span className='option-title'>
+													{isArabic ? "المبلغ الكامل" : "Full Amount"}
+												</span>
+												<span className='option-amounts' dir='ltr'>
+													<bdi className='latin-digits'>{totalUSD}</bdi> USD{" "}
+													<span className='sar'>
+														(
+														<bdi className='latin-digits'>
+															{formatNumber(reservationData.total_amount, {
+																maximumFractionDigits: 2,
+															})}
+														</bdi>{" "}
+														SAR)
+													</span>
+												</span>
+											</label>
+										</Option>
+									</>
+								)}
 
 								{/* Terms */}
 								<Terms
