@@ -29,6 +29,35 @@ const safeParseFloat = (value, fallback = 0) => {
 	const parsed = parseFloat(value);
 	return isNaN(parsed) ? fallback : parsed;
 };
+const normalizePhoneInput = (value = "") => {
+	const digitMap = {
+		"٠": "0",
+		"١": "1",
+		"٢": "2",
+		"٣": "3",
+		"٤": "4",
+		"٥": "5",
+		"٦": "6",
+		"٧": "7",
+		"٨": "8",
+		"٩": "9",
+		"۰": "0",
+		"۱": "1",
+		"۲": "2",
+		"۳": "3",
+		"۴": "4",
+		"۵": "5",
+		"۶": "6",
+		"۷": "7",
+		"۸": "8",
+		"۹": "9",
+	};
+	const normalized = String(value)
+		.split("")
+		.map((ch) => digitMap[ch] || ch)
+		.join("");
+	return normalized.replace(/[^\d\s+-]/g, "");
+};
 
 // ────────────────────────────────────────────────────────────────────
 // Deposit math helpers (legacy deposit kept for non-deposit branches)
@@ -207,6 +236,15 @@ const CheckoutContent = ({
 	const [checkOut, setCheckOut] = useState(null);
 	const [prevCheckIn, setPrevCheckIn] = useState(null);
 	const [prevCheckOut, setPrevCheckOut] = useState(null);
+	const handlePhoneChange = useCallback((rawValue) => {
+		const inputValue = normalizePhoneInput(rawValue);
+		setCustomerDetails((prev) => ({
+			...prev,
+			phone: inputValue,
+			password: inputValue,
+			confirmPassword: inputValue,
+		}));
+	}, []);
 
 	const nightsCount = useMemo(() => {
 		if (checkIn && checkOut) {
@@ -314,48 +352,51 @@ const CheckoutContent = ({
 	}, [total_price, total_price_with_commission]);
 
 	// Transform cart → pickedRoomsType. If isPayInHotel === true, bump nightly totals by 10%.
-	const transformRoomCartToPickedRoomsType = (roomCart, isPayInHotel) => {
-		return roomCart.flatMap((room) =>
-			Array.from({ length: safeParseFloat(room.amount, 1) }, () => {
-				const pricingDetails =
-					room.pricingByDayWithCommission?.map((day) => {
-						const base = safeParseFloat(day.totalPriceWithCommission, 0);
-						const bumped = isPayInHotel ? base * 1.1 : base;
-						return {
-							date: day.date,
-							price: safeParseFloat(day.price, 0),
-							rootPrice: safeParseFloat(day.rootPrice, 0),
-							commissionRate: safeParseFloat(day.commissionRate, 0),
-							totalPriceWithCommission: Number(bumped.toFixed(2)),
-							totalPriceWithoutCommission: safeParseFloat(day.price, 0),
-						};
-					}) || [];
+	const transformRoomCartToPickedRoomsType = useCallback(
+		(roomCart, isPayInHotel) => {
+			return roomCart.flatMap((room) =>
+				Array.from({ length: safeParseFloat(room.amount, 1) }, () => {
+					const pricingDetails =
+						room.pricingByDayWithCommission?.map((day) => {
+							const base = safeParseFloat(day.totalPriceWithCommission, 0);
+							const bumped = isPayInHotel ? base * 1.1 : base;
+							return {
+								date: day.date,
+								price: safeParseFloat(day.price, 0),
+								rootPrice: safeParseFloat(day.rootPrice, 0),
+								commissionRate: safeParseFloat(day.commissionRate, 0),
+								totalPriceWithCommission: Number(bumped.toFixed(2)),
+								totalPriceWithoutCommission: safeParseFloat(day.price, 0),
+							};
+						}) || [];
 
-				const totalPriceWithCommissionSum = pricingDetails.reduce(
-					(sum, d) => sum + safeParseFloat(d.totalPriceWithCommission, 0),
-					0,
-				);
-				const averagePriceWithCommission =
-					pricingDetails.length > 0
-						? totalPriceWithCommissionSum / pricingDetails.length
-						: 0;
-
-				return {
-					room_type: room.roomType,
-					displayName: room.name,
-					chosenPrice: averagePriceWithCommission.toFixed(2),
-					count: 1,
-					pricingByDay: pricingDetails,
-					roomColor: room.roomColor,
-					totalPriceWithCommission: totalPriceWithCommissionSum,
-					hotelShouldGet: pricingDetails.reduce(
-						(sum, d) => sum + safeParseFloat(d.rootPrice, 0),
+					const totalPriceWithCommissionSum = pricingDetails.reduce(
+						(sum, d) => sum + safeParseFloat(d.totalPriceWithCommission, 0),
 						0,
-					),
-				};
-			}),
-		);
-	};
+					);
+					const averagePriceWithCommission =
+						pricingDetails.length > 0
+							? totalPriceWithCommissionSum / pricingDetails.length
+							: 0;
+
+					return {
+						room_type: room.roomType,
+						displayName: room.name,
+						chosenPrice: averagePriceWithCommission.toFixed(2),
+						count: 1,
+						pricingByDay: pricingDetails,
+						roomColor: room.roomColor,
+						totalPriceWithCommission: totalPriceWithCommissionSum,
+						hotelShouldGet: pricingDetails.reduce(
+							(sum, d) => sum + safeParseFloat(d.rootPrice, 0),
+							0,
+						),
+					};
+				}),
+			);
+		},
+		[],
+	);
 
 	useEffect(() => {
 		const fetchRoomDetails = async () => {
@@ -696,7 +737,7 @@ const CheckoutContent = ({
 			checkout_date: roomCart[0].endDate || "",
 			days_of_residence: dayjs(roomCart[0].endDate).diff(
 				dayjs(roomCart[0].startDate),
-				"days"
+				"days",
 			),
 			booking_source: "Online Jannat Booking",
 			pickedRoomsType,
@@ -1257,7 +1298,10 @@ const CheckoutContent = ({
 							placeholder={t.firstAndLastName}
 							value={customerDetails.name}
 							onChange={(e) =>
-								setCustomerDetails({ ...customerDetails, name: e.target.value })
+								setCustomerDetails((prev) => ({
+									...prev,
+									name: e.target.value,
+								}))
 							}
 						/>
 					</InputGroup>
@@ -1271,13 +1315,7 @@ const CheckoutContent = ({
 							inputMode='numeric'
 							value={customerDetails.phone}
 							onChange={(e) => {
-								const inputValue = e.target.value.replace(/[^\\d\\s+-]/g, "");
-								setCustomerDetails({
-									...customerDetails,
-									phone: inputValue,
-									password: inputValue,
-									confirmPassword: inputValue,
-								});
+								handlePhoneChange(e.target.value);
 							}}
 						/>
 					</InputGroup>
@@ -1289,10 +1327,10 @@ const CheckoutContent = ({
 							placeholder={t.emailAddress}
 							value={customerDetails.email}
 							onChange={(e) =>
-								setCustomerDetails({
-									...customerDetails,
+								setCustomerDetails((prev) => ({
+									...prev,
 									email: e.target.value,
-								})
+								}))
 							}
 						/>
 					</InputGroup>
@@ -1309,7 +1347,10 @@ const CheckoutContent = ({
 							value={nationality}
 							onChange={(value) => {
 								setNationality(value);
-								setCustomerDetails({ ...customerDetails, nationality: value });
+								setCustomerDetails((prev) => ({
+									...prev,
+									nationality: value,
+								}));
 							}}
 							style={{ width: "100%" }}
 						>
@@ -1435,6 +1476,7 @@ const CheckoutContent = ({
 			<DesktopCheckout
 				customerDetails={customerDetails}
 				setCustomerDetails={setCustomerDetails}
+				onPhoneChange={handlePhoneChange}
 				redirectToSignin={redirectToSignin}
 				cardNumber={cardNumber}
 				setCardNumber={setCardNumber}

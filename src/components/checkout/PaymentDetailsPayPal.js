@@ -207,7 +207,7 @@ export default function PaymentDetailsPayPal({
 			payload,
 		};
 		return pendingRef.current;
-	}, [getPendingReservationPayload, preparePayPalPendingReservation]);
+	}, [getPendingReservationPayload]);
 
 	const cancelPendingReservation = useCallback(async () => {
 		const pendingReservationId = pendingRef.current?.pendingReservationId;
@@ -228,7 +228,7 @@ export default function PaymentDetailsPayPal({
 				payload: null,
 			};
 		}
-	}, [cancelPayPalPendingReservation]);
+	}, []);
 
 	useEffect(() => {
 		let mounted = true;

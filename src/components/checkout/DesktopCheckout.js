@@ -20,6 +20,7 @@ const { Option } = Select;
 const DesktopCheckout = ({
 	customerDetails,
 	setCustomerDetails,
+	onPhoneChange,
 	cardNumber,
 	setCardNumber,
 	expiryDate,
@@ -82,28 +83,23 @@ const DesktopCheckout = ({
 							placeholder={t.namePlaceholder}
 							value={customerDetails.name}
 							onChange={(e) =>
-								setCustomerDetails({
-									...customerDetails,
+								setCustomerDetails((prev) => ({
+									...prev,
 									name: e.target.value,
-								})
+								}))
 							}
 						/>
 					</InputGroup>
 					<InputGroup>
 						<label>{t.phone}</label>
 						<input
-							type='text'
+							type='tel'
 							name='phone'
 							placeholder={t.phonePlaceholder}
 							value={customerDetails.phone}
-							onChange={(e) =>
-								setCustomerDetails({
-									...customerDetails,
-									phone: e.target.value,
-									password: e.target.value,
-									confirmPassword: e.target.value,
-								})
-							}
+							pattern='[0-9\\s+-]*'
+							inputMode='numeric'
+							onChange={(e) => onPhoneChange?.(e.target.value)}
 						/>
 					</InputGroup>
 					<InputGroup>
@@ -114,10 +110,10 @@ const DesktopCheckout = ({
 							placeholder={t.emailPlaceholder}
 							value={customerDetails.email}
 							onChange={(e) =>
-								setCustomerDetails({
-									...customerDetails,
+								setCustomerDetails((prev) => ({
+									...prev,
 									email: e.target.value,
-								})
+								}))
 							}
 						/>
 					</InputGroup>
@@ -134,7 +130,10 @@ const DesktopCheckout = ({
 							value={nationality} // Display the selected code in the dropdown value
 							onChange={(value) => {
 								setNationality(value);
-								setCustomerDetails({ ...customerDetails, nationality: value });
+								setCustomerDetails((prev) => ({
+									...prev,
+									nationality: value,
+								}));
 							}} // Set the state with the selected code
 							style={{ width: "100%" }}
 						>
