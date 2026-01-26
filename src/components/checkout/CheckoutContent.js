@@ -1,5 +1,5 @@
 // src/components/checkout/CheckoutContent.jsx
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
 import dayjs from "dayjs";
@@ -653,6 +653,73 @@ const CheckoutContent = ({
 		}
 	};
 
+	const buildPendingReservationPayload = useCallback(() => {
+		if (!roomCart || roomCart.length === 0) return null;
+		const optionNormalized =
+			selectedPaymentOption === "acceptDeposit"
+				? "deposit"
+				: selectedPaymentOption === "acceptPayWholeAmount"
+					? "full"
+					: null;
+		if (!optionNormalized) return null;
+
+		const totalAmount = safeParseFloat(total_price_with_commission, 0);
+		const commissionForPayload =
+			optionNormalized === "deposit"
+				? depositSar15
+				: safeParseFloat(depositAmount, 0);
+
+		const pickedRoomsType = transformRoomCartToPickedRoomsType(roomCart, false);
+
+		return {
+			userId: user ? user._id : null,
+			hotelId: roomCart[0].hotelId,
+			hotelName: roomCart[0].hotelName || "",
+			belongsTo: roomCart[0].belongsTo || "",
+			customerDetails: {
+				...customerDetails,
+				nationality,
+				postalCode,
+			},
+			total_rooms: safeParseFloat(total_rooms, 0),
+			total_guests:
+				safeParseFloat(roomCart[0].adults, 0) +
+				safeParseFloat(roomCart[0].children, 0),
+			adults: safeParseFloat(roomCart[0].adults, 0),
+			children: safeParseFloat(roomCart[0].children, 0),
+			total_amount: totalAmount,
+			payment: "pending_payment",
+			paid_amount: 0,
+			commission: commissionForPayload,
+			commissionPaid: false,
+			checkin_date: roomCart[0].startDate || "",
+			checkout_date: roomCart[0].endDate || "",
+			days_of_residence: dayjs(roomCart[0].endDate).diff(
+				dayjs(roomCart[0].startDate),
+				"days"
+			),
+			booking_source: "Online Jannat Booking",
+			pickedRoomsType,
+			convertedAmounts,
+			guestAgreedOnTermsAndConditions,
+			rootCause: "paypal_pending",
+		};
+	}, [
+		roomCart,
+		selectedPaymentOption,
+		total_price_with_commission,
+		depositSar15,
+		depositAmount,
+		customerDetails,
+		nationality,
+		postalCode,
+		total_rooms,
+		convertedAmounts,
+		guestAgreedOnTermsAndConditions,
+		user,
+		transformRoomCartToPickedRoomsType,
+	]);
+
 	// Reserve‑Now (Not Paid) flow — unchanged
 	const createNewReservation = async () => {
 		const { name, phone, email, passport, passportExpiry, password } =
@@ -835,6 +902,9 @@ const CheckoutContent = ({
 			const paypal = payload?.paypal || {};
 			const sarAmount = payload?.sarAmount;
 			const conv = payload?.convertedAmounts || {};
+			const pendingReservationId = payload?.pendingReservationId || null;
+			const confirmation_number = payload?.confirmation_number || null;
+			const invoice_id = paypal?.invoice_id || null;
 
 			const order_id = paypal?.order_id;
 			if (!order_id) {
@@ -923,11 +993,14 @@ const CheckoutContent = ({
 				pickedRoomsType,
 				convertedAmounts: conv,
 				usePassword: password || "",
+				pendingReservationId,
+				confirmation_number,
 				paypal: {
 					order_id,
 					expectedUsdAmount, // ✅ now always set
 					cmid,
 					mode, // ✅ "authorize" for pay-later
+					invoice_id,
 				},
 			};
 
@@ -1349,6 +1422,7 @@ const CheckoutContent = ({
 									overallAverageCommissionRate={overallAverageCommissionRate}
 									totalRoomsPricePerNight={totalRoomsPricePerNight}
 									createUncompletedDocument={createUncompletedDocument}
+									getPendingReservationPayload={buildPendingReservationPayload}
 									onPayApproved={handlePayPalApproved}
 									payMode='capture' // ✅ use capute or authorize
 								/>
@@ -1408,6 +1482,7 @@ const CheckoutContent = ({
 				overallAverageCommissionRate={overallAverageCommissionRate}
 				totalRoomsPricePerNight={totalRoomsPricePerNight}
 				createUncompletedDocument={createUncompletedDocument}
+				getPendingReservationPayload={buildPendingReservationPayload}
 				checkIn={checkIn}
 				disabledCheckInDate={disabledCheckInDate}
 				checkOut={checkOut}

@@ -481,6 +481,10 @@ const PaymentLink = () => {
 			const hotelName = reservationData?.hotelId?.hotelName || "Hotel";
 			const guestName = reservationData?.customer_details?.name || "Guest";
 			const guestPhone = reservationData?.customer_details?.phone || "";
+			const guestEmail = reservationData?.customer_details?.email || "";
+			const guestNationality =
+				reservationData?.customer_details?.nationality || "";
+			const reservedBy = reservationData?.customer_details?.reservedBy || "";
 			const checkin = reservationData?.checkin_date;
 			const checkout = reservationData?.checkout_date;
 
@@ -489,7 +493,7 @@ const PaymentLink = () => {
 					reference_id: "default",
 					invoice_id: `RSV-${conf}`,
 					custom_id: conf,
-					description: `Hotel reservation — ${hotelName} — ${checkin} → ${checkout} — Guest ${guestName} (${guestPhone})`,
+					description: `Hotel reservation — ${hotelName} — ${checkin} → ${checkout} — Guest ${guestName} (Phone: ${guestPhone}, Email: ${guestEmail || "n/a"}, Nat: ${guestNationality || "n/a"}, By: ${reservedBy || "n/a"})`,
 					amount: {
 						currency_code: "USD",
 						value: String(selectedUsdAmount),
@@ -503,7 +507,7 @@ const PaymentLink = () => {
 					items: [
 						{
 							name: `Hotel Reservation — ${hotelName}`,
-							description: `Guest: ${guestName}, Phone: ${guestPhone}, ${checkin} → ${checkout}, Conf: ${conf}`,
+							description: `Guest: ${guestName}, Phone: ${guestPhone}, Email: ${guestEmail || "n/a"}, Nat: ${guestNationality || "n/a"}, By: ${reservedBy || "n/a"}, ${checkin} → ${checkout}, Conf: ${conf}`,
 							quantity: "1",
 							unit_amount: {
 								currency_code: "USD",

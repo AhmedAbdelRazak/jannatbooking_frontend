@@ -61,6 +61,7 @@ const DesktopCheckout = ({
 	overallAverageCommissionRate,
 	totalRoomsPricePerNight,
 	createUncompletedDocument,
+	getPendingReservationPayload,
 	checkIn,
 	disabledCheckInDate,
 	checkOut,
@@ -291,6 +292,7 @@ const DesktopCheckout = ({
 									overallAverageCommissionRate={overallAverageCommissionRate}
 									totalRoomsPricePerNight={totalRoomsPricePerNight}
 									createUncompletedDocument={createUncompletedDocument}
+									getPendingReservationPayload={getPendingReservationPayload}
 									onPayApproved={handlePayPalApproved}
 									payMode={payMode}
 								/>

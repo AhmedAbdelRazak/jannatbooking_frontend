@@ -1,5 +1,5 @@
 // src/components/checkout/PaymentDetailsPayPal.jsx
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import styled from "styled-components";
 import { Spin, message, Alert } from "antd";
 import ReactGA from "react-ga4";
@@ -16,7 +16,11 @@ import {
 	PayPalCVVField,
 	usePayPalCardFields,
 } from "@paypal/react-paypal-js";
-import { getPayPalClientToken } from "../../apiCore";
+import {
+	getPayPalClientToken,
+	preparePayPalPendingReservation,
+	cancelPayPalPendingReservation,
+} from "../../apiCore";
 
 // --- helpers ---
 const idSig = (s) => {
@@ -119,6 +123,7 @@ export default function PaymentDetailsPayPal({
 	total_price_with_commission,
 	convertedAmounts = {},
 	createUncompletedDocument,
+	getPendingReservationPayload,
 	onPayApproved, // parent handler will call the right backend endpoint
 	payMode = "capture", // <<< NEW: default capture
 }) {
@@ -144,6 +149,17 @@ export default function PaymentDetailsPayPal({
 		[totalUsd]
 	);
 	const pretty = (n) => Number(n || 0).toFixed(2);
+	const truncateText = (value, max = 127) => {
+		if (value == null) return "";
+		const str = String(value);
+		if (str.length <= max) return str;
+		const suffix = "...";
+		return `${str.slice(0, Math.max(0, max - suffix.length))}${suffix}`;
+	};
+	const buildInvoiceId = (confirmation) => {
+		const tail = Date.now().toString(36).slice(-6).toUpperCase();
+		return `RSV-${confirmation}-${tail}`.slice(0, 127);
+	};
 
 	// Intent based on payMode (CAPTURE by default)
 	const INTENT =
@@ -156,6 +172,63 @@ export default function PaymentDetailsPayPal({
 	const [tokenError, setTokenError] = useState(null);
 	const [reloadKey, setReloadKey] = useState(0);
 	const [walletOnly, setWalletOnly] = useState(false);
+	const pendingRef = useRef({
+		pendingReservationId: null,
+		confirmation_number: null,
+		invoice_id: null,
+		payload: null,
+	});
+
+	const ensurePendingReservation = useCallback(async () => {
+		if (
+			pendingRef.current?.pendingReservationId &&
+			pendingRef.current?.confirmation_number
+		) {
+			return pendingRef.current;
+		}
+		if (typeof getPendingReservationPayload !== "function") {
+			throw new Error("Missing reservation payload builder.");
+		}
+		const payload = getPendingReservationPayload();
+		if (!payload) {
+			throw new Error("Missing reservation details.");
+		}
+		const resp = await preparePayPalPendingReservation(payload);
+		const pendingReservationId =
+			resp?.pendingReservationId || resp?.tempReservationId || resp?.id || null;
+		const confirmation_number = resp?.confirmation_number || null;
+		if (!pendingReservationId || !confirmation_number) {
+			throw new Error("Failed to prepare pending reservation.");
+		}
+		pendingRef.current = {
+			pendingReservationId,
+			confirmation_number,
+			invoice_id: null,
+			payload,
+		};
+		return pendingRef.current;
+	}, [getPendingReservationPayload, preparePayPalPendingReservation]);
+
+	const cancelPendingReservation = useCallback(async () => {
+		const pendingReservationId = pendingRef.current?.pendingReservationId;
+		const confirmation_number = pendingRef.current?.confirmation_number;
+		if (!pendingReservationId && !confirmation_number) return;
+		try {
+			await cancelPayPalPendingReservation({
+				pendingReservationId,
+				confirmation_number,
+			});
+		} catch (e) {
+			console.warn("Pending reservation cancel failed:", e?.message || e);
+		} finally {
+			pendingRef.current = {
+				pendingReservationId: null,
+				confirmation_number: null,
+				invoice_id: null,
+				payload: null,
+			};
+		}
+	}, [cancelPayPalPendingReservation]);
 
 	useEffect(() => {
 		let mounted = true;
@@ -202,6 +275,12 @@ export default function PaymentDetailsPayPal({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isArabic, reloadKey]);
 
+	useEffect(() => {
+		return () => {
+			cancelPendingReservation();
+		};
+	}, [cancelPendingReservation]);
+
 	// Amounts to pay now
 	const selectedUsdAmount = useMemo(() => {
 		if (selectedPaymentOption === "acceptDeposit") return pretty(usdDeposit15);
@@ -230,7 +309,8 @@ export default function PaymentDetailsPayPal({
 		setIsLive(null);
 		setTokenError(null);
 		setWalletOnly(false);
-	}, []);
+		cancelPendingReservation();
+	}, [cancelPendingReservation]);
 
 	const getCMID = () => {
 		try {
@@ -274,33 +354,67 @@ export default function PaymentDetailsPayPal({
 			return true;
 		};
 
-		const buildPurchaseUnits = (label) => [
-			{
-				reference_id: "default",
-				description: `${isArabic ? "حجز فندقي" : "Hotel reservation"} — ${label}`,
-				amount: {
-					currency_code: "USD",
-					value: String(selectedUsdAmount),
-					breakdown: {
-						item_total: {
-							currency_code: "USD",
-							value: String(selectedUsdAmount),
+		const buildPurchaseUnits = (label, pendingMeta) => {
+			const payload = pendingMeta?.payload || {};
+			const guest = payload.customerDetails || payload.customer_details || {};
+			const conf = pendingMeta?.confirmation_number || "";
+			const hotelName =
+				payload.hotelName || payload.hotel_name || "Hotel Reservation";
+			const checkin = payload.checkin_date || "";
+			const checkout = payload.checkout_date || "";
+			const guestName = guest.name || "Guest";
+			const guestPhone = guest.phone || "";
+			const guestEmail = guest.email || "";
+			const guestNationality = guest.nationality || "";
+			const reservedBy = guest.reservedBy || "";
+
+			const description = truncateText(
+				`Hotel reservation - ${hotelName} (${label}) - ${checkin} -> ${checkout} - Guest ${guestName} (Phone: ${guestPhone}, Email: ${
+					guestEmail || "n/a"
+				}, Nat: ${guestNationality || "n/a"}, By: ${
+					reservedBy || "n/a"
+				})`
+			);
+			const itemDescription = truncateText(
+				`Guest: ${guestName}, Phone: ${guestPhone}, Email: ${
+					guestEmail || "n/a"
+				}, Nat: ${guestNationality || "n/a"}, By: ${
+					reservedBy || "n/a"
+				}, ${checkin} -> ${checkout}, Conf: ${conf}`
+			);
+
+			return [
+				{
+					reference_id: "default",
+					invoice_id: pendingMeta?.invoice_id || `RSV-${conf}`,
+					custom_id: conf,
+					description,
+					amount: {
+						currency_code: "USD",
+						value: String(selectedUsdAmount),
+						breakdown: {
+							item_total: {
+								currency_code: "USD",
+								value: String(selectedUsdAmount),
+							},
 						},
 					},
+					items: [
+						{
+							name: `${hotelName} - ${label}`,
+							description: itemDescription,
+							quantity: "1",
+							unit_amount: {
+								currency_code: "USD",
+								value: String(selectedUsdAmount),
+							},
+							category: "DIGITAL_GOODS",
+							sku: conf ? `CNF-${conf}` : undefined,
+						},
+					],
 				},
-				items: [
-					{
-						name: isArabic ? "حجز فندقي" : "Hotel Reservation",
-						quantity: "1",
-						unit_amount: {
-							currency_code: "USD",
-							value: String(selectedUsdAmount),
-						},
-						category: "DIGITAL_GOODS",
-					},
-				],
-			},
-		];
+			];
+		};
 
 		const createOrder = async (_data, actions) => {
 			if (!requireSelectionAndTerms()) return;
@@ -315,7 +429,19 @@ export default function PaymentDetailsPayPal({
 						: "Full Amount";
 
 			createUncompletedDocument?.(`PayPal createOrder — ${label}`);
-			const purchase_units = buildPurchaseUnits(label);
+			let pendingMeta;
+			try {
+				pendingMeta = await ensurePendingReservation();
+			} catch (err) {
+				message.error(err?.message || "Failed to prepare reservation.");
+				return;
+			}
+			const invoice_id = buildInvoiceId(pendingMeta.confirmation_number);
+			pendingRef.current.invoice_id = invoice_id;
+			const purchase_units = buildPurchaseUnits(label, {
+				...pendingMeta,
+				invoice_id,
+			});
 
 			if (actions?.order) {
 				// Buttons flow
@@ -372,19 +498,35 @@ export default function PaymentDetailsPayPal({
 							? "full"
 							: null;
 
+				const pendingReservationId =
+					pendingRef.current?.pendingReservationId || null;
+				const confirmation_number =
+					pendingRef.current?.confirmation_number || null;
+				const invoice_id = pendingRef.current?.invoice_id || null;
+
 				const payload = {
 					option: optionNormalized,
 					convertedAmounts,
 					sarAmount: Number(selectedSarAmount).toFixed(2),
+					pendingReservationId,
+					confirmation_number,
 					paypal: {
 						order_id: data?.orderID,
 						expectedUsdAmount: String(selectedUsdAmount),
 						cmid: getCMID(),
 						mode: isAuthorize ? "authorize" : "capture", // <<< tell the handler which backend endpoint to call
+						invoice_id,
 					},
 				};
 
 				await onPayApproved(payload);
+
+				pendingRef.current = {
+					pendingReservationId: null,
+					confirmation_number: null,
+					invoice_id: null,
+					payload: null,
+				};
 
 				ReactGA.event({
 					category: "Reservation Payment",
@@ -410,6 +552,7 @@ export default function PaymentDetailsPayPal({
 				);
 			} catch (e) {
 				console.error("PayPal onApprove error:", e);
+				await cancelPendingReservation();
 				message.error(
 					e?.message ||
 						(isArabic
@@ -419,8 +562,9 @@ export default function PaymentDetailsPayPal({
 			}
 		};
 
-		const onError = (e) => {
+		const onError = async (e) => {
 			console.error("PayPal error:", e);
+			await cancelPendingReservation();
 			message.error(
 				isArabic ? "خطأ في الدفع عبر PayPal" : "PayPal payment error."
 			);
@@ -519,6 +663,7 @@ export default function PaymentDetailsPayPal({
 						createOrder={createOrder}
 						onApprove={onApprove}
 						onError={onError}
+						onCancel={cancelPendingReservation}
 						disabled={!allowInteract}
 					/>
 					{/* Pay with card (hosted button) */}
@@ -528,6 +673,7 @@ export default function PaymentDetailsPayPal({
 						createOrder={createOrder}
 						onApprove={onApprove}
 						onError={onError}
+						onCancel={cancelPendingReservation}
 						disabled={!allowInteract}
 					/>
 				</ButtonsBox>

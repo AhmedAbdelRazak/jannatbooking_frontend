@@ -575,6 +575,40 @@ export const payReservationViaPayPalLink = async (payload) => {
 	return data;
 };
 
+export const preparePayPalPendingReservation = async (payload) => {
+	const res = await fetch(
+		`${process.env.REACT_APP_API_URL}/reservations/paypal/pending`,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(payload),
+		}
+	);
+	const data = await res.json();
+	if (!res.ok) {
+		throw new Error(
+			data?.message || "Failed to prepare pending reservation."
+		);
+	}
+	return data;
+};
+
+export const cancelPayPalPendingReservation = async (payload) => {
+	const res = await fetch(
+		`${process.env.REACT_APP_API_URL}/reservations/paypal/pending-cancel`,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(payload),
+		}
+	);
+	const data = await res.json();
+	if (!res.ok) {
+		throw new Error(data?.message || "Failed to cancel pending reservation.");
+	}
+	return data;
+};
+
 export const createReservationViaPayPal = async (body, opts = {}) => {
 	const base = (process.env.REACT_APP_API_URL || "").replace(/\/$/, "");
 	const url = `${base}/reservations/paypal/create`;
