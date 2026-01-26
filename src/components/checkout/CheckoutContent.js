@@ -70,7 +70,7 @@ const calculateDepositDetails = (roomCart) => {
 
 				const totalPriceWithCommission = safeParseFloat(
 					day.totalPriceWithCommission,
-					0
+					0,
 				);
 				overallTotalWithCommission += totalPriceWithCommission * count;
 			});
@@ -121,7 +121,7 @@ const calculatePricingByDay = (
 	endDate,
 	basePrice,
 	defaultCost,
-	roomCommission
+	roomCommission,
 ) => {
 	const dateRange = generateDateRange(startDate, endDate);
 
@@ -226,9 +226,9 @@ const CheckoutContent = ({
 	const depositSar15 = useMemo(
 		() =>
 			Number(
-				(safeParseFloat(total_price_with_commission, 0) * 0.15).toFixed(2)
+				(safeParseFloat(total_price_with_commission, 0) * 0.15).toFixed(2),
 			),
-		[total_price_with_commission]
+		[total_price_with_commission],
 	);
 
 	useEffect(() => {
@@ -333,7 +333,7 @@ const CheckoutContent = ({
 
 				const totalPriceWithCommissionSum = pricingDetails.reduce(
 					(sum, d) => sum + safeParseFloat(d.totalPriceWithCommission, 0),
-					0
+					0,
 				);
 				const averagePriceWithCommission =
 					pricingDetails.length > 0
@@ -350,10 +350,10 @@ const CheckoutContent = ({
 					totalPriceWithCommission: totalPriceWithCommissionSum,
 					hotelShouldGet: pricingDetails.reduce(
 						(sum, d) => sum + safeParseFloat(d.rootPrice, 0),
-						0
+						0,
 					),
 				};
-			})
+			}),
 		);
 	};
 
@@ -369,7 +369,7 @@ const CheckoutContent = ({
 				} else {
 					console.error(
 						"Failed to fetch room details:",
-						data.error || "Unknown error"
+						data.error || "Unknown error",
 					);
 				}
 			} catch (error) {
@@ -394,7 +394,7 @@ const CheckoutContent = ({
 			toast.error(
 				chosenLanguage === "Arabic"
 					? "يرجى اختيار تواريخ تسجيل الوصول والمغادرة"
-					: "Please select check-in and check-out dates"
+					: "Please select check-in and check-out dates",
 			);
 			return false;
 		}
@@ -403,7 +403,7 @@ const CheckoutContent = ({
 			toast.error(
 				chosenLanguage === "Arabic"
 					? "يجب أن يكون تاريخ المغادرة بعد تاريخ الوصول."
-					: "Check-out date must be after check-in date."
+					: "Check-out date must be after check-in date.",
 			);
 			return false;
 		}
@@ -429,7 +429,7 @@ const CheckoutContent = ({
 
 			roomCart.forEach((room) => {
 				const roomDetails = roomDetailsFromIds.find(
-					(detail) => detail._id === room.id
+					(detail) => detail._id === room.id,
 				);
 				if (roomDetails) {
 					const updatedPricingByDay = calculatePricingByDay(
@@ -438,7 +438,7 @@ const CheckoutContent = ({
 						newCheckOut.format("YYYY-MM-DD"),
 						roomDetails.price.basePrice,
 						roomDetails.defaultCost,
-						roomDetails.roomCommission
+						roomDetails.roomCommission,
 					);
 
 					const updatedPricingByDayWithCommission = updatedPricingByDay.map(
@@ -448,9 +448,9 @@ const CheckoutContent = ({
 								(
 									Number(day.price) +
 									Number(day.rootPrice) * Number(day.commissionRate)
-								).toFixed(2)
+								).toFixed(2),
 							),
-						})
+						}),
 					);
 
 					updateRoomDates(
@@ -458,7 +458,7 @@ const CheckoutContent = ({
 						date.format("YYYY-MM-DD"),
 						newCheckOut.format("YYYY-MM-DD"),
 						updatedPricingByDay,
-						updatedPricingByDayWithCommission
+						updatedPricingByDayWithCommission,
 					);
 				}
 			});
@@ -469,7 +469,7 @@ const CheckoutContent = ({
 				toast.error(
 					chosenLanguage === "Arabic"
 						? "يرجى اختيار تاريخ الوصول أولاً."
-						: "Please select a check-in date first."
+						: "Please select a check-in date first.",
 				);
 				return;
 			}
@@ -477,7 +477,7 @@ const CheckoutContent = ({
 				toast.error(
 					chosenLanguage === "Arabic"
 						? "يجب أن يكون تاريخ المغادرة بعد تاريخ الوصول."
-						: "Check-out date must be after check-in date."
+						: "Check-out date must be after check-in date.",
 				);
 				return;
 			}
@@ -496,7 +496,7 @@ const CheckoutContent = ({
 
 			roomCart.forEach((room) => {
 				const roomDetails = roomDetailsFromIds.find(
-					(detail) => detail._id === room.id
+					(detail) => detail._id === room.id,
 				);
 				if (roomDetails) {
 					const updatedPricingByDay = calculatePricingByDay(
@@ -505,7 +505,7 @@ const CheckoutContent = ({
 						date.format("YYYY-MM-DD"),
 						roomDetails.price.basePrice,
 						roomDetails.defaultCost,
-						roomDetails.roomCommission
+						roomDetails.roomCommission,
 					);
 
 					const updatedPricingByDayWithCommission = updatedPricingByDay.map(
@@ -515,9 +515,9 @@ const CheckoutContent = ({
 								(
 									Number(day.price) +
 									Number(day.rootPrice) * Number(day.commissionRate)
-								).toFixed(2)
+								).toFixed(2),
 							),
-						})
+						}),
 					);
 
 					updateRoomDates(
@@ -525,7 +525,7 @@ const CheckoutContent = ({
 						checkIn.format("YYYY-MM-DD"),
 						date.format("YYYY-MM-DD"),
 						updatedPricingByDay,
-						updatedPricingByDayWithCommission
+						updatedPricingByDayWithCommission,
 					);
 				}
 			});
@@ -576,7 +576,7 @@ const CheckoutContent = ({
 
 			const pickedRoomsType = transformRoomCartToPickedRoomsType(
 				roomCart,
-				selectedPaymentOption === "acceptReserveNowPayInHotel"
+				selectedPaymentOption === "acceptReserveNowPayInHotel",
 			);
 
 			const isValidPickedRoomsType = pickedRoomsType.every((room) => {
@@ -593,7 +593,7 @@ const CheckoutContent = ({
 							typeof day.rootPrice === "number" &&
 							typeof day.commissionRate === "number" &&
 							typeof day.totalPriceWithCommission === "number" &&
-							typeof day.totalPriceWithoutCommission === "number"
+							typeof day.totalPriceWithoutCommission === "number",
 					)
 				);
 			});
@@ -626,7 +626,7 @@ const CheckoutContent = ({
 				checkout_date: roomCart[0].endDate || "",
 				days_of_residence: dayjs(roomCart[0].endDate).diff(
 					dayjs(roomCart[0].startDate),
-					"days"
+					"days",
 				),
 				booking_source: "Online Jannat Booking",
 				pickedRoomsType,
@@ -646,7 +646,7 @@ const CheckoutContent = ({
 						"Content-Type": "application/json",
 					},
 					body: JSON.stringify(reservationDataUncompleted),
-				}
+				},
 			);
 		} catch (error) {
 			console.error("Error creating uncomplete reservation:", error);
@@ -660,7 +660,7 @@ const CheckoutContent = ({
 
 		if (!guestAgreedOnTermsAndConditions) {
 			message.error(
-				"You must accept the Terms & Conditions before proceeding."
+				"You must accept the Terms & Conditions before proceeding.",
 			);
 			return;
 		}
@@ -692,7 +692,7 @@ const CheckoutContent = ({
 			const sixMonthsFromNow = dayjs().add(6, "month");
 			if (expiryDateD.isBefore(sixMonthsFromNow)) {
 				message.error(
-					"Passport expiry date should be at least 6 months from today's date."
+					"Passport expiry date should be at least 6 months from today's date.",
 				);
 				return;
 			}
@@ -705,7 +705,7 @@ const CheckoutContent = ({
 		const uniqueHotelNames = [...new Set(hotelNames)];
 		if (uniqueHotelNames.length > 1) {
 			message.error(
-				"You cannot make a reservation with rooms from multiple hotels."
+				"You cannot make a reservation with rooms from multiple hotels.",
 			);
 			return;
 		}
@@ -720,7 +720,7 @@ const CheckoutContent = ({
 
 		const pickedRoomsType = transformRoomCartToPickedRoomsType(
 			roomCart,
-			true /* isPayInHotel */
+			true /* isPayInHotel */,
 		);
 
 		const isValidPickedRoomsType = pickedRoomsType.every((room) => {
@@ -736,13 +736,13 @@ const CheckoutContent = ({
 						typeof day.rootPrice === "number" &&
 						typeof day.commissionRate === "number" &&
 						typeof day.totalPriceWithCommission === "number" &&
-						typeof day.totalPriceWithoutCommission === "number"
+						typeof day.totalPriceWithoutCommission === "number",
 				)
 			);
 		});
 		if (!isValidPickedRoomsType) {
 			message.error(
-				"Invalid room pricing details. Please review your selection."
+				"Invalid room pricing details. Please review your selection.",
 			);
 			return;
 		}
@@ -774,7 +774,7 @@ const CheckoutContent = ({
 			checkout_date: roomCart[0].endDate || "",
 			days_of_residence: dayjs(roomCart[0].endDate).diff(
 				dayjs(roomCart[0].startDate),
-				"days"
+				"days",
 			),
 			booking_source: "Online Jannat Booking",
 			pickedRoomsType,
@@ -794,7 +794,7 @@ const CheckoutContent = ({
 		} catch (error) {
 			console.error("Error creating Not Paid reservation:", error);
 			message.error(
-				error?.message || "An error occurred while creating the reservation"
+				error?.message || "An error occurred while creating the reservation",
 			);
 		}
 	};
@@ -879,7 +879,7 @@ const CheckoutContent = ({
 			// IMPORTANT: do NOT 10% bump in paid/authorized flows
 			const pickedRoomsType = transformRoomCartToPickedRoomsType(
 				roomCart,
-				false
+				false,
 			);
 
 			// NEW (15%): commission for deposit branch is 15% of total, otherwise keep your original commission
@@ -917,7 +917,7 @@ const CheckoutContent = ({
 				checkout_date: roomCart[0].endDate || "",
 				days_of_residence: dayjs(roomCart[0].endDate).diff(
 					dayjs(roomCart[0].startDate),
-					"days"
+					"days",
 				),
 				booking_source: "Online Jannat Booking",
 				pickedRoomsType,
@@ -965,7 +965,7 @@ const CheckoutContent = ({
 				});
 				if (signInResponse.error) {
 					message.error(
-						"Failed to sign in automatically after account creation."
+						"Failed to sign in automatically after account creation.",
 					);
 				} else {
 					authenticate(signInResponse, () => {
@@ -1054,7 +1054,7 @@ const CheckoutContent = ({
 								const totalCommissionPrice =
 									room.pricingByDayWithCommission?.reduce(
 										(total, day) => total + (day.totalPriceWithCommission || 0),
-										0
+										0,
 									) || 0;
 								const pricePerNight =
 									totalNights > 0 ? totalCommissionPrice / totalNights : 0;
@@ -1135,11 +1135,11 @@ const CheckoutContent = ({
 																	<li key={index}>
 																		{date}:{" "}
 																		{Number(totalPriceWithCommission).toFixed(
-																			2
+																			2,
 																		)}{" "}
 																		{t[selectedCurrency.toUpperCase()]}
 																	</li>
-																)
+																),
 															)
 														) : (
 															<li>{t.noPriceBreakdown}</li>
@@ -1276,7 +1276,7 @@ const CheckoutContent = ({
 							selected={guestAgreedOnTermsAndConditions}
 							onClick={() => {
 								setGuestAgreedOnTermsAndConditions(
-									!guestAgreedOnTermsAndConditions
+									!guestAgreedOnTermsAndConditions,
 								);
 								createUncompletedDocument("User Accepted Terms And Conditions");
 								ReactGA.event({
