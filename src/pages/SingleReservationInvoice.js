@@ -66,19 +66,23 @@ const SingleReservationInvoice = () => {
 	}, [reservation]);
 
 	const totalAmount = safeNumber(reservation?.total_amount);
-	const paidAmount = safeNumber(reservation?.paid_amount);
-	const onsitePaid = safeNumber(
+	const paidAmountAuthorized = safeNumber(reservation?.paid_amount);
+	const paidAmountOffline = safeNumber(
 		reservation?.payment_details?.onsite_paid_amount
 	);
-	const hasCardNumber = !!reservation?.customer_details?.cardNumber; // NOTE: this is sanitized out by API; we treat public page as no card
-	const isNotPaid =
-		reservation?.payment?.toLowerCase?.() === "not paid" || !hasCardNumber;
-	const isFullyPaid = totalAmount.toFixed(0) === paidAmount.toFixed(0);
-	const finalDeposit = hasCardNumber ? paidAmount : 0;
+	const totalPaid = paidAmountAuthorized + paidAmountOffline;
+	const paymentStatus = (reservation?.payment || "").toLowerCase();
+	const isNotCapturedStatus =
+		paymentStatus === "credit/ debit" ||
+		paymentStatus === "credit/debit" ||
+		paymentStatus === "credit / debit" ||
+		paymentStatus === "not captured";
+	const toCents = (n) => Math.round(Number(n || 0) * 100);
+	const isFullyPaid =
+		toCents(totalPaid) >= toCents(totalAmount) && totalPaid > 0;
+	const isNotPaid = toCents(totalPaid) === 0 && paymentStatus === "not paid";
 	const depositPercentage =
-		hasCardNumber && totalAmount > 0
-			? ((finalDeposit / totalAmount) * 100).toFixed(0)
-			: 0;
+		totalAmount > 0 ? ((totalPaid / totalAmount) * 100).toFixed(0) : 0;
 
 	const supplierName =
 		reservation?.supplierData?.supplierName || hotel?.suppliedBy || "N/A";
@@ -166,21 +170,30 @@ const SingleReservationInvoice = () => {
 				</div>
 				<div className='info-box'>
 					<strong>
-						{onsitePaid > 0
+						{paidAmountOffline > 0
 							? "Paid Offline"
 							: isFullyPaid
 								? "Paid Amount"
 								: isNotPaid
 									? "Not Paid"
-									: `${depositPercentage}% Deposit`}
+									: isNotCapturedStatus
+										? "Authorized (Not Captured)"
+										: `${depositPercentage}% Deposit`}
 					</strong>
 					<div>
-						{onsitePaid > 0 ? (
-							<>{Number((onsitePaid / totalAmount) * 100).toFixed(2)}%</>
+						{paidAmountOffline > 0 ? (
+							<>
+								{totalAmount > 0
+									? Number((totalPaid / totalAmount) * 100).toFixed(2)
+									: "0.00"}
+								%
+							</>
 						) : isFullyPaid ? (
-							`${paidAmount.toFixed(2)} SAR`
+							`${totalPaid.toFixed(2)} SAR`
 						) : isNotPaid ? (
 							"Not Paid"
+						) : isNotCapturedStatus ? (
+							`${paidAmountAuthorized.toFixed(2)} SAR`
 						) : (
 							`${depositPercentage}% Deposit`
 						)}
@@ -218,11 +231,15 @@ const SingleReservationInvoice = () => {
 						<td>{reservation.total_guests}</td>
 						<td>{reservation.booking_source || "Jannatbooking.com"}</td>
 						<td>
-							{isFullyPaid
-								? "Paid in Full"
-								: isNotPaid
-									? "Not Paid"
-									: `${depositPercentage}% Deposit`}
+							{paidAmountOffline > 0
+								? "Paid Offline"
+								: isFullyPaid
+									? "Paid in Full"
+									: isNotPaid
+										? "Not Paid"
+										: isNotCapturedStatus
+											? "Authorized (Not Captured)"
+											: `${depositPercentage}% Deposit`}
 						</td>
 					</tr>
 				</tbody>
@@ -274,27 +291,32 @@ const SingleReservationInvoice = () => {
 				</div>
 				{isFullyPaid ? (
 					<div>
-						<strong>Paid Amount:</strong> {paidAmount.toFixed(2)} SAR
+						<strong>Paid Amount:</strong> {totalPaid.toFixed(2)} SAR
 					</div>
-				) : onsitePaid > 0 ? (
+				) : paidAmountOffline > 0 && paidAmountAuthorized === 0 ? (
 					<div>
-						<strong>Paid Amount Onsite:</strong> {onsitePaid.toFixed(2)} SAR
+						<strong>Paid Amount Onsite:</strong>{" "}
+						{paidAmountOffline.toFixed(2)} SAR
 					</div>
 				) : isNotPaid ? (
 					<div>
 						<strong>Payment Status:</strong> Not Paid
 					</div>
-				) : (
+				) : isNotCapturedStatus && paidAmountAuthorized > 0 ? (
 					<div>
-						<strong>Final Deposit ({depositPercentage}% of Total):</strong>{" "}
-						{finalDeposit.toFixed(2)} SAR
+						<strong>Authorized (Not Captured):</strong>{" "}
+						{paidAmountAuthorized.toFixed(2)} SAR
 					</div>
-				)}
+				) : paidAmountAuthorized > 0 ? (
+					<div>
+						<strong>Deposit:</strong> {paidAmountAuthorized.toFixed(2)} SAR
+					</div>
+				) : null}
 				<div>
 					<strong>Total To Be Collected:</strong>{" "}
-					{onsitePaid > 0
-						? (Number(totalAmount) - Number(onsitePaid)).toFixed(2)
-						: (Number(totalAmount) - paidAmount).toFixed(2)}{" "}
+					{Math.max(0, Number((totalAmount - totalPaid).toFixed(2))).toFixed(
+						2
+					)}{" "}
 					SAR
 				</div>
 			</div>
@@ -389,12 +411,14 @@ const SingleReservationInvoiceWrapper = styled.div`
 		display: flex;
 		justify-content: space-between;
 		margin-top: 20px;
+		gap: 16px;
 	}
 	.info-box {
 		border: 1px solid #000;
 		padding: 10px;
 		width: 48%;
 		text-align: center;
+		word-break: break-word;
 	}
 	.supplier-info .editable-supplier {
 		font-style: italic;

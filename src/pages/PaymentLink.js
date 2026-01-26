@@ -29,24 +29,30 @@ import {
 
 /* ───────── Helpers ───────── */
 function computeCommissionAndDeposit(pickedRoomsType = []) {
+	const safeNumber = (value) => {
+		const num = Number(value);
+		return Number.isFinite(num) ? num : 0;
+	};
 	let totalCommission = 0;
 	let oneNightCost = 0;
 	pickedRoomsType.forEach((room) => {
 		if (room.pricingByDay && room.pricingByDay.length > 0) {
 			const commissionForRoom =
 				room.pricingByDay.reduce(
-					(acc, day) => acc + (Number(day.price) - Number(day.rootPrice)),
+					(acc, day) =>
+						acc + (safeNumber(day.price) - safeNumber(day.rootPrice)),
 					0,
-				) * room.count;
+				) * safeNumber(room.count);
 			totalCommission += commissionForRoom;
-			const firstDayRootPrice = Number(room.pricingByDay[0].rootPrice);
-			oneNightCost += firstDayRootPrice * room.count;
+			const firstDayRootPrice = safeNumber(room.pricingByDay[0].rootPrice);
+			oneNightCost += firstDayRootPrice * safeNumber(room.count);
 		} else {
-			oneNightCost += Number(room.chosenPrice) * room.count;
+			oneNightCost += safeNumber(room.chosenPrice) * safeNumber(room.count);
 		}
 	});
 	const defaultDeposit = totalCommission + oneNightCost;
-	return { defaultDeposit: Number(defaultDeposit.toFixed(2)) };
+	const normalized = Number.isFinite(defaultDeposit) ? defaultDeposit : 0;
+	return { defaultDeposit: Number(normalized.toFixed(2)) };
 }
 const idSig = (s) => {
 	try {
@@ -288,13 +294,14 @@ const PaymentLink = () => {
 			const adv = parseFloat(finalAdvancePayment) || 0;
 			const totalAmount = parseFloat(reservationData.total_amount || 0);
 
-			if (pct > 0) {
+			if (Number.isFinite(totalAmount) && pct > 0) {
 				depositToUse = totalAmount * (pct / 100);
-			} else if (adv > 0) {
+			} else if (Number.isFinite(adv) && adv > 0) {
 				depositToUse = adv;
 			}
 		}
-		setEffectiveDeposit(Number(depositToUse.toFixed(2)));
+		const normalized = Number.isFinite(depositToUse) ? depositToUse : 0;
+		setEffectiveDeposit(Number(normalized.toFixed(2)));
 	}, [reservationData, defaultDeposit]);
 
 	/* 3) SAR → USD conversions with robust fallback (never 0.00) */
@@ -342,14 +349,18 @@ const PaymentLink = () => {
 				console.warn("Currency conversion failed; using fallback rate.", err);
 			}
 
+			const fallbackTotal = toUSD(fullTotalSAR);
+			const fallbackDeposit = toUSD(depositSAR);
+			const fallbackRemaining = includeRemaining ? toUSD(remainingSAR) : 0;
+
 			if (fullTotalSAR > 0 && !(Number(totalU) > 0)) {
-				totalU = toUSD(fullTotalSAR);
+				totalU = fallbackTotal;
 			}
 			if (depositSAR > 0 && !(Number(effU) > 0)) {
-				effU = toUSD(depositSAR);
+				effU = fallbackDeposit;
 			}
 			if (includeRemaining && remainingSAR > 0 && !(Number(remainingU) > 0)) {
-				remainingU = toUSD(remainingSAR);
+				remainingU = fallbackRemaining;
 			}
 
 			setTotalUSD((Number(totalU) || 0).toFixed(2));
@@ -424,16 +435,25 @@ const PaymentLink = () => {
 		init();
 	}, [isArabic, reloadKey]);
 
+	const computedDepositUSD = useMemo(() => {
+		const usd = Number(effectiveDepositUSD);
+		if (Number.isFinite(usd) && usd > 0) return usd.toFixed(2);
+		const fallback = toUSD(effectiveDeposit);
+		return Number.isFinite(fallback) && fallback > 0
+			? fallback.toFixed(2)
+			: "0.00";
+	}, [effectiveDepositUSD, effectiveDeposit]);
+
 	const selectedUsdAmount = useMemo(() => {
 		const val =
 			selectedOption === "acceptRemaining"
 				? remainingUSD
 				: selectedOption === "acceptDeposit"
-					? effectiveDepositUSD
+					? computedDepositUSD
 					: totalUSD;
 		const n = Number(val);
 		return Number.isFinite(n) ? n.toFixed(2) : "0.00";
-	}, [selectedOption, effectiveDepositUSD, remainingUSD, totalUSD]);
+	}, [selectedOption, computedDepositUSD, remainingUSD, totalUSD]);
 
 	const selectedSarAmount = useMemo(() => {
 		if (selectedOption === "acceptRemaining") return remainingSar;
@@ -579,7 +599,7 @@ const PaymentLink = () => {
 						reservationId,
 					option,
 					convertedAmounts: {
-						depositUSD: isRemainingPayment ? remainingUSD : effectiveDepositUSD,
+						depositUSD: isRemainingPayment ? remainingUSD : computedDepositUSD,
 						totalUSD,
 					},
 					sarAmount: Number(selectedSarAmount).toFixed(2),
@@ -975,10 +995,10 @@ const PaymentLink = () => {
 												<span className='option-title'>
 													{isArabic ? "دفعة مقدمة" : "Deposit"}
 												</span>
-												<span className='option-amounts' dir='ltr'>
-													<bdi className='latin-digits'>
-														{effectiveDepositUSD}
-													</bdi>{" "}
+											<span className='option-amounts' dir='ltr'>
+												<bdi className='latin-digits'>
+													{computedDepositUSD}
+												</bdi>{" "}
 													USD{" "}
 													<span className='sar'>
 														(
@@ -1096,7 +1116,7 @@ const PaymentLink = () => {
 												guestAgreed={guestAgreed}
 												selectedUsdAmount={selectedUsdAmount}
 												selectedSarAmount={selectedSarAmount}
-												effectiveDepositUSD={effectiveDepositUSD}
+												effectiveDepositUSD={computedDepositUSD}
 												remainingUSD={remainingUSD}
 												totalUSD={totalUSD}
 												PAY_MODE={PAY_MODE}
