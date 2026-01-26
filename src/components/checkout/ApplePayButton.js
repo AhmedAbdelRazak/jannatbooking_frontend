@@ -323,11 +323,18 @@ const ApplePayButton = ({
 
 	return (
 		<ApplePaySection>
-			<ApplePayShell aria-disabled={loading} data-muted={!allowInteract}>
+			<ApplePayShell
+				aria-disabled={loading}
+				data-muted={!allowInteract}
+				dir='ltr'
+				lang='en'
+			>
 				<apple-pay-button
 					buttonstyle='black'
 					type='buy'
 					locale='en'
+					dir='ltr'
+					lang='en'
 					onClick={startApplePay}
 				/>
 			</ApplePayShell>
@@ -341,6 +348,7 @@ const ApplePaySection = styled.div`
 	margin-top: 14px;
 	display: flex;
 	justify-content: center;
+	direction: ltr;
 `;
 
 const ApplePayShell = styled.div`
@@ -348,13 +356,19 @@ const ApplePayShell = styled.div`
 	max-width: 420px;
 	opacity: ${(props) => (props["data-muted"] ? 0.7 : 1)};
 	pointer-events: ${(props) => (props["aria-disabled"] ? "none" : "auto")};
+	direction: ltr;
+	text-align: left;
+	unicode-bidi: isolate;
 
 	apple-pay-button {
 		--apple-pay-button-width: 100%;
 		--apple-pay-button-height: 44px;
-		--apple-pay-button-border-radius: 8px;
-		--apple-pay-button-padding: 0px;
+		--apple-pay-button-border-radius: 10px;
+		--apple-pay-button-padding: 0;
 		box-sizing: border-box;
-		display: inline-block;
+		display: block;
+		width: 100%;
+		height: 44px;
+		direction: ltr;
 	}
 `;
