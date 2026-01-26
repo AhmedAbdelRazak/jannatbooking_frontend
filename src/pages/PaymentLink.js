@@ -13,6 +13,7 @@ import { useCartContext } from "../cart_context";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import { translations } from "../Assets";
+import ApplePayButton from "../components/checkout/ApplePayButton";
 import {
 	PayPalScriptProvider,
 	PayPalButtons,
@@ -813,19 +814,25 @@ const PaymentLink = () => {
 		(isLive
 			? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE
 			: process.env.REACT_APP_PAYPAL_CLIENT_ID_SANDBOX) || "";
+	const merchantId =
+		(isLive
+			? process.env.REACT_APP_PAYPAL_MERCHANT_ID_LIVE
+			: process.env.REACT_APP_PAYPAL_MERCHANT_ID_SANDBOX) || "";
+	const merchantIdOption = merchantId ? { "merchant-id": merchantId } : {};
 
 	const primaryOptions =
 		clientToken && isLive != null && !walletOnly
 			? {
 					"client-id": feClientId,
 					"data-client-token": clientToken,
-					components: "buttons,card-fields",
+					components: "buttons,card-fields,applepay",
 					currency: "USD",
 					intent: PAY_MODE, // 👈 capture or authorize
 					commit: true,
 					"enable-funding": "paypal,card",
 					"disable-funding": "credit,venmo,paylater",
 					locale,
+					...merchantIdOption,
 				}
 			: null;
 
@@ -833,13 +840,14 @@ const PaymentLink = () => {
 		isLive != null && walletOnly
 			? {
 					"client-id": feClientId,
-					components: "buttons",
+					components: "buttons,applepay",
 					currency: "USD",
 					intent: PAY_MODE, // 👈 capture or authorize
 					commit: true,
 					"enable-funding": "paypal,card",
 					"disable-funding": "credit,venmo,paylater",
 					locale,
+					...merchantIdOption,
 				}
 			: null;
 
@@ -1056,6 +1064,45 @@ const PaymentLink = () => {
 									>
 										<PayPalScriptProvider options={scriptOptions}>
 											<PayArea />
+											<ApplePayButton
+												labels={{
+													selectOption: isArabic
+														? "يرجى اختيار خيار الدفع أولاً."
+														: "Please choose a payment option first.",
+													acceptTerms:
+														t.acceptTerms ||
+														(isArabic
+															? "يرجى الموافقة على الشروط والأحكام."
+															: "Please accept the Terms & Conditions."),
+													amountInvalid: isArabic
+														? "قيمة الدفع غير صالحة."
+														: "Payment amount is not valid.",
+													notAvailable: isArabic
+														? "Apple Pay غير متاح على هذا الجهاز."
+														: "Apple Pay is not available on this device.",
+													paymentFailed: isArabic
+														? "تعذر إتمام الدفع."
+														: "Payment failed.",
+													paymentSuccess: isArabic
+														? "تم الدفع بنجاح!"
+														: "Payment successful!",
+												}}
+												allowInteract={allowInteract}
+												selectedOption={selectedOption}
+												guestAgreed={guestAgreed}
+												selectedUsdAmount={selectedUsdAmount}
+												selectedSarAmount={selectedSarAmount}
+												effectiveDepositUSD={effectiveDepositUSD}
+												remainingUSD={remainingUSD}
+												totalUSD={totalUSD}
+												PAY_MODE={PAY_MODE}
+												reservationData={reservationData}
+												reservationId={reservationId}
+												getCMID={getCMID}
+												payReservationViaPayPalLink={
+													payReservationViaPayPalLink
+												}
+											/>
 										</PayPalScriptProvider>
 									</ScriptShell>
 								)}
