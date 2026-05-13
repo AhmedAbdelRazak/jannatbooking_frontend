@@ -33,6 +33,8 @@ import PaymentLink from "./pages/PaymentLink";
 import ClientPaymentTriggering from "./pages/ClientPaymentTriggering";
 import OffersAndMonthly from "./pages/OffersAndMonthly";
 import SingleReservationInvoice from "./pages/SingleReservationInvoice";
+import Forgot from "./auth/Forgot";
+import Reset from "./auth/Reset";
 
 const App = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
@@ -113,6 +115,8 @@ const App = () => {
 					<Route path='/hotel/:hotelslug' exact component={SingleHotelPage} />
 					<Route path='/signup' exact component={Signup} />
 					<Route path='/signin' exact component={Signin} />
+					<Route path='/auth/password/forgot' exact component={Forgot} />
+					<Route path='/auth/password/reset/:token' exact component={Reset} />
 					<Route path='/about' exact component={About} />
 					<Route path='/contact' exact component={ContactUs} />
 					<Route

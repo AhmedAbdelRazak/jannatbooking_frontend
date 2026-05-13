@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, useHistory } from "react-router-dom";
 import SingleHotel from "../components/SingleHotel/SingleHotel";
 import { gettingSingleHotel } from "../apiCore";
 import { Spin } from "antd";
@@ -10,6 +10,7 @@ import favicon from "../favicon.ico";
 const SingleHotelMain = () => {
 	const { hotelNameSlug } = useParams();
 	const location = useLocation();
+	const history = useHistory();
 
 	const [selectedHotel, setSelectedHotel] = useState(null);
 	const [loading, setLoading] = useState(true);
@@ -39,15 +40,27 @@ const SingleHotelMain = () => {
 		const fetchHotel = async () => {
 			try {
 				const hotelData = await gettingSingleHotel(hotelNameSlug);
+				if (
+					!hotelData ||
+					hotelData.error ||
+					hotelData.message ||
+					hotelData.activateHotel === false ||
+					!hotelData.hotelName
+				) {
+					setSelectedHotel(null);
+					history.replace("/our-hotels");
+					return;
+				}
 				setSelectedHotel(hotelData);
 			} catch (error) {
 				console.error("Error fetching hotel:", error);
+				history.replace("/our-hotels");
 			} finally {
 				setLoading(false);
 			}
 		};
 		if (hotelNameSlug) fetchHotel();
-	}, [hotelNameSlug]);
+	}, [hotelNameSlug, history]);
 
 	const capitalize = (str) => {
 		if (!str) return "";

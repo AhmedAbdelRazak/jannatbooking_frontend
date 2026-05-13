@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import styled from "styled-components";
-import { gettingJannatWebsiteData } from "../../apiCore";
+import {
+	gettingActiveHotelList,
+	gettingJannatWebsiteData,
+} from "../../apiCore";
 import { FaWhatsapp } from "react-icons/fa";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
@@ -10,6 +13,7 @@ const Footer = (props) => {
 	const [homePage, setHomePage] = useState({});
 	const [startDate, setStartDate] = useState("");
 	const [endDate, setEndDate] = useState("");
+	const [topHotels, setTopHotels] = useState([]);
 
 	const ClickHandler = () => {
 		window.scrollTo(10, 0);
@@ -21,6 +25,28 @@ const Footer = (props) => {
 				console.log(data.error);
 			} else {
 				setHomePage(data[data.length - 1]);
+			}
+		});
+	};
+
+	const createHotelSlug = (hotelName = "") =>
+		encodeURIComponent(hotelName.trim().replace(/\s+/g, "-").toLowerCase());
+
+	const gettingTopHotels = () => {
+		gettingActiveHotelList().then((data) => {
+			if (Array.isArray(data)) {
+				const activeTopHotels = data
+					.filter((hotel) => hotel && hotel.hotelName && hotel.activateHotel !== false)
+					.sort(
+						(firstHotel, secondHotel) =>
+							Number(secondHotel.hotelRating || 0) -
+							Number(firstHotel.hotelRating || 0)
+					)
+					.slice(0, 4);
+
+				setTopHotels(activeTopHotels);
+			} else if (data && data.error) {
+				console.log(data.error);
 			}
 		});
 	};
@@ -48,6 +74,7 @@ const Footer = (props) => {
 
 	useEffect(() => {
 		gettingAllHomes();
+		gettingTopHotels();
 		calculateDates();
 		// eslint-disable-next-line
 	}, []);
@@ -107,30 +134,16 @@ const Footer = (props) => {
 									<h3>Top Hotels</h3>
 								</div>
 								<ul>
-									<li>
-										<Link
-											onClick={ClickHandler}
-											to={`/single-hotel/kyona-al-hijra-hotel`}
-										>
-											Kyona al Hijra
-										</Link>
-									</li>
-									<li>
-										<Link
-											onClick={ClickHandler}
-											to={`/single-hotel/abraj-al-wehda-(-hussien-beyary-)`}
-										>
-											Abraj al Wehda
-										</Link>
-									</li>
-									<li>
-										<Link
-											onClick={ClickHandler}
-											to={`/single-hotel/mayer-moyasser`}
-										>
-											Mayer Moyasser
-										</Link>
-									</li>
+									{topHotels.map((hotel) => (
+										<li key={hotel._id || hotel.hotelName}>
+											<Link
+												onClick={ClickHandler}
+												to={`/single-hotel/${createHotelSlug(hotel.hotelName)}`}
+											>
+												{hotel.hotelName}
+											</Link>
+										</li>
+									))}
 								</ul>
 							</div>
 						</div>

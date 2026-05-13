@@ -1,11 +1,28 @@
 /** @format */
 
 import React, { useState, useEffect, Fragment } from "react";
-import jwt from "jsonwebtoken";
 import axios from "axios";
 
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.min.css";
+
+const decodeJwtPayload = (token = "") => {
+	try {
+		const payload = token.split(".")[1];
+		if (!payload) return {};
+		const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+		const json = decodeURIComponent(
+			Array.prototype.map
+				.call(atob(base64), (char) => {
+					return `%${`00${char.charCodeAt(0).toString(16)}`.slice(-2)}`;
+				})
+				.join("")
+		);
+		return JSON.parse(json);
+	} catch {
+		return {};
+	}
+};
 
 const Reset = ({ match, history }) => {
 	// props.match from react router dom
@@ -18,7 +35,7 @@ const Reset = ({ match, history }) => {
 
 	useEffect(() => {
 		let token = match.params.token;
-		let { name } = jwt.decode(token);
+		let { name = "" } = decodeJwtPayload(token);
 		// console.log(name);
 		if (token) {
 			setValues({ ...values, name, token });
