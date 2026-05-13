@@ -32,6 +32,13 @@ const Footer = (props) => {
 	const createHotelSlug = (hotelName = "") =>
 		encodeURIComponent(hotelName.trim().replace(/\s+/g, "-").toLowerCase());
 
+	const formatHotelName = (hotelName = "") =>
+		String(hotelName || "")
+			.trim()
+			.replace(/\s+/g, " ")
+			.toLowerCase()
+			.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+
 	const gettingTopHotels = () => {
 		gettingActiveHotelList().then((data) => {
 			if (Array.isArray(data)) {
@@ -140,7 +147,7 @@ const Footer = (props) => {
 												onClick={ClickHandler}
 												to={`/single-hotel/${createHotelSlug(hotel.hotelName)}`}
 											>
-												{hotel.hotelName}
+												{formatHotelName(hotel.hotelName)}
 											</Link>
 										</li>
 									))}
