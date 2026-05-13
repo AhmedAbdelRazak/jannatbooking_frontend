@@ -2,7 +2,11 @@ import React, { useEffect, useState, useMemo } from "react";
 import styled from "styled-components";
 import { Button, Spin } from "antd";
 import { useLocation } from "react-router-dom";
-import { getRoomQuery, gettingDistinctRoomTypes } from "../apiCore";
+import {
+	getHotelInventoryAvailability,
+	getRoomQuery,
+	gettingDistinctRoomTypes,
+} from "../apiCore";
 import { Swiper, SwiperSlide } from "swiper/react";
 // eslint-disable-next-line
 import { Pagination, Autoplay, Thumbs } from "swiper/modules";
@@ -22,6 +26,11 @@ import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import SearchResults from "../components/OurHotels/SearchResults";
 import SearchUpdate from "../components/OurHotels/SearchUpdate";
+import {
+	buildAvailabilityLookup,
+	getRoomAvailability,
+	roomHasEnoughAvailability,
+} from "../utils/inventoryAvailability";
 
 //Rooms to our hotels
 //Sliders shouldn't be auto.
@@ -208,6 +217,7 @@ const OurHotelRooms2 = () => {
 	const [showAmenitiesState, setShowAmenitiesState] = useState({}); // State to track showAllAmenities per room
 	const [sortOption, setSortOption] = useState(null);
 	const [currency, setCurrency] = useState("sar");
+	const [availabilityByHotel, setAvailabilityByHotel] = useState({});
 
 	const location = useLocation();
 	const queryParams = getQueryParams(location.search);
@@ -296,6 +306,57 @@ const OurHotelRooms2 = () => {
 		queryParams.children,
 		queryParams.destination,
 	]);
+
+	useEffect(() => {
+		let isMounted = true;
+
+		const fetchAvailability = async () => {
+			if (
+				!Array.isArray(roomData) ||
+				roomData.length === 0 ||
+				!queryParams.startDate ||
+				!queryParams.endDate
+			) {
+				if (isMounted) setAvailabilityByHotel({});
+				return;
+			}
+
+			const inclusiveEnd = dayjs(queryParams.endDate)
+				.subtract(1, "day")
+				.format("YYYY-MM-DD");
+			if (dayjs(inclusiveEnd).isBefore(dayjs(queryParams.startDate))) {
+				if (isMounted) setAvailabilityByHotel({});
+				return;
+			}
+
+			const hotelIds = [
+				...new Set(roomData.map((hotel) => hotel?._id).filter(Boolean)),
+			];
+			const pairs = await Promise.all(
+				hotelIds.map(async (hotelId) => {
+					try {
+						const rows = await getHotelInventoryAvailability(hotelId, {
+							start: queryParams.startDate,
+							end: inclusiveEnd,
+						});
+						return [hotelId, buildAvailabilityLookup(rows)];
+					} catch (error) {
+						console.error("Error fetching hotel availability", error);
+						return [hotelId, null];
+					}
+				})
+			);
+
+			if (isMounted) {
+				setAvailabilityByHotel(Object.fromEntries(pairs));
+			}
+		};
+
+		fetchAvailability();
+		return () => {
+			isMounted = false;
+		};
+	}, [roomData, queryParams.startDate, queryParams.endDate]);
 
 	useEffect(() => {
 		const gettingDistinctRooms = () => {
@@ -501,6 +562,7 @@ const OurHotelRooms2 = () => {
 											SAR_EUR: 0.25,
 										}
 									}
+									availabilityLookup={availabilityByHotel[hotel._id]}
 									t={t}
 								/>
 							))
@@ -539,6 +601,7 @@ const RoomCard = ({
 	toggleShowAmenities, // Handler to toggle state
 	currency, // New prop for currency
 	rates, // New prop for conversion rates
+	availabilityLookup,
 	t,
 }) => {
 	// eslint-disable-next-line
@@ -585,9 +648,13 @@ const RoomCard = ({
 	const convertedTotalPrice = calculateConvertedPrice(totalPriceWithCommission);
 
 	// Check if the room is available
-	const isRoomAvailable = !pricingByDay.some((day) => day.price <= 0);
+	const availability = getRoomAvailability(availabilityLookup, room);
+	const isRoomAvailable =
+		!pricingByDay.some((day) => day.price <= 0) &&
+		roomHasEnoughAvailability(availability, 1);
 
 	const handleAddToCart = () => {
+		if (!isRoomAvailable) return;
 		addRoomToCart(
 			room._id,
 			{

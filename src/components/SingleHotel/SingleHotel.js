@@ -18,6 +18,12 @@ import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import SingleHotelOffers from "./SingleHotelOffers";
 import { useHistory, useLocation } from "react-router-dom";
+import { getHotelInventoryAvailability } from "../../apiCore";
+import {
+	buildAvailabilityLookup,
+	getRoomAvailability,
+	roomHasEnoughAvailability,
+} from "../../utils/inventoryAvailability";
 
 const { RangePicker } = DatePicker;
 
@@ -180,9 +186,14 @@ const SingleHotel = ({ selectedHotel }) => {
 
 	const [selectedCurrency, setSelectedCurrency] = useState("sar");
 	const [currencyRates, setCurrencyRates] = useState({});
+	const [availabilityLookup, setAvailabilityLookup] = useState(null);
 
 	const { addRoomToCart, openSidebar2, chosenLanguage } = useCartContext();
 	const t = translations[chosenLanguage] || translations.English;
+	const availabilityStart = dateRange?.[0]?.format("YYYY-MM-DD");
+	const availabilityEnd = dateRange?.[1]
+		?.subtract(1, "day")
+		.format("YYYY-MM-DD");
 
 	useEffect(() => {
 		const currency = (
@@ -195,6 +206,38 @@ const SingleHotel = ({ selectedHotel }) => {
 		setSelectedCurrency(currency);
 		setCurrencyRates(rates);
 	}, []);
+
+	useEffect(() => {
+		let isMounted = true;
+
+		const fetchAvailability = async () => {
+			if (
+				!selectedHotel?._id ||
+				!availabilityStart ||
+				!availabilityEnd ||
+				dayjs(availabilityEnd).isBefore(dayjs(availabilityStart))
+			) {
+				if (isMounted) setAvailabilityLookup(null);
+				return;
+			}
+
+			try {
+				const rows = await getHotelInventoryAvailability(selectedHotel._id, {
+					start: availabilityStart,
+					end: availabilityEnd,
+				});
+				if (isMounted) setAvailabilityLookup(buildAvailabilityLookup(rows));
+			} catch (error) {
+				console.error("Error fetching hotel availability", error);
+				if (isMounted) setAvailabilityLookup(null);
+			}
+		};
+
+		fetchAvailability();
+		return () => {
+			isMounted = false;
+		};
+	}, [selectedHotel?._id, availabilityStart, availabilityEnd]);
 
 	const handleAmenitiesToggle = () => setShowAllAmenities((prev) => !prev);
 
@@ -328,6 +371,9 @@ const SingleHotel = ({ selectedHotel }) => {
 	};
 
 	const handleAddRoomToCart = (room) => {
+		const availability = getRoomAvailability(availabilityLookup, room);
+		if (!roomHasEnoughAvailability(availability, 1)) return;
+
 		const startDate = dateRange[0].format("YYYY-MM-DD");
 		const endDate = dateRange[1].format("YYYY-MM-DD");
 		const commissionRate = getCommissionRate(
@@ -614,7 +660,10 @@ const SingleHotel = ({ selectedHotel }) => {
 					);
 
 					const nights = pbd.length;
-					const isAvailable = !pbd.some((d) => d.price <= 0);
+					const availability = getRoomAvailability(availabilityLookup, room);
+					const isAvailable =
+						!pbd.some((d) => d.price <= 0) &&
+						roomHasEnoughAvailability(availability, 1);
 
 					const total = pbd.reduce(
 						(s, d) => s + (d.price + (d.rootPrice * d.commissionRate || 0)),

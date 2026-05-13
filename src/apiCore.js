@@ -424,6 +424,33 @@ export const getRoomQuery = async (query) => {
 		});
 };
 
+export const getHotelInventoryAvailability = async (
+	hotelId,
+	{ start, end } = {}
+) => {
+	const params = new URLSearchParams();
+	if (start) params.set("start", start);
+	if (end) params.set("end", end);
+	const url = `${process.env.REACT_APP_API_URL}/hotel-inventory/${hotelId}/availability${
+		params.toString() ? `?${params.toString()}` : ""
+	}`;
+
+	const response = await fetch(url, {
+		method: "GET",
+		headers: {
+			Accept: "application/json",
+			"Content-Type": "application/json",
+		},
+	});
+	const data = await response.json();
+	if (!response.ok) {
+		throw new Error(
+			data?.message || data?.error || "Failed to load room availability"
+		);
+	}
+	return Array.isArray(data) ? data : [];
+};
+
 export const createNewReservationClient = async (reservationData) => {
 	return fetch(`${process.env.REACT_APP_API_URL}/new-reservation-client`, {
 		method: "POST",

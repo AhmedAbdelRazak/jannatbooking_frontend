@@ -9,8 +9,14 @@ import dayjs from "dayjs";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter"; // Import the plugin
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
-import { gettingRoomByIds } from "../../apiCore";
+import { getHotelInventoryAvailability, gettingRoomByIds } from "../../apiCore";
 import { toast } from "react-toastify";
+import {
+	buildAvailabilityLookup,
+	getAvailableRoomCount,
+	getRoomAvailability,
+	roomHasEnoughAvailability,
+} from "../../utils/inventoryAvailability";
 
 // Extend Day.js with the plugin
 dayjs.extend(isSameOrAfter);
@@ -138,6 +144,7 @@ const SidebarCartDrawer = () => {
 	const [prevCheckIn, setPrevCheckIn] = useState(null);
 	const [prevCheckOut, setPrevCheckOut] = useState(null);
 	const [roomErrors, setRoomErrors] = useState({});
+	const [availabilityLookup, setAvailabilityLookup] = useState(null);
 
 	// NEW: detect if any item is a deal with locked dates
 	const hasLockedDeal = useMemo(
@@ -221,6 +228,23 @@ const SidebarCartDrawer = () => {
 						? "الغرفة غير متاحة في التواريخ المحددة."
 						: "This room is unavailable for the selected date range.";
 			}
+
+			const cartItem = roomCart.find((item) => item.id === room._id);
+			const availability = getRoomAvailability(
+				availabilityLookup,
+				cartItem || room
+			);
+			const availableCount = getAvailableRoomCount(availability);
+			if (
+				cartItem &&
+				availableCount !== null &&
+				Number(cartItem.amount || 1) > availableCount
+			) {
+				isValid = false;
+				hasUnavailableRooms = true;
+				newRoomErrors[room._id] =
+					`Only ${availableCount} room(s) are available for the selected dates.`;
+			}
 		});
 
 		if (hasUnavailableRooms && isValid === false) {
@@ -228,7 +252,49 @@ const SidebarCartDrawer = () => {
 		}
 
 		setRoomErrors(newRoomErrors); // Update state with room-specific errors
-	}, [checkIn, checkOut, roomDetailsFromIds, roomCart, chosenLanguage]);
+	}, [
+		checkIn,
+		checkOut,
+		roomDetailsFromIds,
+		roomCart,
+		chosenLanguage,
+		availabilityLookup,
+	]);
+
+	useEffect(() => {
+		let isMounted = true;
+
+		const fetchAvailability = async () => {
+			const hotelId = roomCart?.[0]?.hotelId;
+			if (!hotelId || !checkIn || !checkOut) {
+				if (isMounted) setAvailabilityLookup(null);
+				return;
+			}
+
+			const start = checkIn.format("YYYY-MM-DD");
+			const inclusiveEnd = checkOut.subtract(1, "day").format("YYYY-MM-DD");
+			if (dayjs(inclusiveEnd).isBefore(dayjs(start))) {
+				if (isMounted) setAvailabilityLookup(null);
+				return;
+			}
+
+			try {
+				const rows = await getHotelInventoryAvailability(hotelId, {
+					start,
+					end: inclusiveEnd,
+				});
+				if (isMounted) setAvailabilityLookup(buildAvailabilityLookup(rows));
+			} catch (error) {
+				console.error("Error fetching cart availability", error);
+				if (isMounted) setAvailabilityLookup(null);
+			}
+		};
+
+		fetchAvailability();
+		return () => {
+			isMounted = false;
+		};
+	}, [roomCart, checkIn, checkOut]);
 
 	const convertCurrency = (amount) => {
 		if (!amount || isNaN(amount)) return "0.00";
@@ -428,6 +494,12 @@ const SidebarCartDrawer = () => {
 
 	const t = translations[chosenLanguage] || translations.English;
 
+	const getAvailabilityErrorRooms = () =>
+		(roomCart || []).filter((room) => {
+			const availability = getRoomAvailability(availabilityLookup, room);
+			return !roomHasEnoughAvailability(availability, room.amount);
+		});
+
 	return (
 		<div>
 			<Overlay isOpen={isSidebarOpen2} onClick={closeSidebar2} />
@@ -594,7 +666,24 @@ const SidebarCartDrawer = () => {
 											/>
 											<Quantity>{room.amount}</Quantity>
 											<PlusIcon
-												onClick={() => toggleRoomAmount(room.id, "inc")}
+												onClick={() => {
+													const availability = getRoomAvailability(
+														availabilityLookup,
+														room
+													);
+													const availableCount =
+														getAvailableRoomCount(availability);
+													if (
+														availableCount !== null &&
+														Number(room.amount || 1) >= availableCount
+													) {
+														toast.error(
+															`Only ${availableCount} room(s) are available for the selected dates.`
+														);
+														return;
+													}
+													toggleRoomAmount(room.id, "inc");
+												}}
 											/>
 										</QuantityControls>
 
@@ -670,6 +759,22 @@ const SidebarCartDrawer = () => {
 									chosenLanguage === "Arabic"
 										? `الغرفة/الغرف التالية غير متاحة في التواريخ المحددة: ${blockedRoomNames}. يرجى اختيار تواريخ أخرى.`
 										: `The following room(s) are unavailable for the selected dates: ${blockedRoomNames}. Please choose different dates.`
+								);
+								return;
+							}
+
+							const availabilityErrorRooms = getAvailabilityErrorRooms();
+							if (availabilityErrorRooms.length > 0) {
+								const roomNames = availabilityErrorRooms
+									.map((room) =>
+										chosenLanguage === "Arabic"
+											? room.nameOtherLanguage
+											: room.name
+									)
+									.join(", ");
+
+								toast.error(
+									`Not enough rooms are available for the selected dates: ${roomNames}.`
 								);
 								return;
 							}

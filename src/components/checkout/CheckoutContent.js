@@ -8,6 +8,7 @@ import { countryListWithAbbreviations, translations } from "../../Assets";
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import {
 	currencyConversion,
+	getHotelInventoryAvailability,
 	gettingSingleHotel,
 	gettingRoomByIds,
 	createReservationViaPayPal, // ✅ PayPal server create (AUTHORIZE)
@@ -21,6 +22,11 @@ import ReactPixel from "react-facebook-pixel";
 import { toast } from "react-toastify";
 import PaymentDetailsPayPal from "./PaymentDetailsPayPal";
 import PaymentOptionsPayPal from "./PaymentOptionsPayPal";
+import {
+	buildAvailabilityLookup,
+	getRoomAvailability,
+	roomHasEnoughAvailability,
+} from "../../utils/inventoryAvailability";
 
 const { Panel } = Collapse;
 const { Option } = Select;
@@ -236,6 +242,7 @@ const CheckoutContent = ({
 	const [checkOut, setCheckOut] = useState(null);
 	const [prevCheckIn, setPrevCheckIn] = useState(null);
 	const [prevCheckOut, setPrevCheckOut] = useState(null);
+	const [availabilityLookup, setAvailabilityLookup] = useState(null);
 	const handlePhoneChange = useCallback((rawValue) => {
 		const inputValue = normalizePhoneInput(rawValue);
 		setCustomerDetails((prev) => ({
@@ -280,6 +287,41 @@ const CheckoutContent = ({
 			}
 		}
 	}, [roomCart]);
+
+	useEffect(() => {
+		let isMounted = true;
+
+		const fetchAvailability = async () => {
+			const hotelId = roomCart?.[0]?.hotelId;
+			if (!hotelId || !checkIn || !checkOut) {
+				if (isMounted) setAvailabilityLookup(null);
+				return;
+			}
+
+			const start = checkIn.format("YYYY-MM-DD");
+			const inclusiveEnd = checkOut.subtract(1, "day").format("YYYY-MM-DD");
+			if (dayjs(inclusiveEnd).isBefore(dayjs(start))) {
+				if (isMounted) setAvailabilityLookup(null);
+				return;
+			}
+
+			try {
+				const rows = await getHotelInventoryAvailability(hotelId, {
+					start,
+					end: inclusiveEnd,
+				});
+				if (isMounted) setAvailabilityLookup(buildAvailabilityLookup(rows));
+			} catch (error) {
+				console.error("Error fetching checkout availability", error);
+				if (isMounted) setAvailabilityLookup(null);
+			}
+		};
+
+		fetchAvailability();
+		return () => {
+			isMounted = false;
+		};
+	}, [roomCart, checkIn, checkOut]);
 
 	useEffect(() => {
 		const fetchHotel = async () => {
@@ -762,6 +804,45 @@ const CheckoutContent = ({
 	]);
 
 	// Reserve‑Now (Not Paid) flow — unchanged
+	const ensureCheckoutAvailability = useCallback(async () => {
+		if (!roomCart || roomCart.length === 0) return false;
+		const hotelId = roomCart[0]?.hotelId;
+		if (!hotelId || !checkIn || !checkOut) return true;
+
+		let lookup = availabilityLookup;
+		try {
+			const start = checkIn.format("YYYY-MM-DD");
+			const inclusiveEnd = checkOut.subtract(1, "day").format("YYYY-MM-DD");
+			if (!dayjs(inclusiveEnd).isBefore(dayjs(start))) {
+				const rows = await getHotelInventoryAvailability(hotelId, {
+					start,
+					end: inclusiveEnd,
+				});
+				lookup = buildAvailabilityLookup(rows);
+				setAvailabilityLookup(lookup);
+			}
+		} catch (error) {
+			console.error("Error refreshing checkout availability", error);
+		}
+
+		const unavailableRooms = (roomCart || []).filter((room) => {
+			const availability = getRoomAvailability(lookup, room);
+			return !roomHasEnoughAvailability(availability, room.amount);
+		});
+
+		if (unavailableRooms.length === 0) return true;
+
+		const roomNames = unavailableRooms
+			.map((room) =>
+				chosenLanguage === "Arabic" ? room.nameOtherLanguage : room.name,
+			)
+			.join(", ");
+		message.error(
+			`Not enough rooms are available for the selected dates: ${roomNames}.`,
+		);
+		return false;
+	}, [availabilityLookup, checkIn, checkOut, chosenLanguage, roomCart]);
+
 	const createNewReservation = async () => {
 		const { name, phone, email, passport, passportExpiry, password } =
 			customerDetails;
@@ -817,6 +898,8 @@ const CheckoutContent = ({
 			);
 			return;
 		}
+
+		if (!(await ensureCheckoutAvailability())) return;
 
 		const payment = "Not Paid";
 		const commissionPaid = false;
@@ -986,6 +1069,8 @@ const CheckoutContent = ({
 				message.error("Missing required customer details.");
 				return;
 			}
+
+			if (!(await ensureCheckoutAvailability())) return;
 
 			// IMPORTANT: do NOT 10% bump in paid/authorized flows
 			const pickedRoomsType = transformRoomCartToPickedRoomsType(

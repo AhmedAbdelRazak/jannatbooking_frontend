@@ -13,13 +13,19 @@ import "swiper/css/pagination";
 import "swiper/css/thumbs";
 import StarRatings from "react-star-ratings";
 import { FaCar } from "react-icons/fa";
-import { Button, Tag } from "antd";
+import { Button, Tag, message } from "antd";
 import dayjs from "dayjs";
 import { useCartContext } from "../../cart_context";
 import { amenitiesList, viewsList, extraAmenitiesList } from "../../Assets";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import { useHistory, useLocation } from "react-router-dom";
+import { getHotelInventoryAvailability } from "../../apiCore";
+import {
+	buildAvailabilityLookup,
+	getRoomAvailability,
+	roomHasEnoughAvailability,
+} from "../../utils/inventoryAvailability";
 
 /* ===== behavior constants ===== */
 const HEADER_OFFSET = 80; // base offset for fixed header
@@ -297,7 +303,7 @@ const SingleHotelOffers = ({
 	};
 
 	/* ---------- Add to Reservation with package breakdown ---------- */
-	const handleAddToReservation = (room) => {
+	const handleAddToReservation = async (room) => {
 		const hotel = selectedHotel;
 		const commission = toCommissionDecimal(room, hotel);
 		const sel = selectedByRoom[room._id];
@@ -306,6 +312,24 @@ const SingleHotelOffers = ({
 		const from = sel.from ? dayjs(sel.from).format("YYYY-MM-DD") : "";
 		const to = sel.to ? dayjs(sel.to).format("YYYY-MM-DD") : "";
 		if (!from || !to || !dayjs(to).isAfter(dayjs(from), "day")) return;
+
+		try {
+			const inclusiveEnd = dayjs(to).subtract(1, "day").format("YYYY-MM-DD");
+			const rows = await getHotelInventoryAvailability(hotel._id, {
+				start: from,
+				end: inclusiveEnd,
+			});
+			const lookup = buildAvailabilityLookup(rows);
+			const availability = getRoomAvailability(lookup, room);
+			if (!roomHasEnoughAvailability(availability, 1)) {
+				message.error(
+					"This room is no longer available for the selected dates."
+				);
+				return;
+			}
+		} catch (error) {
+			console.error("Error checking package availability", error);
+		}
 
 		let pricingByDay = [];
 		if (sel.type === "offer") {

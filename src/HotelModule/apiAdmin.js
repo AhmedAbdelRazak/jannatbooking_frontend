@@ -333,6 +333,22 @@ export const getPaginatedListHotelRunner = (page, per_page) => {
 		.catch((err) => console.log(err));
 };
 
+const attachReservationActor = (reservation = {}) => {
+	if (reservation.requestingUserId) return reservation;
+
+	try {
+		const storedAuth = JSON.parse(localStorage.getItem("jwt") || "{}");
+		const actorId = storedAuth?.user?._id;
+		if (actorId) {
+			return { ...reservation, requestingUserId: actorId };
+		}
+	} catch (error) {
+		// Keep the update usable even if local storage is unavailable.
+	}
+
+	return reservation;
+};
+
 export const updateSingleReservation = (reservationId, reservation) => {
 	return fetch(
 		`${process.env.REACT_APP_API_URL}/reservation-update/${reservationId}`,
@@ -344,13 +360,26 @@ export const updateSingleReservation = (reservationId, reservation) => {
 				Accept: "application/json",
 				// Authorization: `Bearer ${token}`,
 			},
-			body: JSON.stringify(reservation),
+			body: JSON.stringify(attachReservationActor(reservation)),
 		}
 	)
-		.then((response) => {
-			return response.json();
+		.then(async (response) => {
+			const data = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				return {
+					...data,
+					error:
+						data?.error ||
+						data?.message ||
+						`Reservation update failed (${response.status})`,
+					status: response.status,
+				};
+			}
+			return data;
 		})
-		.catch((err) => console.log(err));
+		.catch((err) => ({
+			error: err?.message || "Network error while updating reservation.",
+		}));
 };
 
 export const updateRoomInventoryInHotelRunner = (room) => {
