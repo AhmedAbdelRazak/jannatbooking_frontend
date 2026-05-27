@@ -244,3 +244,25 @@ Migration Relationship To jannatbooking_ssr
   - Re-check public chat create/read/update against the deployed backend after production pull.
   - Re-check robots.txt, sitemap.xml, llms.txt, and public JSON-LD after deployment.
   - Keep all future public chatbot QA cases marked clearly and delete exact support-case IDs after testing.
+
+2026-05-27 Public Frontend Email Migration Notes
+- Backend email migration:
+  - Public checkout, payment, support, and account flows still call backend APIs; they do not call SendGrid or any email provider directly.
+  - Backend email delivery has been moved behind a provider-neutral SMTP/Nodemailer adapter.
+  - SendGrid-specific backend dependencies/imports were removed.
+- Public frontend impact:
+  - No public frontend code changes were required for provider migration.
+  - After production SMTP credentials are configured and hotels-backend is restarted, retest:
+    - Checkout/reservation confirmation flow.
+    - Client payment flow.
+    - Public support case creation and staff/AI follow-up notifications.
+    - Any public reset/login/account email flow.
+- Validation:
+  - npm.cmd run build in jannatbooking_frontend completed.
+  - Existing warnings remained:
+    - ReactPixel source-map warning.
+    - src/components/Navbar/Navbar.js unused hasOffers.
+    - Browserslist/dependency warnings.
+- Production caution:
+  - The home-server backend should not be restarted onto the new email adapter until SMTP credentials exist.
+  - Without SMTP credentials, real outbound public emails cannot be considered 100% live even though dry-run tests passed.
