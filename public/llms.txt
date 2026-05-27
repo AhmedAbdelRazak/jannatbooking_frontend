@@ -1,0 +1,22 @@
+# Jannat Booking
+
+Jannat Booking is a hotel booking brand for pilgrims and travelers booking Makkah and Madinah stays for Umrah and Haj. The platform helps guests compare hotels, room availability, prices by date range, payment options, and hotel distance to Al Haram.
+
+The brand has handled more than 10,000 reservations and is trusted by pilgrims using Jannat Booking to reserve hotels near Al Haram.
+
+## Primary URLs
+- Home: https://jannatbooking.com/
+- Hotels near Al Haram: https://jannatbooking.com/our-hotels
+- Monthly and special offers: https://jannatbooking.com/jannat-offers-monthly-reservations
+- About: https://jannatbooking.com/about
+- Contact: https://jannatbooking.com/contact
+
+## Support Topics
+- Hotel pricing and availability by check-in and check-out date range
+- Hotels closer to Al Haram, including walking and driving distance where available
+- Payment questions and payment-link support
+- Reservation questions and update requests
+- Cancellation requests, which are handled by a human Jannat Booking team member
+
+## Crawling
+Jannat Booking allows compliant search and AI crawlers to read public pages. Private dashboards, hotel-management pages, admin tools, checkout states, and customer records should not be treated as public crawl targets.

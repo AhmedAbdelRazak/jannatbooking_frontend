@@ -32,6 +32,20 @@ const LANGUAGES = [
 const LANG_BY_LABEL = Object.fromEntries(LANGUAGES.map((l) => [l.label, l]));
 const isRTL = (label) => LANG_BY_LABEL[label]?.rtl ?? false;
 const langCodeOf = (label) => LANG_BY_LABEL[label]?.code ?? "en";
+const RTL_MESSAGE_LANGUAGE_PATTERN = /(arabic|urdu|\bar\b|\bur\b|العربية|اردو)/i;
+const RTL_SCRIPT_PATTERN = /[\u0590-\u08FF]/;
+
+const isRtlMessage = (message = {}, fallbackLanguage = "") => {
+	const languageText = [
+		message.preferredLanguage,
+		message.preferredLanguageCode,
+		fallbackLanguage,
+	]
+		.filter(Boolean)
+		.join(" ");
+	if (RTL_MESSAGE_LANGUAGE_PATTERN.test(languageText)) return true;
+	return RTL_SCRIPT_PATTERN.test(String(message.message || ""));
+};
 
 /** ---------------- i18n (UI strings) ---------------- */
 // For brevity: reuse Arabic UI text for both "Arabic (Fos7a)" and "Arabic (Egyptian)"
@@ -50,16 +64,16 @@ const I18N = {
 		selectAHotel: "Select a hotel",
 		inquiryAbout: "Inquiry About",
 		speakWithJB: "Speak With Jannat Booking",
-		reserveRoom: "Reserve A Room",
-		reserveBed: "Reserve A Bed",
+		reserveRoom: "Room pricing / availability",
+		reserveBed: "Bed pricing / availability",
 		paymentInquiry: "Payment Inquiry",
-		reservationInquiry: "Reservation Inquiry",
+		reservationInquiry: "Update / questions about reservation",
 		others: "Others",
 		specifyInquiry: "Please specify your inquiry",
 		reservationNumber: "Reservation Confirmation Number",
 		startChat: "Start Chat",
 		preferredLanguage: "Preferred Language",
-		systemHold: "A representative will be with you in 3 to 5 minutes",
+		systemHold: "Jannat Booking support is reviewing your message now.",
 		isTyping: "is typing…",
 		aiPaused:
 			"We’re temporarily away. A representative will assist you shortly.",
@@ -95,7 +109,7 @@ const I18N = {
 		reservationNumber: "رقم تأكيد الحجز",
 		startChat: "بدء المحادثة",
 		preferredLanguage: "اللغة المفضلة",
-		systemHold: "سيتواصل معك ممثل خلال 3 إلى 5 دقائق",
+		systemHold: "فريق Jannat Booking يراجع رسالتك الآن.",
 		isTyping: "يكتب…",
 		aiPaused: "نحن غير متاحين مؤقتًا. سيتواصل معك ممثل قريبًا.",
 		v_fullName: "يرجى إدخال اسمك الكامل.",
@@ -130,7 +144,7 @@ const I18N = {
 		reservationNumber: "رقم تأكيد الحجز",
 		startChat: "بدء المحادثة",
 		preferredLanguage: "اللغة المفضلة",
-		systemHold: "سيتواصل معك ممثل خلال 3 إلى 5 دقائق",
+		systemHold: "فريق Jannat Booking يراجع رسالتك الآن.",
 		isTyping: "يكتب…",
 		aiPaused: "نحن غير متاحين مؤقتًا. سيتواصل معك ممثل قريبًا.",
 		v_fullName: "يرجى إدخال اسمك الكامل.",
@@ -289,6 +303,15 @@ const fadeIn = keyframes`
   to   { opacity: 1; transform: translateY(0); }
 `;
 
+const hasCorruptedEncoding = (value = "") =>
+	/\uFFFD|\?{3,}/.test(String(value || ""));
+
+const cleanDisplayText = (value = "", fallback = "") => {
+	const text = String(value || "").trim();
+	if (!text || hasCorruptedEncoding(text)) return fallback;
+	return text;
+};
+
 const typingAnim = keyframes`
   0% { opacity: .2; transform: translateY(0); }
   20% { opacity: 1; transform: translateY(-1px); }
@@ -382,10 +405,26 @@ const Message = styled.p`
 	line-height: 1.5;
 	font-size: 0.95rem;
 	animation: ${fadeIn} 120ms ease-out both;
+	text-align: ${(props) => (props.$isRtl ? "right" : "left")};
+	direction: ${(props) => (props.$isRtl ? "rtl" : "ltr")};
+	unicode-bidi: plaintext;
 
 	@media (max-width: 768px) {
 		font-size: 1rem;
 	}
+`;
+
+const MessageSender = styled.strong`
+	display: block;
+	margin-bottom: 3px;
+	font-weight: 800;
+	line-height: 1.35;
+`;
+
+const MessageBody = styled.span`
+	display: block;
+	line-height: 1.55;
+	overflow-wrap: anywhere;
 `;
 
 const TypingStatus = styled.div`
@@ -395,7 +434,10 @@ const TypingStatus = styled.div`
 	font-size: 0.85rem;
 	display: flex;
 	align-items: center;
+	justify-content: flex-start;
 	gap: 8px;
+	text-align: ${(props) => (props.$isRtl ? "right" : "left")};
+	direction: ${(props) => (props.$isRtl ? "rtl" : "ltr")};
 
 	.dots {
 		display: inline-flex;
@@ -788,16 +830,29 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	const renderMessageWithLinks = (text) => {
 		const safeText = typeof text === "string" ? text : "";
 		if (!safeText) return null;
-		const urlRegex = /(https?:\/\/[^\s]+)/g;
-		return safeText.split(urlRegex).map((part, index) =>
-			urlRegex.test(part) ? (
+		const linkRegex = /(\[[^\]]+\]\(https?:\/\/[^\s)]+\)|https?:\/\/[^\s]+)/g;
+		return safeText.split(linkRegex).map((part, index) => {
+			const markdown = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
+			if (markdown) {
+				return (
+					<a
+						key={index}
+						href={markdown[2]}
+						target='_blank'
+						rel='noopener noreferrer'
+					>
+						{markdown[1]}
+					</a>
+				);
+			}
+			return /^https?:\/\//.test(part) ? (
 				<a key={index} href={part} target='_blank' rel='noopener noreferrer'>
 					{part}
 				</a>
 			) : (
 				part
-			)
-		);
+			);
+		});
 	};
 
 	const fetchSupportCase = async (id) => {
@@ -1070,8 +1125,10 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		const senderName = msg?.messageBy?.customerName || "";
 		const sys = senderName === "System";
 		const fromSelf = senderEmail && senderEmail === (customerEmail || "");
+		if (msg?.isSystem) return true;
 		if (sys || fromSelf) return false;
 		if (msg?.isAi) return true; // backend flag for AI agent
+		if (senderEmail === "support@jannatbooking.com") return true;
 		if (senderEmail === "management@xhotelpro.com") return true;
 		if (senderName === "Admin") return true;
 		// If there is no senderEmail but there's a name different than the guest, assume agent
@@ -1080,10 +1137,6 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	};
 
 	const typingName = () => {
-		if (typingStatus) {
-			// typingStatus already includes the translated "is typing"
-			return typingStatus.split(" ")[0];
-		}
 		return lastAgentNameRef.current || "Agent";
 	};
 
@@ -1132,20 +1185,45 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 										typeof msg?.message === "string" &&
 										msg.message.trim() !== ""
 								)
-								.map((msg, index) => (
-									<Message
-										key={`${index}-${msg.clientTag || ""}`}
-										isAdminMessage={isAgentMessage(msg)}
-									>
-										<strong>{msg.messageBy?.customerName || "Agent"}:</strong>{" "}
-										{renderMessageWithLinks(msg.message)}
-									</Message>
-								))}
+								.map((msg, index) => {
+									const messageRtl = isRtlMessage(msg, preferredLanguage);
+									const senderName = cleanDisplayText(
+										msg.messageBy?.customerName,
+										isAgentMessage(msg) ? "Jannat Booking" : customerName
+									);
+									const messageText = cleanDisplayText(
+										msg.message,
+										isRTL(preferredLanguage)
+											? "تعذر عرض هذا النص بسبب مشكلة في الترميز."
+											: "This text could not be displayed because of an encoding issue."
+									);
+									return (
+										<Message
+											key={`${index}-${msg.clientTag || ""}`}
+											isAdminMessage={isAgentMessage(msg)}
+											$isRtl={messageRtl}
+											dir={messageRtl ? "rtl" : "ltr"}
+										>
+											<MessageSender dir='auto'>
+												{senderName}
+											</MessageSender>
+											<MessageBody dir={messageRtl ? "rtl" : "auto"}>
+												{renderMessageWithLinks(messageText)}
+											</MessageBody>
+										</Message>
+									);
+								})}
 
 						{/* Agent typing indicator (animated dots). Suppressed while the user is typing locally. */}
 						{!!typingStatus && !isUserTypingLocal && (
-							<TypingStatus aria-live='polite' aria-label={typingStatus}>
-								<strong>{typingName()}:</strong> {T.isTyping}
+							<TypingStatus
+								$isRtl={isRTL(preferredLanguage)}
+								dir={isRTL(preferredLanguage) ? "rtl" : "ltr"}
+								aria-live='polite'
+								aria-label={typingStatus}
+							>
+								<strong dir='auto'>{typingName()}</strong>
+								<span>{T.isTyping}</span>
 								<span className='dots' aria-hidden='true'>
 									<span className='dot' />
 									<span className='dot' />
@@ -1174,7 +1252,11 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 									}
 								}}
 								autoSize={{ minRows: 1, maxRows: 6 }}
-								style={{ flexGrow: 1 }}
+								style={{
+									flexGrow: 1,
+									textAlign: isRTL(preferredLanguage) ? "right" : "left",
+									direction: isRTL(preferredLanguage) ? "rtl" : "ltr",
+								}}
 							/>
 							<Button
 								aria-label='Emoji'

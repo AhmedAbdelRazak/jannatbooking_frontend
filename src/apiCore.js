@@ -81,7 +81,7 @@ export const createNewSupportCase = async (data) => {
 };
 
 export const getSupportCaseById = (caseId, token) => {
-	return fetch(`${process.env.REACT_APP_API_URL}/support-cases/${caseId}`, {
+	return fetch(`${process.env.REACT_APP_API_URL}/support-cases/client/${caseId}`, {
 		method: "GET",
 		headers: {
 			Accept: "application/json",
@@ -96,7 +96,7 @@ export const getSupportCaseById = (caseId, token) => {
 };
 
 export const updateSupportCase = (caseId, data, token) => {
-	return fetch(`${process.env.REACT_APP_API_URL}/support-cases/${caseId}`, {
+	return fetch(`${process.env.REACT_APP_API_URL}/support-cases/client/${caseId}`, {
 		method: "PUT",
 		headers: {
 			Accept: "application/json",

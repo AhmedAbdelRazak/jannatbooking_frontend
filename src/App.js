@@ -35,6 +35,7 @@ import OffersAndMonthly from "./pages/OffersAndMonthly";
 import SingleReservationInvoice from "./pages/SingleReservationInvoice";
 import Forgot from "./auth/Forgot";
 import Reset from "./auth/Reset";
+import JannatStructuredData from "./components/seo/JannatStructuredData";
 
 const App = () => {
 	const { languageToggle, chosenLanguage } = useCartContext();
@@ -101,6 +102,7 @@ const App = () => {
 
 	return (
 		<BrowserRouter>
+			<JannatStructuredData />
 			<PixelRouteTracker />
 			<Navbar />
 			<>

@@ -1,0 +1,246 @@
+JANNATBOOKING PUBLIC FRONTEND APPLICATION STRUCTURE
+Audited: 2026-05-26
+
+Purpose
+This file documents the current public JannatBooking frontend. It is separate from the PMS/admin hotels_frontend app. It should be kept in sync with future public website, booking, SEO, chat, and SSR migration work.
+
+Runtime
+- Directory:
+  - D:\JannatBooking\jannatbooking_frontend
+- Framework:
+  - Create React App.
+  - React 18.
+  - react-router-dom v5.
+  - styled-components.
+  - Ant Design.
+  - react-helmet.
+  - socket.io-client.
+  - react-ga4 and react-facebook-pixel.
+- Production serving:
+  - server.js serves the compiled build directory with Express.
+  - package.json build command: npm run build.
+  - package.json start command: react-scripts start for local dev.
+- Important limitation:
+  - CRA renders metadata client-side through react-helmet.
+  - Search engines and LLM crawlers that do not execute JavaScript may miss some dynamic page metadata.
+  - This is the reason for the future jannatbooking_ssr sibling app.
+
+Top-Level Structure
+- public/
+  - favicon.ico, logo192.png, logo512.png, manifest.json, index.html.
+  - robots.txt now allows compliant crawlers and points to sitemap.xml.
+  - sitemap.xml lists primary public routes.
+  - llms.txt gives LLM/crawler-readable brand and support-topic context.
+- src/
+  - App.js route registry and global wrappers.
+  - apiCore.js public API client helpers.
+  - Chat/ public B2C chat widget and socket client.
+  - auth/ public/client auth helpers and protected user dashboard route.
+  - cart_context.js shared public booking/search state.
+  - pages/ top-level public pages and standalone flows.
+  - components/ route-level and reusable public website components.
+  - components/seo/JannatStructuredData.js global JSON-LD structured data.
+
+Primary Public Routes In src/App.js
+- /
+  - Home page.
+  - Uses src/pages/Home.js.
+- /our-hotels
+  - Hotel list/search page.
+  - Uses src/pages/OurHotels.js.
+- /hotel/:hotelslug
+  - SingleHotelPage route.
+- /single-hotel/:hotelName
+  - SingleHotelMain route and legacy hotel-detail path.
+- /rooms
+  - OurHotelRooms route where used.
+- /our-hotel-rooms
+  - OurHotelRooms2 route where used.
+- /jannat-offers-monthly-reservations
+  - Offers and monthly reservation page.
+- /checkout
+  - Checkout route.
+- /reservation-confirmed
+  - Confirmation page.
+- /single-reservation/:confirmationNumber
+  - Reservation invoice/view route.
+- /generated-link-checkout/:reservationId/:confirmation
+  - Generated payment/checkout route.
+- /client-payment/:reservationId/:confirmation
+  - PaymentLink route.
+- /client-payment-triggering/:reservationId/:confirmation/:amountInSAR
+  - ClientPaymentTriggering route.
+- /dashboard
+  - PrivateRoute user dashboard.
+- /signup
+  - Public user signup.
+- /signin
+  - Public signin.
+- /auth/password/forgot
+  - Forgot password.
+- /auth/password/reset/:token
+  - Reset password.
+- /about
+  - About page.
+- /contact
+  - Contact page.
+- /terms-conditions
+  - Terms page.
+- /list-your-property
+  - Public property listing route.
+- /verify/:token
+  - Verification page.
+
+Public Chat Widget
+- Main files:
+  - src/Chat/ChatIcon.js
+  - src/Chat/ChatWindow.js
+  - src/Chat/socket.js
+- Visibility:
+  - App.js hides ChatIcon when the pathname includes admin or management.
+  - This keeps B2C public chat off admin/PMS screens.
+- Backend endpoints now used by public chat:
+  - POST /api/support-cases/new
+  - GET /api/support-cases/client/:id
+  - PUT /api/support-cases/client/:id
+- Public chat rules:
+  - Chat creates client-opened SupportCase records.
+  - Public clients can append messages through the client endpoint.
+  - Public clients can close/rate the case through the client endpoint.
+  - Public clients cannot update support assignment, hotel assignment, AI fields, escalation fields, or admin metadata.
+  - If the backend escalates a case, the public client only sees the support conversation; escalation controls/status panels remain admin-only in hotels_frontend.
+- Inquiry types in the public form:
+  - Room pricing / availability.
+  - Bed pricing / availability.
+  - Payment Inquiry.
+  - Update / questions about reservation.
+  - Others.
+- Product and AI rules:
+  - This is B2C only.
+  - B2B/internal chat must remain in hotels_frontend and must not use this widget.
+  - Cancellation requests are human-only.
+  - Reservation updates are human-reviewed.
+  - Public AI assistance, when enabled backend-side, is for pricing by date range, hotels near Al Haram, payment questions, and support triage.
+
+SEO And LLM Crawl Support
+- Existing react-helmet usage:
+  - Several public pages already set title, description, canonical, Open Graph, and Twitter metadata.
+  - Home and OurHotels include important Haj/Umrah and Al Haram search terms.
+- Added 2026-05-26:
+  - public/robots.txt:
+    - Allows all compliant crawlers.
+    - Advertises https://jannatbooking.com/sitemap.xml.
+  - public/sitemap.xml:
+    - Lists primary public routes.
+    - This is static and should eventually become dynamic in SSR.
+  - public/llms.txt:
+    - Summarizes Jannat Booking for AI/LLM crawlers.
+    - Includes support topics and the 10,000+ reservations brand proof point.
+  - src/components/seo/JannatStructuredData.js:
+    - Adds Organization, WebSite, and TravelAgency JSON-LD.
+    - Includes Makkah, Madinah, Umrah, Haj, hotels near Al Haram, and 10,000+ reservations context.
+- Important crawler policy:
+  - Do not copy SereneJannat's AI-crawler blocking robots behavior into JannatBooking.
+  - JannatBooking wants public pages to be readable by compliant search and AI crawlers.
+- Future SEO upgrades:
+  - Dynamic sitemap entries for every active hotel page.
+  - Hotel JSON-LD with name, city, images, amenities, distance to Al Haram, and offers.
+  - Breadcrumb JSON-LD for hotel and room routes.
+  - FAQ JSON-LD for booking, payment, modification, and cancellation handoff.
+  - Server-rendered metadata in jannatbooking_ssr.
+
+API Client
+- Main file:
+  - src/apiCore.js
+- Key public backend dependency:
+  - process.env.REACT_APP_API_URL
+- Important support-case helpers:
+  - createNewSupportCase(data)
+  - getSupportCaseById(caseId)
+  - updateSupportCase(caseId, data)
+  - These now point read/update calls at /support-cases/client/:id.
+- Other public API responsibilities:
+  - Active hotel lists.
+  - Hotel and room data.
+  - Checkout/reservation/payment flows.
+  - Currency rates.
+  - Auth/signup/signin/password flows.
+
+Brand And Trust Messaging
+- Approved public proof point from the 2026-05-26 request:
+  - Jannat Booking has handled more than 10,000 reservations.
+- Where currently used:
+  - public/llms.txt.
+  - global JSON-LD descriptions.
+- Future use:
+  - This can be added to public page copy if desired, but keep it truthful, modest, and not spammy.
+  - If displayed on-page, consider an About or Home trust section with careful wording.
+
+Build And Validation
+- Build command:
+  - npm.cmd run build
+- 2026-05-26 build result:
+  - Compiled successfully.
+  - Warnings observed:
+    - ReactPixel source-map parse warning.
+    - src/components/Navbar/Navbar.js has unused hasOffers.
+    - CRA/dependency warnings about browserslist and babel-preset-react-app.
+  - These warnings existed outside the new SEO/chat changes and did not block build.
+- Before public frontend deployment:
+  - npm.cmd run build.
+  - Check /, /our-hotels, /single-hotel/<slug>, /checkout, /client-payment, /about, /contact.
+  - Confirm robots.txt, sitemap.xml, and llms.txt are included in build output.
+  - Confirm chat create/read/update still works against backend.
+  - Confirm admin/management URLs do not show ChatIcon.
+
+Migration Relationship To jannatbooking_ssr
+- jannatbooking_frontend is the current production-safe baseline.
+- jannatbooking_ssr should be a sibling public SSR implementation, not a replacement until parity is proven.
+- SSR migration must preserve:
+  - Public URLs and redirects.
+  - Design and content.
+  - Hotel search and sorting behavior.
+  - Checkout/payment flows.
+  - Public B2C chat behavior.
+  - Analytics and pixel behavior where legally/configurably appropriate.
+- SSR migration must improve:
+  - Server-rendered titles/descriptions/canonicals.
+  - Dynamic sitemap generation.
+  - Dynamic JSON-LD.
+  - Crawlability for LLM/search systems.
+  - Performance and first-contentful output.
+
+2026-05-27 Public B2C Chat Behavior And Tone Addendum
+- Public clients never see admin AI controls.
+- The public widget only uses:
+  - POST /api/support-cases/new.
+  - GET /api/support-cases/client/:id.
+  - PUT /api/support-cases/client/:id.
+- Chat widget responsibilities:
+  - Show AI/staff typing when typing/stopTyping arrives for the active case.
+  - Clear typing when receiveMessage arrives.
+  - Render Arabic and RTL messages aligned correctly.
+  - Render markdown hotel links from AI replies as clickable links that open safely in a new tab.
+  - Do not display unreadable legacy text such as "?????" as normal customer-facing content.
+- Support tone:
+  - Arabic AI replies should address known clients respectfully, for example "أستاذ ناصر".
+  - Keep the conversation official, respectful, short, and useful.
+  - The bot should never claim to be a human if asked; it is AI-assisted Jannat Booking support monitored by the team.
+  - The visible brand remains "Jannat Booking" exactly.
+- AI support scope:
+  - Helps with hotel options near Al Haram, date-range prices, payment troubleshooting, and reservation triage.
+  - Does not cancel, refund, or directly mutate reservations.
+  - Reservation updates and cancellations go to a human team member.
+- QA notes from 2026-05-27:
+  - Arabic pricing flow returned active hotel links and a 120 SAR / 2-night double-room quote for the tested Zad Al Hayah dates.
+  - Arabic payment flow avoided card details and stopped repeating a supplied confirmation number after backend prompt tightening.
+  - Human handoff paused AI for reservation update/cancellation-style requests.
+  - After QA, backend cleanup removed the temporary Arabic chatbot support cases.
+  - No chatbot QA reservations were found; the public chatbot did not create reservations during the test window.
+  - Public frontend QA should keep test chat names unmistakable and should not use real customer names in test support cases.
+  - Final pre-production cleanup also removed the temporary rude escalation QA case 6a16417650a34b197ce4d2ee.
+  - Public chat remains a support/triage surface only; it must not create real reservations during chatbot QA.
+- Tomorrow follow-up:
+  - Re-check public chat create/read/update against the deployed backend after production pull.
+  - Re-check robots.txt, sitemap.xml, llms.txt, and public JSON-LD after deployment.
+  - Keep all future public chatbot QA cases marked clearly and delete exact support-case IDs after testing.
