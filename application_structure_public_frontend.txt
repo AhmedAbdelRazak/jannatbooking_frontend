@@ -277,3 +277,21 @@ Migration Relationship To jannatbooking_ssr
     - http://127.0.0.1:3102/our-hotels?hotelNameSlug=zad-al-sad.
     - https://jannatbooking.com/our-hotels?hotelNameSlug=zad-al-sad.
   - Puppeteer mobile verification at 390x844 opened the public chat successfully, showed the Customer Support window at full viewport width/height, kept the Start Chat button at 368x44, and had no horizontal overflow.
+
+2026-05-29 Mobile ChatWindow Keyboard Stability Update
+- File:
+  - src/Chat/ChatWindow.js.
+- Root cause:
+  - The previous mobile window updated --app-vh and scrolled the page on visualViewport resize/scroll events.
+  - Ant Design textarea autoSize also recalculated composer height while the guest typed, which could make the screen jump with each letter on mobile keyboards.
+- Behavior change:
+  - The mobile viewport variable now updates only when the viewport height meaningfully changes, and visualViewport scroll events no longer trigger layout/scroll updates.
+  - Chat scrolling now targets the internal MessagesContainer instead of using scrollIntoView against the page.
+  - The mobile composer textarea is fixed at 44px height and scrolls internally, so typing does not resize the composer.
+  - Guest typing socket events are throttled to reduce per-keystroke work while keeping typing status responsive.
+  - Composer focus uses non-animated internal scroll settling after the keyboard opens.
+- Validation completed locally:
+  - node --check src/Chat/ChatWindow.js.
+  - npm.cmd run build compiled successfully with existing warnings only:
+    - ReactPixel source-map warning.
+    - unused hasOffers in src/components/Navbar/Navbar.js.

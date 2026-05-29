@@ -558,9 +558,12 @@ const ChatInputContainer = styled.div`
 	align-items: center;
 	gap: 6px;
 
-	textarea {
+	textarea.chat-composer-textarea {
 		min-height: 42px !important;
 		max-height: 126px;
+		line-height: 1.35;
+		overflow-y: auto !important;
+		overscroll-behavior: contain;
 		resize: none;
 	}
 
@@ -580,6 +583,12 @@ const ChatInputContainer = styled.div`
 	@media (max-width: 768px) {
 		grid-template-columns: minmax(0, 1fr) 42px 42px;
 		gap: 7px;
+
+		textarea.chat-composer-textarea {
+			height: 44px !important;
+			min-height: 44px !important;
+			max-height: 44px !important;
+		}
 
 		button {
 			width: 42px;
@@ -680,6 +689,8 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	const agentTypingTimeoutRef = useRef(null);
 	const selfStopTypingRef = useRef(null);
 	const userTypingLocalTimeoutRef = useRef(null);
+	const lastTypingEmitRef = useRef(0);
+	const messagesContainerRef = useRef(null);
 	const messagesEndRef = useRef(null);
 
 	const caseIdRef = useRef(caseId);
@@ -714,13 +725,27 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 
 	/** ---------------- Mobile viewport/keyboard handling ---------------- */
 	useLayoutEffect(() => {
+		let lastViewportHeight = 0;
+		let frameId = 0;
+
 		const setVh = () => {
-			const vh =
-				(window.visualViewport
-					? window.visualViewport.height
-					: window.innerHeight) * 0.01;
-			document.documentElement.style.setProperty("--app-vh", `${vh}px`);
-			scrollToBottom();
+			const viewportHeight = window.visualViewport
+				? window.visualViewport.height
+				: window.innerHeight;
+			if (
+				lastViewportHeight &&
+				Math.abs(viewportHeight - lastViewportHeight) < 8
+			) {
+				return;
+			}
+			lastViewportHeight = viewportHeight;
+			if (frameId) window.cancelAnimationFrame(frameId);
+			frameId = window.requestAnimationFrame(() => {
+				document.documentElement.style.setProperty(
+					"--app-vh",
+					`${viewportHeight * 0.01}px`
+				);
+			});
 		};
 		setVh();
 
@@ -728,14 +753,13 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		window.addEventListener("orientationchange", setVh);
 		if (window.visualViewport) {
 			window.visualViewport.addEventListener("resize", setVh);
-			window.visualViewport.addEventListener("scroll", setVh);
 		}
 		return () => {
+			if (frameId) window.cancelAnimationFrame(frameId);
 			window.removeEventListener("resize", setVh);
 			window.removeEventListener("orientationchange", setVh);
 			if (window.visualViewport) {
 				window.visualViewport.removeEventListener("resize", setVh);
-				window.visualViewport.removeEventListener("scroll", setVh);
 			}
 		};
 	}, []);
@@ -1000,9 +1024,17 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		}
 	};
 
-	const scrollToBottom = () => {
+	const scrollToBottom = (behavior = "smooth") => {
+		const container = messagesContainerRef.current;
+		if (container) {
+			container.scrollTo({
+				top: container.scrollHeight,
+				behavior,
+			});
+			return;
+		}
 		messagesEndRef.current?.scrollIntoView({
-			behavior: "smooth",
+			behavior,
 			block: "end",
 		});
 	};
@@ -1035,8 +1067,12 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 			1200
 		);
 
-		// notify server (guest typing)
-		socket.emit("typing", { name: customerName, caseId });
+		// notify server (guest typing), throttled so mobile typing stays smooth
+		const now = Date.now();
+		if (now - lastTypingEmitRef.current > 900) {
+			socket.emit("typing", { name: customerName, caseId });
+			lastTypingEmitRef.current = now;
+		}
 
 		// schedule stopTyping
 		if (selfStopTypingRef.current) clearTimeout(selfStopTypingRef.current);
@@ -1239,7 +1275,8 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	};
 
 	const onComposerFocus = () => {
-		setTimeout(scrollToBottom, 50);
+		setTimeout(() => scrollToBottom("auto"), 120);
+		setTimeout(() => scrollToBottom("auto"), 420);
 	};
 
 	// Heuristics: mark message as "admin/agent"
@@ -1262,6 +1299,8 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	const typingName = () => {
 		return lastAgentNameRef.current || "Agent";
 	};
+	const isMobileViewport =
+		typeof window !== "undefined" && window.innerWidth <= 768;
 
 	return (
 		<ChatWindowWrapper
@@ -1300,7 +1339,11 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 				</RatingSection>
 			) : submitted && !isMinimized ? (
 				<ChatBody>
-					<MessagesContainer role='log' aria-live='polite'>
+					<MessagesContainer
+						ref={messagesContainerRef}
+						role='log'
+						aria-live='polite'
+					>
 						{Array.isArray(messages) &&
 							messages
 								.filter(
@@ -1361,6 +1404,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 					<ComposerWrapper>
 						<ChatInputContainer>
 							<Input.TextArea
+								className='chat-composer-textarea'
 								placeholder={T.typeMessage}
 								value={newMessage}
 								onChange={handleInputChange}
@@ -1374,9 +1418,10 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 										handleSendMessage();
 									}
 								}}
-								autoSize={{ minRows: 1, maxRows: 6 }}
+								autoSize={
+									isMobileViewport ? false : { minRows: 1, maxRows: 4 }
+								}
 								style={{
-									flexGrow: 1,
 									textAlign: isRTL(preferredLanguage) ? "right" : "left",
 									direction: isRTL(preferredLanguage) ? "rtl" : "ltr",
 								}}
