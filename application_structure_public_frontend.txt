@@ -266,3 +266,14 @@ Migration Relationship To jannatbooking_ssr
   - npm.cmd run build compiled successfully with existing warnings only:
     - ReactPixel source-map warning.
     - unused hasOffers in src/components/Navbar/Navbar.js.
+- Commit and deployment:
+  - Commit pushed to origin/master: 3729f41 Improve mobile guest chat window.
+  - Production server /home/ahmedadmin/Hotels/jannatbooking_frontend pulled with git pull --ff-only.
+  - Production validation passed:
+    - node --check src/Chat/ChatWindow.js.
+    - npm run build compiled successfully with the same existing warnings only.
+  - pm2 restart jannat-frontend --update-env completed and jannat-frontend was online on port 3102.
+  - Health checks returned 200 for:
+    - http://127.0.0.1:3102/our-hotels?hotelNameSlug=zad-al-sad.
+    - https://jannatbooking.com/our-hotels?hotelNameSlug=zad-al-sad.
+  - Puppeteer mobile verification at 390x844 opened the public chat successfully, showed the Customer Support window at full viewport width/height, kept the Start Chat button at 368x44, and had no horizontal overflow.
