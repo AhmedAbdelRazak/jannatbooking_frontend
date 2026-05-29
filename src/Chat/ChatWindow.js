@@ -1,7 +1,7 @@
 // ChatWindow.jsx
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { Button, Input, Select, Form, Upload, message } from "antd";
-import { UploadOutlined, CloseOutlined } from "@ant-design/icons";
+import { UploadOutlined, CloseOutlined, SmileOutlined } from "@ant-design/icons";
 import styled, { keyframes } from "styled-components";
 import { isAuthenticated } from "../auth";
 import {
@@ -339,16 +339,63 @@ const ChatWindowWrapper = styled.div`
 	-webkit-overflow-scrolling: touch;
 	padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 
+	> form {
+		min-height: 0;
+		overflow-y: auto;
+		padding: 2px 2px 4px;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.ant-form-item {
+		margin-bottom: 14px;
+	}
+
+	.ant-input,
+	.ant-select-selector {
+		min-height: 42px;
+	}
+
+	.ant-select-selection-item,
+	.ant-select-selection-placeholder {
+		line-height: 40px !important;
+	}
+
+	.ant-form-item:last-child .ant-btn {
+		min-height: 44px;
+		font-weight: 800;
+	}
+
 	@media (max-width: 768px) {
 		right: 0;
 		left: 0;
 		bottom: 0;
 		width: 100%;
 		max-width: 100%;
-		height: calc(var(--app-vh, 1vh) * 85);
-		max-height: calc(var(--app-vh, 1vh) * 90);
-		border-radius: 12px 12px 0 0;
-		padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) 12px;
+		height: calc((var(--app-vh, 1vh) * 100) - 8px);
+		max-height: calc((var(--app-vh, 1vh) * 100) - 8px);
+		border-radius: 14px 14px 0 0;
+		padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px)) 10px;
+
+		.ant-form-item {
+			margin-bottom: 12px;
+		}
+
+		.ant-form-item-label {
+			padding-bottom: 3px;
+		}
+
+		.ant-input,
+		.ant-select-selector {
+			min-height: 44px;
+			font-size: 16px;
+		}
+	}
+
+	@media (max-width: 480px) {
+		height: calc(var(--app-vh, 1vh) * 100);
+		max-height: calc(var(--app-vh, 1vh) * 100);
+		border-radius: 0;
+		padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)) 8px;
 	}
 `;
 
@@ -356,15 +403,37 @@ const ChatWindowHeader = styled.div`
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
+	gap: 10px;
 	border-bottom: 1px solid var(--border-color-light);
 	padding-bottom: 8px;
 	margin-bottom: 8px;
 	background-color: var(--background-light);
+	flex: 0 0 auto;
 
 	h3 {
+		margin: 0;
+		min-width: 0;
 		font-size: 1.2rem;
 		font-weight: bold;
 		color: var(--text-color-dark);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	button {
+		flex: 0 0 auto;
+		width: 38px;
+		height: 38px;
+	}
+
+	@media (max-width: 768px) {
+		padding-bottom: 7px;
+		margin-bottom: 7px;
+
+		h3 {
+			font-size: 1.05rem;
+		}
 	}
 `;
 
@@ -378,19 +447,27 @@ const ChatBody = styled.div`
 const MessagesContainer = styled.div`
 	flex: 1 1 auto;
 	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
 	overflow-x: hidden;
 	overflow-y: auto;
 	scroll-behavior: smooth;
-	padding-right: 2px;
+	padding: 2px 2px 8px 2px;
 
 	@media (max-width: 768px) {
-		margin-bottom: 6px;
+		gap: 7px;
+		margin-bottom: 4px;
+		padding-bottom: 10px;
 	}
 `;
 
 const Message = styled.p`
 	word-wrap: break-word;
 	white-space: pre-wrap;
+	align-self: ${(props) => (props.isAdminMessage ? "flex-start" : "flex-end")};
+	width: fit-content;
+	max-width: min(86%, 620px);
 	background-color: ${(props) =>
 		props.isAdminMessage
 			? "var(--admin-message-bg)"
@@ -399,18 +476,22 @@ const Message = styled.p`
 		props.isAdminMessage
 			? "var(--admin-message-color)"
 			: "var(--user-message-color)"};
-	padding: 8px;
-	border-radius: 6px;
-	margin: 6px 0;
+	padding: 9px 11px;
+	border-radius: ${(props) =>
+		props.isAdminMessage ? "12px 12px 12px 4px" : "12px 12px 4px 12px"};
+	margin: 0;
 	line-height: 1.5;
 	font-size: 0.95rem;
+	box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
 	animation: ${fadeIn} 120ms ease-out both;
 	text-align: ${(props) => (props.$isRtl ? "right" : "left")};
 	direction: ${(props) => (props.$isRtl ? "rtl" : "ltr")};
 	unicode-bidi: plaintext;
 
 	@media (max-width: 768px) {
-		font-size: 1rem;
+		max-width: 88%;
+		padding: 10px 12px;
+		font-size: 0.96rem;
 	}
 `;
 
@@ -464,19 +545,46 @@ const ComposerWrapper = styled.div`
 	background: var(--background-light);
 	padding-top: 8px;
 	border-top: 1px solid var(--border-color-light);
+	flex: 0 0 auto;
+
+	@media (max-width: 768px) {
+		padding-top: 7px;
+	}
 `;
 
 const ChatInputContainer = styled.div`
-	display: flex;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 40px 40px;
 	align-items: center;
 	gap: 6px;
 
 	textarea {
-		flex-grow: 1;
+		min-height: 42px !important;
+		max-height: 126px;
+		resize: none;
 	}
 
 	button {
-		width: auto;
+		width: 40px;
+		height: 40px;
+		padding: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.ant-upload {
+		display: block;
+	}
+
+	@media (max-width: 768px) {
+		grid-template-columns: minmax(0, 1fr) 42px 42px;
+		gap: 7px;
+
+		button {
+			width: 42px;
+			height: 42px;
+		}
 	}
 `;
 
@@ -491,8 +599,12 @@ const EmojiPickerWrapper = styled.div`
 	overflow: hidden;
 
 	@media (max-width: 768px) {
-		right: 12px;
-		bottom: 140px;
+		right: 10px;
+		left: 10px;
+		bottom: 150px;
+		width: auto;
+		max-width: none;
+		max-height: min(360px, 48vh);
 	}
 `;
 
@@ -503,6 +615,12 @@ const SendButton = styled(Button)`
 	margin-top: 8px;
 	font-weight: bold;
 	height: 40px;
+
+	@media (max-width: 768px) {
+		height: 44px;
+		margin-top: 7px;
+		font-size: 0.98rem;
+	}
 `;
 
 const CloseButton = styled(Button)`
@@ -512,6 +630,11 @@ const CloseButton = styled(Button)`
 	margin-top: 8px;
 	font-weight: bold;
 	height: 40px;
+
+	@media (max-width: 768px) {
+		height: 42px;
+		margin-top: 7px;
+	}
 `;
 
 const RatingSection = styled.div`
@@ -1260,10 +1383,9 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 							/>
 							<Button
 								aria-label='Emoji'
+								icon={<SmileOutlined />}
 								onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-							>
-								😀
-							</Button>
+							/>
 							{showEmojiPicker && (
 								<EmojiPickerWrapper>
 									<EmojiPicker

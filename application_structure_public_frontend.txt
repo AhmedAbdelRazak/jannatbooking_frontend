@@ -244,3 +244,25 @@ Migration Relationship To jannatbooking_ssr
   - Re-check public chat create/read/update against the deployed backend after production pull.
   - Re-check robots.txt, sitemap.xml, llms.txt, and public JSON-LD after deployment.
   - Keep all future public chatbot QA cases marked clearly and delete exact support-case IDs after testing.
+
+2026-05-29 Mobile Public ChatWindow Usability Update
+- File:
+  - src/Chat/ChatWindow.js.
+- Mobile shell:
+  - The chat window now uses nearly the full visual viewport on phones, with safe-area padding for browser/mobile UI.
+  - On very small screens the widget becomes full-height with square screen edges so guests do not lose usable space.
+- Conversation view:
+  - Messages render as compact left/right bubbles with stable widths, better spacing, and safer long-text wrapping.
+  - Sender/body lines remain separate, and existing RTL detection continues to control text direction per message.
+- Composer:
+  - The message textarea and emoji/upload controls use fixed thumb-friendly sizes on mobile.
+  - The emoji trigger uses an Ant Design SmileOutlined icon instead of a literal emoji character.
+  - Send and Close Chat buttons are taller on phones and remain below the composer.
+- Start-chat form:
+  - Form content scrolls inside the widget when the mobile keyboard reduces the viewport.
+  - Inputs and selects use at least 44px mobile touch height and 16px text to reduce accidental zooming.
+- Validation completed locally:
+  - node --check src/Chat/ChatWindow.js.
+  - npm.cmd run build compiled successfully with existing warnings only:
+    - ReactPixel source-map warning.
+    - unused hasOffers in src/components/Navbar/Navbar.js.
