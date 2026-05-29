@@ -267,6 +267,21 @@ Migration Relationship To jannatbooking_ssr
     - ReactPixel source-map warning.
     - unused hasOffers in src/components/Navbar/Navbar.js.
 - Commit and deployment:
+  - Commit pushed to origin/master: 356f252 Stabilize mobile chat composer typing.
+  - Production server /home/ahmedadmin/Hotels/jannatbooking_frontend pulled with git pull --ff-only.
+  - Production validation passed:
+    - node --check src/Chat/ChatWindow.js.
+    - npm run build compiled successfully with the same existing warnings only.
+  - pm2 restart jannat-frontend --update-env completed and jannat-frontend was online.
+  - Health check returned 200 for https://jannatbooking.com/our-hotels?hotelNameSlug=zad-al-sad&qa=mobile-chat-stability.
+  - Puppeteer mobile typing verification at 390x844 seeded a local visual-only chat state, typed 112 characters into the mobile composer, and measured:
+    - wrapper y stayed 0.
+    - wrapper height stayed 844.
+    - textarea height stayed 44.
+    - composer y stayed 691.
+    - horizontalOverflow remained false.
+  - The Puppeteer QA used localStorage only and did not create any support cases.
+- Commit and deployment:
   - Commit pushed to origin/master: 3729f41 Improve mobile guest chat window.
   - Production server /home/ahmedadmin/Hotels/jannatbooking_frontend pulled with git pull --ff-only.
   - Production validation passed:
