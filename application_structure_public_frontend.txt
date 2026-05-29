@@ -310,3 +310,12 @@ Migration Relationship To jannatbooking_ssr
   - npm.cmd run build compiled successfully with existing warnings only:
     - ReactPixel source-map warning.
     - unused hasOffers in src/components/Navbar/Navbar.js.
+
+2026-05-29 Public ChatWindow Localized Phone Digits
+- File:
+  - src/Chat/ChatWindow.js.
+- Behavior change:
+  - The Email or Phone Number field now normalizes localized digit scripts to English digits as the guest types.
+  - Supported digit scripts include Arabic-Indic, Eastern Arabic/Persian/Urdu, Devanagari/Hindi, Bengali, Gujarati, Tamil, Telugu, Kannada, Malayalam, Thai, Lao, and full-width digits.
+  - Phone validation now runs against the normalized English-digit value, so Arabic phone numbers such as ٠٥٥١٢٣٤٥٦٧ or ۰۵۵۱۲۳۴۵۶۷ can proceed.
+  - The normalized English phone/email value is used for support-case creation, saved chat state, and subsequent guest messages.

@@ -47,6 +47,38 @@ const isRtlMessage = (message = {}, fallbackLanguage = "") => {
 	return RTL_SCRIPT_PATTERN.test(String(message.message || ""));
 };
 
+const LOCALIZED_DIGIT_RANGES = [
+	[0x0660, 0x0669],
+	[0x06f0, 0x06f9],
+	[0x0966, 0x096f],
+	[0x09e6, 0x09ef],
+	[0x0ae6, 0x0aef],
+	[0x0be6, 0x0bef],
+	[0x0c66, 0x0c6f],
+	[0x0ce6, 0x0cef],
+	[0x0d66, 0x0d6f],
+	[0x0e50, 0x0e59],
+	[0x0ed0, 0x0ed9],
+	[0xff10, 0xff19],
+];
+
+const normalizeLocalizedDigits = (value = "") =>
+	Array.from(String(value || ""))
+		.map((char) => {
+			const code = char.codePointAt(0);
+			const range = LOCALIZED_DIGIT_RANGES.find(
+				([start, end]) => code >= start && code <= end
+			);
+			return range ? String(code - range[0]) : char;
+		})
+		.join("");
+
+const normalizeEmailOrPhoneInput = (value = "") =>
+	normalizeLocalizedDigits(value).trim();
+
+const normalizedPhoneForValidation = (value = "") =>
+	normalizeEmailOrPhoneInput(value).replace(/[^\d+]/g, "");
+
 /** ---------------- i18n (UI strings) ---------------- */
 // For brevity: reuse Arabic UI text for both "Arabic (Fos7a)" and "Arabic (Egyptian)"
 const I18N = {
@@ -780,13 +812,13 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		if (isAuthenticated()) {
 			const { user } = isAuthenticated();
 			setCustomerName(user.name);
-			setCustomerEmail(user.email || user.phone);
+			setCustomerEmail(normalizeEmailOrPhoneInput(user.email || user.phone));
 		}
 
 		const savedChat = JSON.parse(localStorage.getItem("currentChat"));
 		if (savedChat) {
 			setCustomerName(savedChat.customerName || "");
-			setCustomerEmail(savedChat.customerEmail || "");
+			setCustomerEmail(normalizeEmailOrPhoneInput(savedChat.customerEmail || ""));
 			setInquiryAbout(savedChat.inquiryAbout || "");
 			setOrderNumber(savedChat.orderNumber || "");
 			setProductName(savedChat.productName || "");
@@ -1088,14 +1120,20 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		}
 
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		const phoneRegex = /^[0-9]{10,15}$/;
+		const phoneRegex = /^\+?[0-9]{10,15}$/;
+		const normalizedCustomerEmail = normalizeEmailOrPhoneInput(customerEmail);
+		const phoneCandidate = normalizedPhoneForValidation(normalizedCustomerEmail);
 
 		if (
-			!customerEmail ||
-			(!emailRegex.test(customerEmail) && !phoneRegex.test(customerEmail))
+			!normalizedCustomerEmail ||
+			(!emailRegex.test(normalizedCustomerEmail) &&
+				!phoneRegex.test(phoneCandidate))
 		) {
 			message.error(T.v_emailPhone);
 			return;
+		}
+		if (normalizedCustomerEmail !== customerEmail) {
+			setCustomerEmail(normalizedCustomerEmail);
 		}
 
 		if (!hotelId) {
@@ -1150,7 +1188,9 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 			displayName1: customerName,
 			displayName2: "Fareda Elsheemy",
 			role: 0,
-			customerEmail,
+			customerEmail: emailRegex.test(normalizedCustomerEmail)
+				? normalizedCustomerEmail
+				: phoneCandidate,
 			hotelId: hotelId || "674cf8997e3780f1f838d458",
 			inquiryAbout,
 			inquiryDetails: inquiryDetailsWithLanguage,
@@ -1202,9 +1242,13 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		}
 
 		const clientTag = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+		const normalizedCustomerEmail = normalizeEmailOrPhoneInput(customerEmail);
+		if (normalizedCustomerEmail !== customerEmail) {
+			setCustomerEmail(normalizedCustomerEmail);
+		}
 
 		const messageData = {
-			messageBy: { customerName, customerEmail },
+			messageBy: { customerName, customerEmail: normalizedCustomerEmail },
 			message: newMessage,
 			date: new Date(),
 			caseId,
@@ -1496,8 +1540,12 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 								validator: (_, value) => {
 									if (!value) return Promise.reject();
 									const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-									const phoneRegex = /^[0-9]{10,15}$/;
-									return emailRegex.test(value) || phoneRegex.test(value)
+									const phoneRegex = /^\+?[0-9]{10,15}$/;
+									const normalizedValue = normalizeEmailOrPhoneInput(value);
+									return emailRegex.test(normalizedValue) ||
+										phoneRegex.test(
+											normalizedPhoneForValidation(normalizedValue)
+										)
 										? Promise.resolve()
 										: Promise.reject();
 								},
@@ -1511,8 +1559,12 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 									? "مثال: client@gmail.com أو 1234567890"
 									: "e.g. client@gmail.com or 1234567890"
 							}
-							onChange={(e) => setCustomerEmail(e.target.value)}
+							onChange={(e) =>
+								setCustomerEmail(normalizeEmailOrPhoneInput(e.target.value))
+							}
 							disabled={isAuthenticated()}
+							dir='ltr'
+							inputMode='email'
 						/>
 					</Form.Item>
 
