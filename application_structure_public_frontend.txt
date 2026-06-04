@@ -179,6 +179,9 @@ API Client
   - Public checkout does not send guests to a separate signup page and must not show extra signup/account notices during checkout.
   - If the visitor is not signed in, the checkout payload includes a phone-derived temporary password so the backend can silently create a client account with the reservation.
   - PayPal pending-reservation creation validates required customer fields before opening PayPal/card payment.
+  - Checkout currency conversion must only call /currencyapi-amounts with finite SAR numbers; if totals are still settling, convertedAmounts must remain null and PayPal must stay unmounted.
+  - src/components/checkout/PaymentDetailsPayPal.js must not fetch the PayPal client token, mount PayPal buttons, or show generic PayPal failure toasts until the guest chose an online payment option, accepted terms, and the USD amount is positive.
+  - PayPal SDK/load errors before an actual user-started payment attempt should be logged but must not show an "order failed" or generic payment-error toast to the guest.
   - After successful paid reservation creation, the user always redirects to /reservation-confirmed even if automatic sign-in fails because the email already belongs to an older account with another password.
   - src/pages/ConfirmationPage.js must show the normal reservation confirmation only; account/password management can happen later from the user account area.
   - Error messages should stay descriptive for missing guest details, unavailable rooms, declined payments, and backend reservation failures.

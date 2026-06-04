@@ -35,6 +35,10 @@ const safeParseFloat = (value, fallback = 0) => {
 	const parsed = parseFloat(value);
 	return isNaN(parsed) ? fallback : parsed;
 };
+const safeFiniteNumber = (value) => {
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : null;
+};
 const normalizePhoneInput = (value = "") => {
 	const digitMap = {
 		"٠": "0",
@@ -486,18 +490,31 @@ const CheckoutContent = ({
 			const depositLegacy = depositAmount; // legacy deposit (not used for USD deposit anymore)
 			const total = total_price_with_commission;
 			const totalRoomsPricePerNight_SAR = totalRoomsPricePerNight;
-			const amounts = [depositLegacy, total, totalRoomsPricePerNight_SAR];
+			const amounts = [depositLegacy, total, totalRoomsPricePerNight_SAR].map(
+				safeFiniteNumber,
+			);
+
+			if (amounts.some((amount) => amount === null)) {
+				setConvertedAmounts({
+					depositUSD: null,
+					totalUSD: null,
+					totalRoomsPricePerNightUSD: null,
+				});
+				return;
+			}
 
 			try {
 				const conversions = await currencyConversion(amounts);
 
 				const totalUsdNum =
-					conversions?.[1]?.amountInUSD != null
+					conversions?.[1]?.amountInUSD != null &&
+					Number.isFinite(Number(conversions[1].amountInUSD))
 						? Number(conversions[1].amountInUSD)
 						: 0;
 
 				const trppUsdNum =
-					conversions?.[2]?.amountInUSD != null
+					conversions?.[2]?.amountInUSD != null &&
+					Number.isFinite(Number(conversions[2].amountInUSD))
 						? Number(conversions[2].amountInUSD)
 						: 0;
 
@@ -512,12 +529,22 @@ const CheckoutContent = ({
 				});
 			} catch (error) {
 				console.error("Currency conversion failed", error);
+				setConvertedAmounts({
+					depositUSD: null,
+					totalUSD: null,
+					totalRoomsPricePerNightUSD: null,
+				});
 			}
 		};
 
 		fetchConversion();
 		// eslint-disable-next-line
-	}, [total_price, total_price_with_commission]);
+	}, [
+		depositAmount,
+		total_price,
+		total_price_with_commission,
+		totalRoomsPricePerNight,
+	]);
 
 	// Transform cart → pickedRoomsType. If isPayInHotel === true, bump nightly totals by 10%.
 	const transformRoomCartToPickedRoomsType = useCallback(

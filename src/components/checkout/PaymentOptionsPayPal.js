@@ -4,6 +4,11 @@ import styled from "styled-components";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 
+const toFiniteNumber = (value, fallback = 0) => {
+	const normalized = Number(value);
+	return Number.isFinite(normalized) ? normalized : fallback;
+};
+
 /**
  * Drop-in replacement for your existing PaymentOptions component.
  * Props kept identical to your current usage in CheckoutContent/DesktopCheckout.
@@ -26,8 +31,8 @@ export default function PaymentOptionsPayPal({
 
 	// NEW: Deposit is 15% of total
 	const DEPOSIT_PERCENT = 0.15;
-	const totalSar = Number(total_price_with_commission || 0);
-	const totalUsd = Number(convertedAmounts?.totalUSD || 0);
+	const totalSar = toFiniteNumber(total_price_with_commission);
+	const totalUsd = toFiniteNumber(convertedAmounts?.totalUSD);
 	const depositSar15 = (totalSar * DEPOSIT_PERCENT).toFixed(2);
 	const depositUsd15 = (totalUsd * DEPOSIT_PERCENT).toFixed(2);
 	const fullSar = totalSar.toFixed(2);

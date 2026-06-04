@@ -527,7 +527,10 @@ export const gettingHotelDetailsById = async (hotelId) => {
 
 export const currencyConversion = (amounts) => {
 	const saudimoney = amounts
-		.map((amount) => Number(amount).toFixed(2))
+		.map((amount) => {
+			const normalized = Number(amount);
+			return Number.isFinite(normalized) ? normalized.toFixed(2) : "0.00";
+		})
 		.join(",");
 	return fetch(
 		`${process.env.REACT_APP_API_URL}/currencyapi-amounts/${saudimoney}`,

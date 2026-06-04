@@ -34,6 +34,14 @@ const idSig = (s) => {
 	}
 };
 const mapLocale = (isArabic) => (isArabic ? "ar_EG" : "en_US");
+const toFiniteNumber = (value, fallback = 0) => {
+	const normalized = Number(value);
+	return Number.isFinite(normalized) ? normalized : fallback;
+};
+const isPositiveFinite = (value) => {
+	const normalized = Number(value);
+	return Number.isFinite(normalized) && normalized > 0;
+};
 
 // --- Card submit button (compatible with old+new CardFields contexts) ---
 function CardSubmit({ allowInteract, labels }) {
@@ -133,12 +141,12 @@ export default function PaymentDetailsPayPal({
 	// Deposit = 15% of total
 	const DEPOSIT_PERCENT = 0.15;
 	const totalSar = useMemo(
-		() => Number(total_price_with_commission ?? 0),
+		() => toFiniteNumber(total_price_with_commission),
 		[total_price_with_commission]
 	);
 	const totalUsd = useMemo(
-		() => Number(convertedAmounts?.totalUSD ?? 0),
-		[convertedAmounts]
+		() => toFiniteNumber(convertedAmounts?.totalUSD),
+		[convertedAmounts?.totalUSD]
 	);
 	const sarDeposit15 = useMemo(
 		() => Number((totalSar * DEPOSIT_PERCENT).toFixed(2)),
@@ -148,7 +156,7 @@ export default function PaymentDetailsPayPal({
 		() => Number((totalUsd * DEPOSIT_PERCENT).toFixed(2)),
 		[totalUsd]
 	);
-	const pretty = (n) => Number(n || 0).toFixed(2);
+	const pretty = (n) => toFiniteNumber(n).toFixed(2);
 	const truncateText = (value, max = 127) => {
 		if (value == null) return "";
 		const str = String(value);
@@ -165,6 +173,16 @@ export default function PaymentDetailsPayPal({
 	const INTENT =
 		payMode?.toUpperCase() === "AUTHORIZE" ? "AUTHORIZE" : "CAPTURE";
 	const isAuthorize = INTENT === "AUTHORIZE";
+	const hasOnlinePaymentOption =
+		selectedPaymentOption === "acceptDeposit" ||
+		selectedPaymentOption === "acceptPayWholeAmount";
+	const paymentAmountsReady =
+		isPositiveFinite(totalSar) && isPositiveFinite(totalUsd);
+	const canPreparePayPal =
+		hasOnlinePaymentOption &&
+		guestAgreedOnTermsAndConditions &&
+		paymentAmountsReady &&
+		Boolean(onPayApproved);
 
 	// Client token & env from backend
 	const [clientToken, setClientToken] = useState(null);
@@ -178,6 +196,7 @@ export default function PaymentDetailsPayPal({
 		invoice_id: null,
 		payload: null,
 	});
+	const paymentAttemptStartedRef = useRef(false);
 
 	const ensurePendingReservation = useCallback(async () => {
 		if (
@@ -229,10 +248,19 @@ export default function PaymentDetailsPayPal({
 				invoice_id: null,
 				payload: null,
 			};
+			paymentAttemptStartedRef.current = false;
 		}
 	}, []);
 
 	useEffect(() => {
+		if (!canPreparePayPal) {
+			setClientToken(null);
+			setIsLive(null);
+			setTokenError(null);
+			setWalletOnly(false);
+			return undefined;
+		}
+
 		let mounted = true;
 		(async () => {
 			try {
@@ -274,8 +302,7 @@ export default function PaymentDetailsPayPal({
 		return () => {
 			mounted = false;
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [isArabic, reloadKey]);
+	}, [isArabic, reloadKey, canPreparePayPal]);
 
 	useEffect(() => {
 		return () => {
@@ -300,10 +327,9 @@ export default function PaymentDetailsPayPal({
 	}, [selectedPaymentOption, sarDeposit15, totalSar]);
 
 	const allowInteract =
-		(selectedPaymentOption === "acceptDeposit" ||
-			selectedPaymentOption === "acceptPayWholeAmount") &&
-		guestAgreedOnTermsAndConditions &&
-		Number(selectedUsdAmount) > 0;
+		canPreparePayPal &&
+		isPositiveFinite(selectedUsdAmount) &&
+		isPositiveFinite(selectedSarAmount);
 
 	const reloadPayment = useCallback(() => {
 		setReloadKey((k) => k + 1);
@@ -419,7 +445,12 @@ export default function PaymentDetailsPayPal({
 		};
 
 		const createOrder = async (_data, actions) => {
-			if (!requireSelectionAndTerms()) return;
+			if (!requireSelectionAndTerms()) {
+				const validationError = new Error("");
+				validationError.silent = true;
+				throw validationError;
+			}
+			paymentAttemptStartedRef.current = true;
 
 			const label =
 				selectedPaymentOption === "acceptDeposit"
@@ -435,13 +466,16 @@ export default function PaymentDetailsPayPal({
 			try {
 				pendingMeta = await ensurePendingReservation();
 			} catch (err) {
+				paymentAttemptStartedRef.current = false;
 				if (!err?.silent) {
 					message.error(
 						err?.message ||
 							"Failed to prepare reservation. Please check your details and try again."
 					);
 				}
-				return;
+				const validationError = new Error(err?.message || "");
+				validationError.silent = true;
+				throw validationError;
 			}
 			const invoice_id = buildInvoiceId(pendingMeta.confirmation_number);
 			pendingRef.current.invoice_id = invoice_id;
@@ -534,6 +568,7 @@ export default function PaymentDetailsPayPal({
 					invoice_id: null,
 					payload: null,
 				};
+				paymentAttemptStartedRef.current = false;
 
 				ReactGA.event({
 					category: "Reservation Payment",
@@ -571,10 +606,15 @@ export default function PaymentDetailsPayPal({
 
 		const onError = async (e) => {
 			console.error("PayPal error:", e);
+			const hadUserPaymentAttempt =
+				paymentAttemptStartedRef.current ||
+				Boolean(pendingRef.current?.pendingReservationId);
 			await cancelPendingReservation();
-			message.error(
+			if (hadUserPaymentAttempt && !e?.silent) {
+				message.error(
 				isArabic ? "خطأ في الدفع عبر PayPal" : "PayPal payment error."
-			);
+				);
+			}
 		};
 
 		if (isRejected) {
@@ -775,6 +815,8 @@ export default function PaymentDetailsPayPal({
 			</>
 		);
 	};
+
+	if (!canPreparePayPal) return null;
 
 	if (tokenError) {
 		return (
