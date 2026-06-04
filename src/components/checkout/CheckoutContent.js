@@ -65,6 +65,29 @@ const normalizePhoneInput = (value = "") => {
 	return normalized.replace(/[^\d\s+-]/g, "");
 };
 
+const checkoutPasswordFromPhone = (phone = "") =>
+	normalizePhoneInput(phone).replace(/\s+/g, "");
+
+const checkoutErrorMessage = (
+	error,
+	fallback = "Something went wrong. Please try again or contact Jannat Booking support.",
+) => {
+	const response = error?.response || {};
+	if (response?.code === "inventory_unavailable" || error?.status === 409) {
+		return (
+			response?.message ||
+			"The selected room is no longer available for these dates. Please adjust your dates or room quantity."
+		);
+	}
+	if (error?.status === 402) {
+		return (
+			response?.message ||
+			"The payment was declined by the card issuer or PayPal. Please try another card or contact your bank."
+		);
+	}
+	return response?.message || response?.error || error?.message || fallback;
+};
+
 // ────────────────────────────────────────────────────────────────────
 // Deposit math helpers (legacy deposit kept for non-deposit branches)
 // ────────────────────────────────────────────────────────────────────
@@ -245,13 +268,116 @@ const CheckoutContent = ({
 	const [availabilityLookup, setAvailabilityLookup] = useState(null);
 	const handlePhoneChange = useCallback((rawValue) => {
 		const inputValue = normalizePhoneInput(rawValue);
+		const checkoutPassword = checkoutPasswordFromPhone(inputValue);
 		setCustomerDetails((prev) => ({
 			...prev,
 			phone: inputValue,
-			password: inputValue,
-			confirmPassword: inputValue,
+			password: checkoutPassword,
+			confirmPassword: checkoutPassword,
 		}));
 	}, []);
+
+	const getCheckoutCustomerDetails = useCallback(() => {
+		const phone = normalizePhoneInput(customerDetails.phone).trim();
+		const password =
+			customerDetails.password || checkoutPasswordFromPhone(phone);
+		return {
+			...customerDetails,
+			name: String(customerDetails.name || "").trim(),
+			phone,
+			email: String(customerDetails.email || "").trim().toLowerCase(),
+			passport: customerDetails.passport || "Not Provided",
+			passportExpiry: customerDetails.passportExpiry || "2029-12-20",
+			nationality: customerDetails.nationality || nationality,
+			postalCode: customerDetails.postalCode || postalCode,
+			password,
+			confirmPassword: password,
+		};
+	}, [customerDetails, nationality, postalCode]);
+
+	const validateCheckoutDetails = useCallback(
+		({ requirePaymentOption = false } = {}) => {
+			if (!roomCart || roomCart.length === 0) {
+				message.error("Your cart is empty. Please choose a room first.");
+				return null;
+			}
+
+			if (requirePaymentOption && !selectedPaymentOption) {
+				message.error("Please choose how you would like to pay.");
+				return null;
+			}
+
+			if (!guestAgreedOnTermsAndConditions) {
+				message.error(
+					"You must accept the Terms & Conditions before proceeding.",
+				);
+				return null;
+			}
+
+			const details = getCheckoutCustomerDetails();
+
+			if (!details.name || details.name.split(/\s+/).length < 2) {
+				message.error("Please enter your full name, first and last name.");
+				return null;
+			}
+
+			const phoneRegex = /^\+?[0-9\s-]{5,}$/;
+			if (!details.phone || !phoneRegex.test(details.phone)) {
+				message.error(
+					"Please enter a valid phone number so we can send your booking updates.",
+				);
+				return null;
+			}
+
+			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+			if (!details.email || !emailRegex.test(details.email)) {
+				message.error(
+					"Please enter a valid email address for your invoice and confirmation.",
+				);
+				return null;
+			}
+
+			if (!details.nationality) {
+				message.error("Please select your nationality.");
+				return null;
+			}
+
+			if (!details.passport) {
+				message.error("Please provide your passport number.");
+				return null;
+			}
+
+			if (!details.passportExpiry) {
+				message.error("Please provide your passport expiry date.");
+				return null;
+			}
+
+			const expiryDateD = dayjs(details.passportExpiry);
+			const sixMonthsFromNow = dayjs().add(6, "month");
+			if (expiryDateD.isValid() && expiryDateD.isBefore(sixMonthsFromNow)) {
+				message.error(
+					"Passport expiry date should be at least 6 months from today's date.",
+				);
+				return null;
+			}
+
+			const uniqueHotelNames = [...new Set(roomCart.map((room) => room.hotelName))];
+			if (uniqueHotelNames.length > 1) {
+				message.error(
+					"You cannot make one reservation with rooms from multiple hotels.",
+				);
+				return null;
+			}
+
+			return details;
+		},
+		[
+			getCheckoutCustomerDetails,
+			guestAgreedOnTermsAndConditions,
+			roomCart,
+			selectedPaymentOption,
+		],
+	);
 
 	const nightsCount = useMemo(() => {
 		if (checkIn && checkOut) {
@@ -625,7 +751,8 @@ const CheckoutContent = ({
 
 	const createUncompletedDocument = async (from) => {
 		try {
-			const { phone, email } = customerDetails;
+			const checkoutCustomerDetails = getCheckoutCustomerDetails();
+			const { phone, email } = checkoutCustomerDetails;
 			if (!(phone || email)) return;
 
 			const hotelNames = roomCart.map((room) => room.hotelName);
@@ -689,11 +816,7 @@ const CheckoutContent = ({
 				hotelId: roomCart[0].hotelId,
 				hotelName: roomCart[0].hotelName || "",
 				belongsTo: roomCart[0].belongsTo || "",
-				customerDetails: {
-					...customerDetails,
-					nationality,
-					postalCode,
-				},
+				customerDetails: checkoutCustomerDetails,
 				total_rooms: safeParseFloat(total_rooms, 0),
 				total_guests:
 					safeParseFloat(roomCart[0].adults, 0) +
@@ -738,6 +861,10 @@ const CheckoutContent = ({
 
 	const buildPendingReservationPayload = useCallback(() => {
 		if (!roomCart || roomCart.length === 0) return null;
+		const checkoutCustomerDetails = validateCheckoutDetails({
+			requirePaymentOption: true,
+		});
+		if (!checkoutCustomerDetails) return null;
 		const optionNormalized =
 			selectedPaymentOption === "acceptDeposit"
 				? "deposit"
@@ -759,11 +886,7 @@ const CheckoutContent = ({
 			hotelId: roomCart[0].hotelId,
 			hotelName: roomCart[0].hotelName || "",
 			belongsTo: roomCart[0].belongsTo || "",
-			customerDetails: {
-				...customerDetails,
-				nationality,
-				postalCode,
-			},
+			customerDetails: checkoutCustomerDetails,
 			total_rooms: safeParseFloat(total_rooms, 0),
 			total_guests:
 				safeParseFloat(roomCart[0].adults, 0) +
@@ -793,14 +916,12 @@ const CheckoutContent = ({
 		total_price_with_commission,
 		depositSar15,
 		depositAmount,
-		customerDetails,
-		nationality,
-		postalCode,
 		total_rooms,
 		convertedAmounts,
 		guestAgreedOnTermsAndConditions,
 		user,
 		transformRoomCartToPickedRoomsType,
+		validateCheckoutDetails,
 	]);
 
 	// Reserve‑Now (Not Paid) flow — unchanged
@@ -844,60 +965,9 @@ const CheckoutContent = ({
 	}, [availabilityLookup, checkIn, checkOut, chosenLanguage, roomCart]);
 
 	const createNewReservation = async () => {
-		const { name, phone, email, passport, passportExpiry, password } =
-			customerDetails;
-
-		if (!guestAgreedOnTermsAndConditions) {
-			message.error(
-				"You must accept the Terms & Conditions before proceeding.",
-			);
-			return;
-		}
-
-		if (!name || name.trim().split(" ").length < 2) {
-			message.error("Please provide your full name (first and last name).");
-			return;
-		}
-
-		const phoneRegex = /^\+?[0-9\s-]{5,}$/;
-		if (!phone || !phoneRegex.test(phone)) {
-			message.error("Please provide a valid phone number.");
-			return;
-		}
-
-		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		if (!email || !emailRegex.test(email)) {
-			message.error("Please provide a valid email address.");
-			return;
-		}
-
-		if (!passport) {
-			message.error("Please provide your passport number.");
-			return;
-		}
-
-		if (passportExpiry) {
-			const expiryDateD = dayjs(passportExpiry);
-			const sixMonthsFromNow = dayjs().add(6, "month");
-			if (expiryDateD.isBefore(sixMonthsFromNow)) {
-				message.error(
-					"Passport expiry date should be at least 6 months from today's date.",
-				);
-				return;
-			}
-		} else {
-			message.error("Please provide your passport expiry date.");
-			return;
-		}
-
-		const hotelNames = roomCart.map((room) => room.hotelName);
-		const uniqueHotelNames = [...new Set(hotelNames)];
-		if (uniqueHotelNames.length > 1) {
-			message.error(
-				"You cannot make a reservation with rooms from multiple hotels.",
-			);
-			return;
-		}
+		const checkoutCustomerDetails = validateCheckoutDetails();
+		if (!checkoutCustomerDetails) return;
+		const { password } = checkoutCustomerDetails;
 
 		if (!(await ensureCheckoutAvailability())) return;
 
@@ -941,14 +1011,11 @@ const CheckoutContent = ({
 		const body = {
 			sentFrom: "client",
 			payment, // "Not Paid"
+			userId: user ? user._id : null,
 			hotelId: roomCart[0].hotelId,
 			hotelName: roomCart[0].hotelName || "",
 			belongsTo: roomCart[0].belongsTo || "",
-			customerDetails: {
-				...customerDetails,
-				nationality,
-				postalCode,
-			},
+			customerDetails: checkoutCustomerDetails,
 			total_rooms: safeParseFloat(total_rooms, 0),
 			total_guests:
 				safeParseFloat(roomCart[0].adults, 0) +
@@ -985,7 +1052,10 @@ const CheckoutContent = ({
 		} catch (error) {
 			console.error("Error creating Not Paid reservation:", error);
 			message.error(
-				error?.message || "An error occurred while creating the reservation",
+				checkoutErrorMessage(
+					error,
+					"We could not create the reservation. Please review your details and try again.",
+				),
 			);
 		}
 	};
@@ -1049,26 +1119,11 @@ const CheckoutContent = ({
 			const mode = paypal?.mode || "authorize"; // defaults to AUTHORIZE
 			const cmid = paypal?.cmid || null;
 
-			const {
-				name,
-				phone,
-				email,
-				passport,
-				passportExpiry,
-				nationality: natFromState,
-				password,
-			} = customerDetails || {};
-			if (
-				!name ||
-				!phone ||
-				!email ||
-				!passport ||
-				!passportExpiry ||
-				!natFromState
-			) {
-				message.error("Missing required customer details.");
-				return;
-			}
+			const checkoutCustomerDetails = validateCheckoutDetails({
+				requirePaymentOption: true,
+			});
+			if (!checkoutCustomerDetails) return;
+			const { email, password } = checkoutCustomerDetails;
 
 			if (!(await ensureCheckoutAvailability())) return;
 
@@ -1089,14 +1144,11 @@ const CheckoutContent = ({
 				sentFrom: "client",
 				payment: paymentLabelFor(option),
 				option, // <-- crucial for backend amounts/branch
+				userId: user ? user._id : null,
 				hotelId: roomCart[0].hotelId,
 				hotelName: roomCart[0].hotelName || "",
 				belongsTo: roomCart[0].belongsTo || "",
-				customerDetails: {
-					...customerDetails,
-					nationality,
-					postalCode,
-				},
+				customerDetails: checkoutCustomerDetails,
 				total_rooms: safeParseFloat(total_rooms, 0),
 				total_guests:
 					safeParseFloat(roomCart[0].adults, 0) +
@@ -1144,9 +1196,15 @@ const CheckoutContent = ({
 			});
 
 			const queryParams = new URLSearchParams();
-			queryParams.append("name", customerDetails.name);
+			const savedReservation = resp?.data || resp?.reservation || {};
+			const finalConfirmation =
+				savedReservation?.confirmation_number || confirmation_number || "";
+			queryParams.append("name", checkoutCustomerDetails.name);
 			queryParams.append("total_price", total_price_with_commission);
 			queryParams.append("total_rooms", total_rooms);
+			if (finalConfirmation) {
+				queryParams.append("confirmation_number", finalConfirmation);
+			}
 			roomCart.forEach((room, index) => {
 				queryParams.append(`hotel_name_${index}`, room.hotelName);
 				queryParams.append(`room_type_${index}`, room.roomType);
@@ -1156,29 +1214,41 @@ const CheckoutContent = ({
 				queryParams.append(`checkout_date_${index}`, room.endDate);
 			});
 
-			// Auto sign-in if needed (unchanged behavior)
-			if (!user) {
-				const signInResponse = await signin({
-					emailOrPhone: email,
-					password: password, // you set this from phone input
-				});
-				if (signInResponse.error) {
-					message.error(
-						"Failed to sign in automatically after account creation.",
-					);
-				} else {
-					authenticate(signInResponse, () => {
-						clearRoomCart();
-						window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
-					});
-				}
-			} else {
+			const redirectToConfirmation = () => {
 				clearRoomCart();
 				window.location.href = `/reservation-confirmed?${queryParams.toString()}`;
+			};
+
+			if (!user) {
+				try {
+					const signInResponse = await signin({
+						emailOrPhone: email,
+						password,
+					});
+					if (signInResponse?.error || !signInResponse?.token) {
+						queryParams.set("account_notice", "signin-later");
+						redirectToConfirmation();
+						return;
+					}
+					authenticate(signInResponse, redirectToConfirmation);
+					return;
+				} catch (signInError) {
+					console.warn("Checkout auto sign-in failed:", signInError);
+					queryParams.set("account_notice", "signin-later");
+					redirectToConfirmation();
+					return;
+				}
 			}
+
+			redirectToConfirmation();
 		} catch (err) {
 			console.error("PayPal reservation create error:", err);
-			message.error(err?.message || "Failed to create reservation.");
+			message.error(
+				checkoutErrorMessage(
+					err,
+					"Payment was approved, but we could not finish the reservation. Please contact Jannat Booking support so we can check it immediately.",
+				),
+			);
 		}
 	};
 
@@ -1420,6 +1490,14 @@ const CheckoutContent = ({
 						/>
 					</InputGroup>
 
+					{!user ? (
+						<AccountNotice>
+							No separate signup is needed. We will create your Jannat
+							Booking account after the reservation using your email and phone
+							number.
+						</AccountNotice>
+					) : null}
+
 					<InputGroup>
 						<label>{t.nationality}</label>
 						<Select
@@ -1615,6 +1693,7 @@ const CheckoutContent = ({
 				checkOut={checkOut}
 				disabledCheckOutDate={disabledCheckOutDate}
 				handlePayPalApproved={handlePayPalApproved}
+				isGuestCheckout={!user}
 				payMode='capture' // ✅ use capture
 			/>
 		</CheckoutContentWrapper>
@@ -1754,6 +1833,17 @@ const InputGroup = styled.div`
 		border-radius: 5px;
 		border: 1px solid #ddd;
 	}
+`;
+
+const AccountNotice = styled.div`
+	border: 1px solid #c8e6d4;
+	background: #f0fbf4;
+	color: #125c2f;
+	border-radius: 6px;
+	padding: 10px 12px;
+	font-size: 0.9rem;
+	line-height: 1.45;
+	margin: -4px 0 14px;
 `;
 
 const QuantityControls = styled.div`

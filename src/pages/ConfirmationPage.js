@@ -36,6 +36,7 @@ const ConfirmationPage = () => {
 		parseInt(searchParams.get("nights"), 10) ||
 		parseInt(searchParams.get("nights_0"), 10) ||
 		1;
+	const accountNotice = searchParams.get("account_notice") || "";
 
 	// Extract room details for multiple rooms (supporting both parameter formats)
 	const rooms = [];
@@ -120,6 +121,14 @@ const ConfirmationPage = () => {
 					Thank you, <strong>{name}</strong>! Your reservation has been
 					confirmed.
 				</p>
+				{accountNotice === "signin-later" ? (
+					<AccountNotice>
+						Your reservation is confirmed. If you already had an account, sign
+						in with your existing password. If this is your first reservation,
+						your checkout account was prepared with your phone number as the
+						temporary password.
+					</AccountNotice>
+				) : null}
 
 				{/* Display hotel name and check-in/check-out/nights once */}
 				<ReservationDetails>
@@ -310,6 +319,18 @@ const RoomDetails = styled.div`
 	p {
 		font-size: 16px;
 	}
+`;
+
+const AccountNotice = styled.div`
+	border: 1px solid #c8e6d4;
+	background: #f0fbf4;
+	color: #125c2f;
+	border-radius: 6px;
+	padding: 12px 14px;
+	margin: 12px 0 16px;
+	font-size: 0.95rem;
+	line-height: 1.5;
+	text-align: left;
 `;
 
 const ButtonWrapper = styled.div`

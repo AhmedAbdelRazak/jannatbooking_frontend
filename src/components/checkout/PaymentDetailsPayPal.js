@@ -191,7 +191,9 @@ export default function PaymentDetailsPayPal({
 		}
 		const payload = getPendingReservationPayload();
 		if (!payload) {
-			throw new Error("Missing reservation details.");
+			const validationError = new Error("");
+			validationError.silent = true;
+			throw validationError;
 		}
 		const resp = await preparePayPalPendingReservation(payload);
 		const pendingReservationId =
@@ -433,7 +435,12 @@ export default function PaymentDetailsPayPal({
 			try {
 				pendingMeta = await ensurePendingReservation();
 			} catch (err) {
-				message.error(err?.message || "Failed to prepare reservation.");
+				if (!err?.silent) {
+					message.error(
+						err?.message ||
+							"Failed to prepare reservation. Please check your details and try again."
+					);
+				}
 				return;
 			}
 			const invoice_id = buildInvoiceId(pendingMeta.confirmation_number);

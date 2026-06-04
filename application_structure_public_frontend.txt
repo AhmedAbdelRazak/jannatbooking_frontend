@@ -165,6 +165,20 @@ API Client
   - Checkout/reservation/payment flows.
   - Currency rates.
   - Auth/signup/signin/password flows.
+- 2026-06-04 checkout availability rule:
+  - src/apiCore.js getHotelInventoryAvailability intentionally calls GET /hotel-inventory/:hotelId/availability without a staff token from public hotel pages, cart validation, checkout, and payment flows.
+  - The backend now allows this no-token request and returns only public-safe availability fields.
+  - Public frontend code should rely on available plus public pricingByDay date/price/calendarBlocked data only.
+  - Public frontend code must not expect rootPrice, commissionRate, agent stock fields, reserved counts, or occupied counts from this endpoint.
+  - Agent-scoped availability and pending-confirmation inventory review remain PMS/admin-only and require authenticated hotels_frontend calls.
+- 2026-06-04 checkout account creation and payment UX:
+  - src/components/checkout/CheckoutContent.js normalizes guest details before reserve-now, pending PayPal, and final PayPal reservation calls.
+  - Public checkout does not send guests to a separate signup page. If the visitor is not signed in, the checkout payload includes a phone-derived temporary password so the backend can create a client account with the reservation.
+  - Desktop and mobile checkout forms show a short note that no separate signup is needed.
+  - PayPal pending-reservation creation validates required customer fields before opening PayPal/card payment.
+  - After successful paid reservation creation, the user always redirects to /reservation-confirmed even if automatic sign-in fails because the email already belongs to an older account with another password.
+  - src/pages/ConfirmationPage.js displays an account notice when auto sign-in is skipped or fails, while still showing the reservation confirmation.
+  - Error messages should stay descriptive for missing guest details, unavailable rooms, declined payments, and backend reservation failures.
 
 Brand And Trust Messaging
 - Approved public proof point from the 2026-05-26 request:
