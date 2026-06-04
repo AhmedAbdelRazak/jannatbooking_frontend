@@ -68,7 +68,6 @@ const DesktopCheckout = ({
 	checkOut,
 	disabledCheckOutDate,
 	handlePayPalApproved,
-	isGuestCheckout = false,
 	payMode = "capture",
 }) => {
 	return (
@@ -118,14 +117,6 @@ const DesktopCheckout = ({
 							}
 						/>
 					</InputGroup>
-
-					{isGuestCheckout ? (
-						<AccountNotice>
-							No separate signup is needed. We will create your Jannat
-							Booking account after the reservation using your email and phone
-							number.
-						</AccountNotice>
-					) : null}
 
 					<InputGroup>
 						<label>{t.nationality}</label>
@@ -614,17 +605,6 @@ const InputGroup = styled.div`
 		border-radius: 5px;
 		border: 1px solid #ddd;
 	}
-`;
-
-const AccountNotice = styled.div`
-	border: 1px solid #c8e6d4;
-	background: #f0fbf4;
-	color: #125c2f;
-	border-radius: 6px;
-	padding: 10px 12px;
-	font-size: 0.9rem;
-	line-height: 1.45;
-	margin: -4px 0 14px;
 `;
 
 const QuantityControls = styled.div`

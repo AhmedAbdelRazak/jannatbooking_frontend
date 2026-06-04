@@ -1226,7 +1226,6 @@ const CheckoutContent = ({
 						password,
 					});
 					if (signInResponse?.error || !signInResponse?.token) {
-						queryParams.set("account_notice", "signin-later");
 						redirectToConfirmation();
 						return;
 					}
@@ -1234,7 +1233,6 @@ const CheckoutContent = ({
 					return;
 				} catch (signInError) {
 					console.warn("Checkout auto sign-in failed:", signInError);
-					queryParams.set("account_notice", "signin-later");
 					redirectToConfirmation();
 					return;
 				}
@@ -1490,14 +1488,6 @@ const CheckoutContent = ({
 						/>
 					</InputGroup>
 
-					{!user ? (
-						<AccountNotice>
-							No separate signup is needed. We will create your Jannat
-							Booking account after the reservation using your email and phone
-							number.
-						</AccountNotice>
-					) : null}
-
 					<InputGroup>
 						<label>{t.nationality}</label>
 						<Select
@@ -1693,7 +1683,6 @@ const CheckoutContent = ({
 				checkOut={checkOut}
 				disabledCheckOutDate={disabledCheckOutDate}
 				handlePayPalApproved={handlePayPalApproved}
-				isGuestCheckout={!user}
 				payMode='capture' // ✅ use capture
 			/>
 		</CheckoutContentWrapper>
@@ -1833,17 +1822,6 @@ const InputGroup = styled.div`
 		border-radius: 5px;
 		border: 1px solid #ddd;
 	}
-`;
-
-const AccountNotice = styled.div`
-	border: 1px solid #c8e6d4;
-	background: #f0fbf4;
-	color: #125c2f;
-	border-radius: 6px;
-	padding: 10px 12px;
-	font-size: 0.9rem;
-	line-height: 1.45;
-	margin: -4px 0 14px;
 `;
 
 const QuantityControls = styled.div`
