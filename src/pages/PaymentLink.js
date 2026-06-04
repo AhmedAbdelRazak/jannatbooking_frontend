@@ -1257,8 +1257,11 @@ const PageWrapper = styled.div`
 			padding-left: 0;
 		}
 	}
+	@media (max-width: 1000px) {
+		padding-top: 96px;
+	}
 	@media (max-width: 480px) {
-		padding: 16px 8px;
+		padding: 96px 8px 16px;
 	}
 `;
 const Card = styled.div`

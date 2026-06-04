@@ -12,7 +12,7 @@ import {
 } from "react-icons/fa";
 import { RiLoginCircleLine } from "react-icons/ri";
 import SidebarCartDrawer from "./SidebarCartDrawer";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useCartContext } from "../../cart_context";
 import HeaderTopbar from "./HeaderTopbar";
 import {
@@ -27,7 +27,10 @@ const Navbar = () => {
 	const { languageToggle, chosenLanguage, total_rooms, openSidebar2 } =
 		useCartContext();
 	const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-	const [inTop, setInTop] = useState(true);
+	const location = useLocation();
+	const [inTop, setInTop] = useState(
+		() => window.location.pathname === "/" && window.scrollY < 100,
+	);
 	const [homePage, setHomePage] = useState({});
 	const { user } = isAuthenticated();
 
@@ -74,19 +77,18 @@ const Navbar = () => {
 	const closeDrawer = () => setIsDrawerOpen(false);
 
 	// Function to handle scroll event
-	const handleScroll = () => {
-		const position = window.scrollY;
-		setInTop(position < 100 && window.location.pathname === "/");
-	};
-
 	// Add scroll event listener on component mount
 	useEffect(() => {
-		window.addEventListener("scroll", handleScroll);
-		return () => {
-			window.removeEventListener("scroll", handleScroll);
+		const syncNavbarState = () => {
+			const isHome = window.location.pathname === "/";
+			setInTop(isHome && window.scrollY < 100);
 		};
-		// eslint-disable-next-line
-	}, [window.location.pathname]);
+		syncNavbarState();
+		window.addEventListener("scroll", syncNavbarState);
+		return () => {
+			window.removeEventListener("scroll", syncNavbarState);
+		};
+	}, [location.pathname]);
 
 	// Handle signout
 	const handleSignout = () => {

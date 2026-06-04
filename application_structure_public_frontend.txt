@@ -184,6 +184,8 @@ API Client
   - src/components/checkout/PaymentDetailsPayPal.js must not fetch the PayPal client token, mount PayPal buttons, or show generic PayPal failure toasts until the guest chose an online payment option, accepted terms, and the USD amount is positive.
   - PayPal SDK/load errors before an actual user-started payment attempt should be logged but must not show an "order failed" or generic payment-error toast to the guest.
   - src/pages/PaymentLink.js follows the same rule for /client-payment/:reservationId/:confirmation: validate the reservation id/confirmation/total amount first, keep PayPal unmounted until a payment option, accepted terms, positive SAR amount, and positive USD amount are all present, and suppress SDK setup errors before a real payment attempt.
+  - src/pages/PaymentLink.js reserves mobile top spacing for the fixed navbar so the public payment card never starts underneath the logo/header.
+  - src/components/Navbar/Navbar.js initializes the transparent top-of-home state only on /; public checkout/payment routes must render the solid navbar immediately without waiting for a scroll event.
   - Generated payment links must never render PayPal/card controls beside blank reservation fields, missing dates, or 0 SAR/0 USD amounts.
   - After successful paid reservation creation, the user always redirects to /reservation-confirmed even if automatic sign-in fails because the email already belongs to an older account with another password.
   - src/pages/ConfirmationPage.js must show the normal reservation confirmation only; account/password management can happen later from the user account area.
