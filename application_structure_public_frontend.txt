@@ -30,6 +30,7 @@ Runtime
 Top-Level Structure
 - public/
   - favicon.ico, logo192.png, logo512.png, manifest.json, index.html.
+  - logo192.png and logo512.png must keep actual image dimensions matching manifest.json declarations so Chrome does not show checkout-page manifest icon warnings.
   - index.html loads jQuery before Bootstrap because Bootstrap 4 depends on window.jQuery.fn.
   - robots.txt now allows compliant crawlers and points to sitemap.xml.
   - sitemap.xml lists primary public routes.
