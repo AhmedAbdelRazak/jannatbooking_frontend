@@ -599,11 +599,23 @@ export async function getPayPalClientToken({
 }
 
 export const payReservationViaPayPalLink = async (payload) => {
-	const { data } = await axios.post(
-		`${process.env.REACT_APP_API_URL}/reservations/paypal/link-pay`,
-		payload
-	);
-	return data;
+	try {
+		const { data } = await axios.post(
+			`${process.env.REACT_APP_API_URL}/reservations/paypal/link-pay`,
+			payload,
+		);
+		return data;
+	} catch (err) {
+		const response = err?.response?.data || {};
+		const apiError = new Error(
+			response?.message ||
+				err?.message ||
+				"Payment could not be completed. Please try again.",
+		);
+		apiError.status = err?.response?.status;
+		apiError.response = response;
+		throw apiError;
+	}
 };
 
 export const preparePayPalPendingReservation = async (payload) => {

@@ -86,7 +86,7 @@ const checkoutErrorMessage = (
 	if (error?.status === 402) {
 		return (
 			response?.message ||
-			"The payment was declined by the card issuer or PayPal. Please try another card or contact your bank."
+			"Payment was declined by the card issuer or PayPal. Jannat Booking did not receive a successful captured payment. If your bank shows a pending hold, it is not a completed Jannat Booking charge and should be released by the bank or PayPal. Please try another card or contact your bank."
 		);
 	}
 	return response?.message || response?.error || error?.message || fallback;
@@ -1268,10 +1268,10 @@ const CheckoutContent = ({
 			redirectToConfirmation();
 		} catch (err) {
 			console.error("PayPal reservation create error:", err);
-			message.error(
+			throw new Error(
 				checkoutErrorMessage(
 					err,
-					"Payment was approved, but we could not finish the reservation. Please contact Jannat Booking support so we can check it immediately.",
+					"Payment could not be completed. Jannat Booking did not receive a successful captured payment from this attempt. Please try another card or contact Jannat Booking support.",
 				),
 			);
 		}

@@ -292,7 +292,12 @@ const ApplePayButton = ({
 				}
 			} catch (err) {
 				session.completePayment(window.ApplePaySession.STATUS_FAILURE);
-				message.error(labels.paymentFailed || "Payment failed.");
+				message.error(
+					err?.response?.message ||
+						err?.message ||
+						labels.paymentFailed ||
+						"Payment failed.",
+				);
 			} finally {
 				setLoading(false);
 			}

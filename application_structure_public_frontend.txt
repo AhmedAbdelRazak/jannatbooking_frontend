@@ -183,6 +183,7 @@ API Client
   - Checkout currency conversion must only call /currencyapi-amounts with finite SAR numbers; if totals are still settling, convertedAmounts must remain null and PayPal must stay unmounted.
   - src/components/checkout/PaymentDetailsPayPal.js must not fetch the PayPal client token, mount PayPal buttons, or show generic PayPal failure toasts until the guest chose an online payment option, accepted terms, and the USD amount is positive.
   - PayPal SDK/load errors before an actual user-started payment attempt should be logged but must not show an "order failed" or generic payment-error toast to the guest.
+  - If the backend returns 402 for a PayPal capture or authorization failure, the public frontend must surface that exact decline message and must not continue into success toast, redirect, or reservation-confirmed state.
   - src/pages/PaymentLink.js follows the same rule for /client-payment/:reservationId/:confirmation: validate the reservation id/confirmation/total amount first, keep PayPal unmounted until a payment option, accepted terms, positive SAR amount, and positive USD amount are all present, and suppress SDK setup errors before a real payment attempt.
   - src/pages/PaymentLink.js reserves mobile top spacing for the fixed navbar so the public payment card never starts underneath the logo/header.
   - src/components/Navbar/Navbar.js initializes the transparent top-of-home state only on /; public checkout/payment routes must render the solid navbar immediately without waiting for a scroll event.

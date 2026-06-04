@@ -714,6 +714,11 @@ const PaymentLink = () => {
 			} catch (e) {
 				// eslint-disable-next-line no-console
 				console.error(e);
+				paymentAttemptStartedRef.current = false;
+				if (e?.response?.message || e?.message) {
+					message.error(e?.response?.message || e?.message);
+					return;
+				}
 				message.error(isArabic ? "تعذر إتمام الدفع" : "Payment failed.");
 			}
 		};
