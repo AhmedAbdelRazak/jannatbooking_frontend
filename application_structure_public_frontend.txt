@@ -20,6 +20,8 @@ Runtime
   - server.js serves the compiled build directory with Express.
   - package.json build command: npm run build.
   - package.json start command: react-scripts start for local dev.
+  - Production builds must use the production .env on the home server, where REACT_APP_API_URL is /api and REACT_APP_API_URL_MAIN is https://xhotelpro.com.
+  - Do not deploy a build compiled from a local development .env with localhost API/socket values; browsers may try to contact the customer's own device, causing blank public pages and Chrome local-app/device-access prompts.
 - Important limitation:
   - CRA renders metadata client-side through react-helmet.
   - Search engines and LLM crawlers that do not execute JavaScript may miss some dynamic page metadata.
@@ -28,6 +30,7 @@ Runtime
 Top-Level Structure
 - public/
   - favicon.ico, logo192.png, logo512.png, manifest.json, index.html.
+  - index.html loads jQuery before Bootstrap because Bootstrap 4 depends on window.jQuery.fn.
   - robots.txt now allows compliant crawlers and points to sitemap.xml.
   - sitemap.xml lists primary public routes.
   - llms.txt gives LLM/crawler-readable brand and support-topic context.
