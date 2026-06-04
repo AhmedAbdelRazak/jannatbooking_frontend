@@ -1,5 +1,5 @@
 // src/pages/PaymentLink.js
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import styled from "styled-components";
 import { useParams } from "react-router-dom";
 import { Checkbox, message, Spin, Alert } from "antd";
@@ -84,6 +84,10 @@ const toUSD = (sar) => {
 	if (Number.isFinite(usd) && usd > 0) return usd;
 	return sarNum / FALLBACK_SAR_PER_USD;
 };
+const isPositiveFinite = (value) => {
+	const num = Number(value);
+	return Number.isFinite(num) && num > 0;
+};
 
 /* Hosted Card Fields submit button */
 function CardFieldsSubmitButton({ disabled, label }) {
@@ -159,7 +163,7 @@ function CardFieldsSubmitButton({ disabled, label }) {
 
 /* ───────── Main page component ───────── */
 const PaymentLink = () => {
-	const { reservationId } = useParams();
+	const { reservationId, confirmation } = useParams();
 	const { chosenLanguage } = useCartContext();
 	const t = translations[chosenLanguage] || translations.English;
 
@@ -176,6 +180,7 @@ const PaymentLink = () => {
 	const [defaultDeposit, setDefaultDeposit] = useState(0);
 	const [effectiveDeposit, setEffectiveDeposit] = useState(0);
 	const [loading, setLoading] = useState(true);
+	const [loadError, setLoadError] = useState("");
 
 	// Pay options
 	const [selectedOption, setSelectedOption] = useState(null);
@@ -194,6 +199,7 @@ const PaymentLink = () => {
 
 	// Wallet-only fallback (retry without card-fields & without client-token)
 	const [walletOnly, setWalletOnly] = useState(false);
+	const paymentAttemptStartedRef = useRef(false);
 
 	const isArabic = chosenLanguage === "Arabic";
 	const locale = isArabic ? "ar_EG" : "en_US";
@@ -257,19 +263,41 @@ const PaymentLink = () => {
 	useEffect(() => {
 		const fetchReservation = async () => {
 			try {
+				setLoading(true);
+				setLoadError("");
 				const data = await gettingSingleReservationById(reservationId);
-				if (data) {
-					setReservationData(data);
-					if (data.pickedRoomsType?.length) {
-						const { defaultDeposit } = computeCommissionAndDeposit(
-							data.pickedRoomsType,
-						);
-						setDefaultDeposit(defaultDeposit);
-					}
+				if (!data?._id || !data?.confirmation_number) {
+					throw new Error(
+						data?.message || "Reservation details could not be loaded.",
+					);
+				}
+				if (
+					confirmation &&
+					String(data.confirmation_number) !== String(confirmation)
+				) {
+					throw new Error("This payment link does not match the reservation.");
+				}
+				if (!isPositiveFinite(data.total_amount)) {
+					throw new Error(
+						"This reservation does not have a valid payment amount.",
+					);
+				}
+
+				setReservationData(data);
+				if (data.pickedRoomsType?.length) {
+					const { defaultDeposit } = computeCommissionAndDeposit(
+						data.pickedRoomsType,
+					);
+					setDefaultDeposit(defaultDeposit);
 				}
 			} catch (e) {
 				// eslint-disable-next-line no-console
 				console.error("Error fetching reservation:", e);
+				setReservationData(null);
+				setDefaultDeposit(0);
+				setEffectiveDeposit(0);
+				setSelectedOption(null);
+				setLoadError(e?.message || "Failed to load reservation.");
 				message.error(
 					isArabic
 						? "حدث خطأ أثناء تحميل الحجز"
@@ -280,7 +308,7 @@ const PaymentLink = () => {
 			}
 		};
 		if (reservationId) fetchReservation();
-	}, [reservationId, isArabic]);
+	}, [reservationId, confirmation, isArabic]);
 
 	/* 2) Compute effective deposit (advance overrides) */
 	useEffect(() => {
@@ -391,6 +419,29 @@ const PaymentLink = () => {
 
 	/* 4) PayPal client token + env (with diagnostics) */
 	useEffect(() => {
+		const selectedSarReady =
+			selectedOption === "acceptRemaining"
+				? isPositiveFinite(remainingSar)
+				: selectedOption === "acceptDeposit"
+					? isPositiveFinite(effectiveDeposit)
+					: selectedOption === "acceptPayWholeAmount"
+						? isPositiveFinite(totalSar)
+						: false;
+
+		if (
+			!reservationData?._id ||
+			isFullyPaid ||
+			!selectedOption ||
+			!guestAgreed ||
+			!selectedSarReady
+		) {
+			setClientToken(null);
+			setIsLive(null);
+			setTokenError(null);
+			setWalletOnly(false);
+			return undefined;
+		}
+
 		const init = async () => {
 			try {
 				const tokenResp = await getPayPalClientToken();
@@ -433,7 +484,17 @@ const PaymentLink = () => {
 			}
 		};
 		init();
-	}, [isArabic, reloadKey]);
+	}, [
+		guestAgreed,
+		effectiveDeposit,
+		isArabic,
+		isFullyPaid,
+		reloadKey,
+		remainingSar,
+		reservationData?._id,
+		selectedOption,
+		totalSar,
+	]);
 
 	const computedDepositUSD = useMemo(() => {
 		const usd = Number(effectiveDepositUSD);
@@ -460,8 +521,19 @@ const PaymentLink = () => {
 		return selectedOption === "acceptDeposit" ? effectiveDeposit : totalSar;
 	}, [selectedOption, effectiveDeposit, remainingSar, totalSar]);
 
-	const allowInteract =
-		!!selectedOption && !!guestAgreed && Number(selectedUsdAmount) > 0;
+	const hasValidReservation = Boolean(
+		reservationData?._id && reservationData?.confirmation_number,
+	);
+	const paymentAmountReady =
+		isPositiveFinite(selectedUsdAmount) && isPositiveFinite(selectedSarAmount);
+	const canPreparePayment =
+		hasValidReservation &&
+		!loading &&
+		!isFullyPaid &&
+		!!selectedOption &&
+		!!guestAgreed &&
+		paymentAmountReady;
+	const allowInteract = canPreparePayment;
 
 	/* Inner PayPal area */
 	const PayArea = () => {
@@ -495,7 +567,12 @@ const PaymentLink = () => {
 		};
 
 		const createOrder = async (data, actions) => {
-			if (!requireSelectionAndTerms()) return;
+			if (!requireSelectionAndTerms()) {
+				const validationError = new Error("");
+				validationError.silent = true;
+				throw validationError;
+			}
+			paymentAttemptStartedRef.current = true;
 
 			const conf = reservationData?.confirmation_number || reservationId;
 			const hotelName = reservationData?.hotelId?.hotelName || "Hotel";
@@ -613,6 +690,7 @@ const PaymentLink = () => {
 
 				const resp = await payReservationViaPayPalLink(payload);
 				if (resp?.reservation) {
+					paymentAttemptStartedRef.current = false;
 					message.success(isArabic ? "تم الدفع بنجاح!" : "Payment successful!");
 					ReactGA.event({
 						category: "Reservation Payment",
@@ -627,6 +705,7 @@ const PaymentLink = () => {
 					});
 					setTimeout(() => window.location.reload(), 900);
 				} else {
+					paymentAttemptStartedRef.current = false;
 					message.error(
 						resp?.message ||
 							(isArabic ? "تعذر إتمام الدفع" : "Payment failed."),
@@ -642,6 +721,9 @@ const PaymentLink = () => {
 		const onError = (e) => {
 			// eslint-disable-next-line no-console
 			console.error("PayPal error:", e);
+			const hadUserPaymentAttempt = paymentAttemptStartedRef.current;
+			paymentAttemptStartedRef.current = false;
+			if (!hadUserPaymentAttempt || e?.silent) return;
 			message.error(
 				isArabic ? "خطأ في الدفع عبر PayPal" : "PayPal payment error.",
 			);
@@ -880,8 +962,10 @@ const PaymentLink = () => {
 	return (
 		<PageWrapper dir={isArabic ? "rtl" : "ltr"}>
 			<Card>
-				{loading || !reservationData ? (
-					<Centered>{loading ? "Loading…" : "No reservation found"}</Centered>
+				{loading || loadError || !reservationData ? (
+					<Centered>
+						{loading ? <Spin /> : loadError || "No reservation found"}
+					</Centered>
 				) : (
 					<>
 						<Header style={{ textAlign: isArabic ? "right" : undefined }}>
@@ -1061,7 +1145,7 @@ const PaymentLink = () => {
 								</Terms>
 
 								{/* PayPal Area */}
-								{tokenError ? (
+								{!canPreparePayment ? null : tokenError ? (
 									<div style={{ textAlign: "center" }}>
 										<Alert
 											type='error'

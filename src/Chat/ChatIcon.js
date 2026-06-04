@@ -199,7 +199,7 @@ const ChatIcon = () => {
 			const caseId = JSON.parse(localStorage.getItem("currentChat"))?.caseId;
 			if (caseId) {
 				const response = await getUnseenMessagesCountByCustomer(caseId);
-				setUnseenCount(response.count);
+				setUnseenCount(Number(response?.count || 0));
 			}
 		} catch (error) {
 			console.error("Error fetching unseen messages count", error);

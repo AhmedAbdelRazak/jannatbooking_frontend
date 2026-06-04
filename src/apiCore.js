@@ -287,9 +287,10 @@ export const getUnseenMessagesCountByCustomer = async (caseId) => {
 			},
 		}
 	)
-		.then((response) => response.json())
+		.then((response) => (response.ok ? response.json() : { count: 0 }))
 		.catch((err) => {
-			console.error("API error: ", err);
+			console.warn("Unable to fetch customer unseen messages count:", err);
+			return { count: 0 };
 		});
 };
 
