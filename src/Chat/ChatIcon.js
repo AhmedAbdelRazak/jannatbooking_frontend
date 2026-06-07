@@ -126,6 +126,13 @@ const STATUS_I18N = {
 	Hindi: "चैट उपलब्ध",
 };
 
+STATUS_I18N.Arabic = STATUS_I18N["Arabic (Fos7a)"];
+
+const normalizeChatLanguage = (label) =>
+	label === "Arabic (Fos7a)" || label === "Arabic (Egyptian)"
+		? "Arabic"
+		: label;
+
 const ChatIcon = () => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [unseenCount, setUnseenCount] = useState(0);
@@ -265,8 +272,9 @@ const ChatIcon = () => {
 		return () => document.removeEventListener("click", handleUserInteraction);
 	}, [handleUserInteraction]);
 
-	const isArabicUI = /Arabic/.test(chosenLanguage || "");
-	const statusText = STATUS_I18N[chosenLanguage] || STATUS_I18N.English;
+	const normalizedLanguage = normalizeChatLanguage(chosenLanguage);
+	const isArabicUI = /Arabic/.test(normalizedLanguage || "");
+	const statusText = STATUS_I18N[normalizedLanguage] || STATUS_I18N.English;
 
 	return (
 		<ChatIconWrapper isArabic={isArabicUI}>

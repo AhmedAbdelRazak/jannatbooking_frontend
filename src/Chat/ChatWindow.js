@@ -22,14 +22,25 @@ const { Option } = Select;
 /** ---------------- Language helpers ---------------- */
 const LANGUAGES = [
 	{ label: "English", code: "en", rtl: false },
-	{ label: "Arabic (Fos7a)", code: "ar", rtl: true },
-	{ label: "Arabic (Egyptian)", code: "ar-eg", rtl: true },
+	{ label: "Arabic", code: "ar", rtl: true },
 	{ label: "Spanish", code: "es", rtl: false },
 	{ label: "French", code: "fr", rtl: false },
 	{ label: "Urdu", code: "ur", rtl: true },
 	{ label: "Hindi", code: "hi", rtl: false },
 ];
-const LANG_BY_LABEL = Object.fromEntries(LANGUAGES.map((l) => [l.label, l]));
+const LEGACY_LANGUAGE_ALIASES = {
+	"Arabic (Fos7a)": "Arabic",
+	"Arabic (Egyptian)": "Arabic",
+};
+const normalizePreferredLanguage = (label) =>
+	LEGACY_LANGUAGE_ALIASES[label] || label || "English";
+const LANG_BY_LABEL = Object.fromEntries(
+	[
+		...LANGUAGES,
+		{ label: "Arabic (Fos7a)", code: "ar", rtl: true },
+		{ label: "Arabic (Egyptian)", code: "ar", rtl: true },
+	].map((l) => [l.label, l])
+);
 const isRTL = (label) => LANG_BY_LABEL[label]?.rtl ?? false;
 const langCodeOf = (label) => LANG_BY_LABEL[label]?.code ?? "en";
 const RTL_MESSAGE_LANGUAGE_PATTERN = /(arabic|urdu|\bar\b|\bur\b|العربية|اردو)/i;
@@ -329,6 +340,9 @@ const I18N = {
 		thanksFeedback: "आपकी प्रतिक्रिया के लिए धन्यवाद!",
 	},
 };
+
+I18N.Arabic = I18N["Arabic (Fos7a)"];
+I18N["Arabic (Egyptian)"] = I18N.Arabic;
 
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(2px); }
@@ -735,7 +749,10 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	const seenTagsRef = useRef(new Set());
 
 	// i18n
-	const defaultLang = I18N[chosenLanguage] ? chosenLanguage : "English";
+	const normalizedChosenLanguage = normalizePreferredLanguage(chosenLanguage);
+	const defaultLang = I18N[normalizedChosenLanguage]
+		? normalizedChosenLanguage
+		: "English";
 	const [preferredLanguage, setPreferredLanguage] = useState(defaultLang);
 	const T = I18N[preferredLanguage] || I18N.English;
 
@@ -827,7 +844,9 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 			setSubmitted(savedChat.submitted || false);
 			setMessages(savedChat.messages || []);
 			if (savedChat.preferredLanguage)
-				setPreferredLanguage(savedChat.preferredLanguage);
+				setPreferredLanguage(
+					normalizePreferredLanguage(savedChat.preferredLanguage)
+				);
 			fetchSupportCase(savedChat.caseId);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps

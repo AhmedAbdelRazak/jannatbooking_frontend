@@ -248,6 +248,10 @@ Migration Relationship To jannatbooking_ssr
   - Render Arabic and RTL messages aligned correctly.
   - Render markdown hotel links from AI replies as clickable links that open safely in a new tab.
   - Do not display unreadable legacy text such as "?????" as normal customer-facing content.
+- Public chat language selector:
+  - The widget exposes one Arabic option with code ar. Do not add separate Arabic (Fos7a), Egyptian, Algerian, or other dialect choices in the frontend.
+  - Legacy saved chat language labels such as Arabic (Fos7a) or Arabic (Egyptian) are normalized client-side to Arabic.
+  - The backend orchestrator decides dialect/style from the guest's live messages. Default Arabic style should be Modern Standard Arabic, while Egyptian, Algerian, or other dialects can be answered naturally when the guest writes that way.
 - Support tone:
   - Arabic AI replies should address known clients respectfully, for example "أستاذ ناصر".
   - Keep the conversation official, respectful, short, and useful.
@@ -255,17 +259,18 @@ Migration Relationship To jannatbooking_ssr
   - The visible brand remains "Jannat Booking" exactly.
 - AI support scope:
   - Helps with hotel options near Al Haram, date-range prices, payment troubleshooting, and reservation triage.
-  - Does not cancel, refund, or directly mutate reservations.
-  - Reservation updates and cancellations go to a human team member.
+  - Production AI may create a guarded reservation only after backend quote/review/detail collection and a successful database save.
+  - On successful save, the AI response must include the confirmation number, total, a markdown details link using /single-reservation/:confirmation, a payment link using /client-payment/:reservationId/:confirmation, and a short follow-up asking whether anything else is needed.
+  - Does not cancel, refund, or update existing reservations. Reservation updates and cancellations go to a human team member.
 - QA notes from 2026-05-27:
   - Arabic pricing flow returned active hotel links and a 120 SAR / 2-night double-room quote for the tested Zad Al Hayah dates.
   - Arabic payment flow avoided card details and stopped repeating a supplied confirmation number after backend prompt tightening.
   - Human handoff paused AI for reservation update/cancellation-style requests.
   - After QA, backend cleanup removed the temporary Arabic chatbot support cases.
-  - No chatbot QA reservations were found; the public chatbot did not create reservations during the test window.
+  - Historical note: no chatbot QA reservations were found during the 2026-05-27 test window. Current production behavior can create guarded reservations after save.
   - Public frontend QA should keep test chat names unmistakable and should not use real customer names in test support cases.
   - Final pre-production cleanup also removed the temporary rude escalation QA case 6a16417650a34b197ce4d2ee.
-  - Public chat remains a support/triage surface only; it must not create real reservations during chatbot QA.
+  - Public chat is now a support/booking surface in production. Chatbot QA must not create real reservations except with clearly marked test data and explicit cleanup of exact support-case/reservation IDs.
 - Tomorrow follow-up:
   - Re-check public chat create/read/update against the deployed backend after production pull.
   - Re-check robots.txt, sitemap.xml, llms.txt, and public JSON-LD after deployment.
