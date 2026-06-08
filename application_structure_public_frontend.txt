@@ -345,6 +345,25 @@ Migration Relationship To jannatbooking_ssr
     - ReactPixel source-map warning.
     - unused hasOffers in src/components/Navbar/Navbar.js.
 
+2026-06-08 Public Chat Quick Replies Production Deployment
+- Files:
+  - src/Chat/ChatWindow.js.
+  - application_structure_public_frontend.txt.
+- Behavior:
+  - Guest-facing AI messages can render quickReplies as compact buttons on the latest agent message.
+  - Quick reply clicks send the reply value as a normal guest message through the existing support-case client update path.
+  - Buttons disappear after the guest sends a reply because the optimistic guest message becomes the latest visible message.
+  - This supports Confirm / Something is wrong choices and optional email Skip from the backend chatbot flow.
+- Deployment:
+  - Commit ace97aa Add public chat quick replies was pushed to origin/master and pulled on ssh jannat at /home/ahmedadmin/Hotels/jannatbooking_frontend.
+  - Production build was regenerated with BUILD_PATH=build-next because the old build directory was root-owned, then build-next was promoted to build.
+  - pm2 restart jannat-frontend --update-env completed and PM2 showed jannat-frontend online on port 3102.
+  - Production served /static/js/main.df61e9b6.js after deployment.
+- Verification:
+  - Local npm run build compiled with existing warnings only: ReactPixel source-map warning and unused hasOffers in src/components/Navbar/Navbar.js.
+  - Local npm test -- --watchAll=false --passWithNoTests passed with no test files.
+  - Production checks returned 200 for https://jannatbooking.com and https://jannatbooking.com/our-hotels?hotelNameSlug=zad-al-sad.
+
 2026-05-29 Public ChatWindow Localized Phone Digits
 - File:
   - src/Chat/ChatWindow.js.
