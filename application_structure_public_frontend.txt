@@ -398,3 +398,15 @@ Migration Relationship To jannatbooking_ssr
 - Date/language expectations:
   - If the guest writes a Ramadan/Hijri date range, backend replies may include both Hijri and Gregorian/Miladi dates in the same message.
   - No-year Ramadan wording is interpreted by the backend as the upcoming Ramadan; frontend should not add its own date assumptions.
+
+2026-06-08 Public Chat Notification Dedupe And QA Contract
+- Frontend behavior:
+  - src/Chat/ChatWindow.js continues to dedupe visible incoming messages by clientTag or sender/text/date so backend direct socket emits and MongoDB change-stream rebroadcasts do not show duplicate chat bubbles.
+  - src/Chat/ChatIcon.js now applies the same lightweight dedupe to collapsed-chat notification sounds and unseen-count increments, preventing double-counting when the same saved AI/staff message arrives through both socket paths.
+- Backend-owned behavior the public widget must preserve:
+  - Quick replies remain backend-provided only. The widget sends the clicked quick reply value as a normal guest message and does not infer reservation state itself.
+  - Jannat Booking concierge hotel choices may be rebuilt backend-side after a reconnect/restart; the widget should keep rendering the returned quick replies normally.
+  - When the backend transfers Jannat Booking support to a hotel, the public widget should show the system transfer message and then the hotel assistant greeting after the backend-controlled 5-8 second handoff pause.
+- QA expectations:
+  - Production chatbot QA should include direct hotel chats in multiple languages, a Jannat Booking concierge-to-hotel handoff, and existing-reservation date-update chats.
+  - Test support cases and chatbot-created test reservations must be removed after QA so public/customer-service history stays clean.

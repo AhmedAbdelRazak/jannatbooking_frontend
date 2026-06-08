@@ -1,5 +1,5 @@
 // ChatIcon.jsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import ChatWindow from "./ChatWindow";
 import styled, { keyframes } from "styled-components";
 import {
@@ -138,6 +138,7 @@ const ChatIcon = () => {
 	const [unseenCount, setUnseenCount] = useState(0);
 	const [hasInteracted, setHasInteracted] = useState(false);
 	const [selectedHotel, setSelectedHotel] = useState(null);
+	const seenIncomingRef = useRef(new Set());
 	const { chosenLanguage } = useCartContext();
 
 	// Auto-detect hotel from URL
@@ -250,6 +251,21 @@ const ChatIcon = () => {
 			if (!currentCaseId || payload.caseId !== currentCaseId) return;
 
 			if (!isOpen && !fromSelf) {
+				const key =
+					payload.clientTag ||
+					[
+						payload.caseId,
+						payload?.messageBy?.customerEmail || "",
+						payload?.messageBy?.customerName || "",
+						payload.message || "",
+						payload.date ? new Date(payload.date).getTime() : "",
+					].join("|");
+				if (seenIncomingRef.current.has(key)) return;
+				seenIncomingRef.current.add(key);
+				if (seenIncomingRef.current.size > 500) {
+					const first = seenIncomingRef.current.values().next().value;
+					seenIncomingRef.current.delete(first);
+				}
 				playNotificationSound();
 				setUnseenCount((c) => c + 1);
 			}
