@@ -90,6 +90,11 @@ const normalizeEmailOrPhoneInput = (value = "") =>
 const normalizedPhoneForValidation = (value = "") =>
 	normalizeEmailOrPhoneInput(value).replace(/[^\d+]/g, "");
 
+const isMobileKeyboardViewport = () =>
+	typeof window !== "undefined" &&
+	(window.innerWidth <= 768 ||
+		window.matchMedia?.("(pointer: coarse)")?.matches);
+
 /** ---------------- i18n (UI strings) ---------------- */
 // For brevity: reuse Arabic UI text for both "Arabic (Fos7a)" and "Arabic (Egyptian)"
 const I18N = {
@@ -657,9 +662,8 @@ const ChatInputContainer = styled.div`
 		gap: 7px;
 
 		textarea.chat-composer-textarea {
-			height: 44px !important;
 			min-height: 44px !important;
-			max-height: 44px !important;
+			max-height: 118px !important;
 		}
 
 		button {
@@ -1412,8 +1416,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	const typingName = () => {
 		return lastAgentNameRef.current || "Agent";
 	};
-	const isMobileViewport =
-		typeof window !== "undefined" && window.innerWidth <= 768;
+	const isMobileViewport = isMobileKeyboardViewport();
 	const visibleMessages = Array.isArray(messages)
 		? messages.filter(
 				(msg) =>
@@ -1544,14 +1547,18 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 									socket.emit("stopTyping", { name: customerName, caseId })
 								}
 								onKeyDown={(e) => {
-									if (e.key === "Enter" && !e.shiftKey) {
+									if (
+										e.key === "Enter" &&
+										!e.shiftKey &&
+										!e.nativeEvent?.isComposing &&
+										!isMobileViewport
+									) {
 										e.preventDefault();
 										handleSendMessage();
 									}
 								}}
-								autoSize={
-									isMobileViewport ? false : { minRows: 1, maxRows: 4 }
-								}
+								autoSize={{ minRows: 1, maxRows: isMobileViewport ? 3 : 4 }}
+								enterKeyHint={isMobileViewport ? "enter" : "send"}
 								style={{
 									textAlign: isRTL(preferredLanguage) ? "right" : "left",
 									direction: isRTL(preferredLanguage) ? "rtl" : "ltr",
