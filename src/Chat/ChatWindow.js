@@ -111,6 +111,7 @@ const I18N = {
 		reserveBed: "Bed pricing / availability",
 		paymentInquiry: "Payment Inquiry",
 		reservationInquiry: "Update / questions about reservation",
+		hotelComplaint: "Hotel complaint / urgent issue",
 		others: "Others",
 		specifyInquiry: "Please specify your inquiry",
 		reservationNumber: "Reservation Confirmation Number",
@@ -1220,7 +1221,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		}
 
 		if (
-			inquiryAbout === "others" &&
+			(inquiryAbout === "others" || inquiryAbout === "hotel_complaint") &&
 			(!otherInquiry || otherInquiry.trim() === "")
 		) {
 			message.error(T.v_others);
@@ -1250,6 +1251,8 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 			hotelId: hotelId || "674cf8997e3780f1f838d458",
 			inquiryAbout,
 			inquiryDetails: inquiryDetailsWithLanguage,
+			supportScope:
+				hotelId === "674cf8997e3780f1f838d458" ? "jannat_booking" : "hotel",
 			supporterId: "6553f1c6d06c5cea2f98a838",
 			ownerId: ownerId,
 			preferredLanguage: preferredLanguage,
@@ -1698,7 +1701,9 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 							value={inquiryAbout}
 							onChange={(value) => {
 								setInquiryAbout(value);
-								if (value !== "others") setOtherInquiry("");
+								if (value !== "others" && value !== "hotel_complaint") {
+									setOtherInquiry("");
+								}
 								if (value !== "reservation") setReservationNumber("");
 							}}
 							style={{ textAlign: isRTL(preferredLanguage) ? "right" : "left" }}
@@ -1707,11 +1712,15 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 							<Option value='reserve_bed'>{T.reserveBed}</Option>
 							<Option value='payment_inquiry'>{T.paymentInquiry}</Option>
 							<Option value='reservation'>{T.reservationInquiry}</Option>
+							<Option value='hotel_complaint'>
+								{T.hotelComplaint || "Hotel complaint / urgent issue"}
+							</Option>
 							<Option value='others'>{T.others}</Option>
 						</Select>
 					</Form.Item>
 
-					{inquiryAbout === "others" && (
+					{(inquiryAbout === "others" ||
+						inquiryAbout === "hotel_complaint") && (
 						<Form.Item label={T.specifyInquiry} required>
 							<Input
 								value={otherInquiry}

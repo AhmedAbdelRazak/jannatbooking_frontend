@@ -371,4 +371,17 @@ Migration Relationship To jannatbooking_ssr
   - The Email or Phone Number field now normalizes localized digit scripts to English digits as the guest types.
   - Supported digit scripts include Arabic-Indic, Eastern Arabic/Persian/Urdu, Devanagari/Hindi, Bengali, Gujarati, Tamil, Telugu, Kannada, Malayalam, Thai, Lao, and full-width digits.
   - Phone validation now runs against the normalized English-digit value, so Arabic phone numbers such as ٠٥٥١٢٣٤٥٦٧ or ۰۵۵۱۲۳۴۵۶۷ can proceed.
-  - The normalized English phone/email value is used for support-case creation, saved chat state, and subsequent guest messages.
+ - The normalized English phone/email value is used for support-case creation, saved chat state, and subsequent guest messages.
+
+2026-06-08 Jannat Booking Concierge Support Contract
+- Public widget behavior:
+  - Selecting "Speak With Jannat Booking" sends supportScope="jannat_booking" to the backend.
+  - Jannat Booking support can help the guest compare hotels, prices, availability, and budget fit across the platform.
+  - Jannat Booking support cannot finalize a reservation inside that platform-concierge scope; the backend connects the same chat to the selected hotel's support desk for official confirmation, payment/details links, and reservation actions.
+- Complaint intake:
+  - The Inquiry About dropdown includes "Hotel complaint / urgent issue".
+  - Complaint and urgent issue selections reuse the details input so the guest can explain what happened before the support case is created.
+  - Backend AI handles Jannat Booking complaints as immediate escalations and alerts the configured admin WhatsApp number.
+- Maintenance:
+  - Keep the special Jannat Booking support selector id aligned with backend services/jannatBookingSupportScope.js.
+  - Do not create frontend-only booking/finalization logic for Jannat Booking support; hotel confirmation remains backend/hotel-support owned.
