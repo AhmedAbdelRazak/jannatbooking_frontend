@@ -113,6 +113,8 @@ Public Chat Widget
   - Public clients can close/rate the case through the client endpoint.
   - Public clients cannot update support assignment, hotel assignment, AI fields, escalation fields, or admin metadata.
   - If the backend escalates a case, the public client only sees the support conversation; escalation controls/status panels remain admin-only in hotels_frontend.
+  - AI messages may include conversation.quickReplies. ChatWindow renders these as compact buttons only on the latest agent message; clicking a button sends its value as a normal guest message through PUT /api/support-cases/client/:id.
+  - Quick replies are used for confirmation/correction choices and optional email Skip. They must disappear after the guest sends another message so stale buttons cannot be clicked.
 - Inquiry types in the public form:
   - Room pricing / availability.
   - Bed pricing / availability.
@@ -125,6 +127,7 @@ Public Chat Widget
   - Cancellation requests are human-only.
   - Reservation updates are human-reviewed.
   - Public AI assistance, when enabled backend-side, is for pricing by date range, hotels near Al Haram, payment questions, and support triage.
+  - Chatbot-created reservations are shown to guests as confirmed with confirmation/details/payment links, while backend PMS/admin handling remains internally pending-confirmation.
 
 SEO And LLM Crawl Support
 - Existing react-helmet usage:

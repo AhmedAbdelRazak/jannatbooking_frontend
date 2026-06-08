@@ -508,7 +508,7 @@ const MessagesContainer = styled.div`
 	}
 `;
 
-const Message = styled.p`
+const Message = styled.div`
 	word-wrap: break-word;
 	white-space: pre-wrap;
 	align-self: ${(props) => (props.isAdminMessage ? "flex-start" : "flex-end")};
@@ -552,6 +552,31 @@ const MessageBody = styled.span`
 	display: block;
 	line-height: 1.55;
 	overflow-wrap: anywhere;
+`;
+
+const QuickReplyGroup = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	justify-content: ${(props) => (props.$isRtl ? "flex-end" : "flex-start")};
+	margin-top: 9px;
+`;
+
+const QuickReplyButton = styled(Button)`
+	max-width: 100%;
+	height: 32px;
+	padding: 0 11px;
+	border-color: var(--secondary-color);
+	color: var(--secondary-color-dark);
+	font-weight: 800;
+	white-space: normal;
+	line-height: 1.2;
+
+	&:hover,
+	&:focus {
+		border-color: var(--secondary-color-dark);
+		color: var(--secondary-color-dark);
+	}
 `;
 
 const TypingStatus = styled.div`
@@ -1053,6 +1078,18 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		});
 	};
 
+	const quickRepliesForMessage = (msg = {}) =>
+		Array.isArray(msg.quickReplies)
+			? msg.quickReplies
+					.map((reply) => ({
+						label: String(reply?.label || "").trim(),
+						value: String(reply?.value || reply?.label || "").trim(),
+						action: String(reply?.action || "").trim(),
+					}))
+					.filter((reply) => reply.label && reply.value)
+					.slice(0, 4)
+			: [];
+
 	const fetchSupportCase = async (id) => {
 		try {
 			if (!id) return;
@@ -1254,11 +1291,13 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		}
 	};
 
-	const handleSendMessage = async () => {
-		if (!newMessage || !newMessage.trim()) {
+	const sendMessageText = async (messageText, { clearComposer = false } = {}) => {
+		const textToSend = String(messageText || "").trim();
+		if (!textToSend) {
 			message.error(T.v_addText);
 			return;
 		}
+		if (!caseId) return;
 
 		const clientTag = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
 		const normalizedCustomerEmail = normalizeEmailOrPhoneInput(customerEmail);
@@ -1268,7 +1307,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 
 		const messageData = {
 			messageBy: { customerName, customerEmail: normalizedCustomerEmail },
-			message: newMessage,
+			message: textToSend,
 			date: new Date(),
 			caseId,
 			preferredLanguage,
@@ -1284,13 +1323,21 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		try {
 			await updateSupportCase(caseId, { conversation: messageData });
 			socket.emit("sendMessage", messageData);
-			setNewMessage("");
+			if (clearComposer) setNewMessage("");
 			socket.emit("stopTyping", { name: customerName, caseId });
 
 			setTimeout(() => fetchSupportCase(caseId), 1200);
 		} catch (err) {
 			console.error("Error sending message", err);
 		}
+	};
+
+	const handleSendMessage = async () => {
+		await sendMessageText(newMessage, { clearComposer: true });
+	};
+
+	const handleQuickReply = async (reply) => {
+		await sendMessageText(reply?.value || reply?.label);
 	};
 
 	const handleCloseChat = () => {
@@ -1364,6 +1411,12 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	};
 	const isMobileViewport =
 		typeof window !== "undefined" && window.innerWidth <= 768;
+	const visibleMessages = Array.isArray(messages)
+		? messages.filter(
+				(msg) =>
+					typeof msg?.message === "string" && msg.message.trim() !== ""
+		  )
+		: [];
 
 	return (
 		<ChatWindowWrapper
@@ -1407,19 +1460,17 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 						role='log'
 						aria-live='polite'
 					>
-						{Array.isArray(messages) &&
-							messages
-								.filter(
-									(msg) =>
-										typeof msg?.message === "string" &&
-										msg.message.trim() !== ""
-								)
-								.map((msg, index) => {
+						{visibleMessages.map((msg, index) => {
 									const messageRtl = isRtlMessage(msg, preferredLanguage);
 									const senderName = cleanDisplayText(
 										msg.messageBy?.customerName,
 										isAgentMessage(msg) ? "Jannat Booking" : customerName
 									);
+									const quickReplies = quickRepliesForMessage(msg);
+									const showQuickReplies =
+										isAgentMessage(msg) &&
+										quickReplies.length > 0 &&
+										index === visibleMessages.length - 1;
 									const messageText = cleanDisplayText(
 										msg.message,
 										isRTL(preferredLanguage)
@@ -1439,6 +1490,20 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 											<MessageBody dir={messageRtl ? "rtl" : "auto"}>
 												{renderMessageWithLinks(messageText)}
 											</MessageBody>
+											{showQuickReplies && (
+												<QuickReplyGroup $isRtl={messageRtl}>
+													{quickReplies.map((reply) => (
+														<QuickReplyButton
+															key={`${reply.action || reply.label}-${reply.value}`}
+															htmlType='button'
+															size='small'
+															onClick={() => handleQuickReply(reply)}
+														>
+															{reply.label}
+														</QuickReplyButton>
+													))}
+												</QuickReplyGroup>
+											)}
 										</Message>
 									);
 								})}
