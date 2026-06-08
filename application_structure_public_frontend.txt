@@ -385,3 +385,16 @@ Migration Relationship To jannatbooking_ssr
 - Maintenance:
   - Keep the special Jannat Booking support selector id aligned with backend services/jannatBookingSupportScope.js.
   - Do not create frontend-only booking/finalization logic for Jannat Booking support; hotel confirmation remains backend/hotel-support owned.
+
+2026-06-08 Jannat Concierge Transfer UX Contract
+- Backend-owned behavior:
+  - When Jannat Booking concierge connects a guest to a hotel, the backend may insert a neutral system transfer message before the hotel assistant responds.
+  - The hotel assistant reply is intentionally delayed by roughly 5-8 seconds by default so the transfer feels like a real handoff instead of an instant persona swap.
+  - If a guest sends a message during the transfer pause, the backend handles it in the hotel scope and may cancel the pending intro.
+- Public widget expectations:
+  - Render system transfer messages as normal conversation messages.
+  - Keep showing quickReplies only on the latest agent/system-supported message, as the current component does.
+  - Hotel option, Confirm / Something is wrong, and Skip email quickReplies are backend-provided; the widget should only send the clicked value back as a normal guest message.
+- Date/language expectations:
+  - If the guest writes a Ramadan/Hijri date range, backend replies may include both Hijri and Gregorian/Miladi dates in the same message.
+  - No-year Ramadan wording is interpreted by the backend as the upcoming Ramadan; frontend should not add its own date assumptions.
