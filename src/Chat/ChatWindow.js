@@ -1480,7 +1480,7 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 									const messageText = cleanDisplayText(
 										msg.message,
 										isRTL(preferredLanguage)
-											? "تعذر عرض هذا النص بسبب مشكلة في الترميز."
+											? "\u062a\u0639\u0630\u0631 \u0639\u0631\u0636 \u0647\u0630\u0627 \u0627\u0644\u0646\u0635 \u0628\u0633\u0628\u0628 \u0645\u0634\u0643\u0644\u0629 \u0641\u064a \u0627\u0644\u062a\u0631\u0645\u064a\u0632."
 											: "This text could not be displayed because of an encoding issue."
 									);
 									return (
