@@ -410,3 +410,29 @@ Migration Relationship To jannatbooking_ssr
 - QA expectations:
   - Production chatbot QA should include direct hotel chats in multiple languages, a Jannat Booking concierge-to-hotel handoff, and existing-reservation date-update chats.
   - Test support cases and chatbot-created test reservations must be removed after QA so public/customer-service history stays clean.
+
+2026-06-18 Public Chat Query-Param State Contract
+- Files:
+  - src/Chat/ChatIcon.js.
+  - src/Chat/ChatWindow.js.
+  - src/Chat/chatQueryParams.js.
+- Behavior:
+  - Opening the public chat writes chat=open into the current URL without reloading the page.
+  - Closing the public chat removes chat-specific query params while preserving unrelated route/query params such as hotelNameSlug.
+  - The start-chat form can read and write:
+    - chatName.
+    - chatContact.
+    - chatHotelId.
+    - chatHotelName.
+    - chatInquiry.
+    - chatLanguage.
+    - chatDetails.
+    - chatReservationNumber.
+  - Text fields commit to query params on blur or final Start Chat submit, not on every keystroke, so typing does not cause URL churn or render loops.
+  - Select fields commit immediately when the guest chooses a language, hotel, or inquiry type.
+  - Hotel-card and room-card chat opens still use hotelNameSlug, and the chat query sync must not briefly write the previous hotel or the default Jannat Booking support hotel while the selected hotel fetch is still resolving.
+- Maintenance:
+  - Keep chat query params namespaced with the chat prefix so they do not collide with checkout/payment/search query params.
+  - Use replace-style history updates for chat form synchronization so editing form fields does not flood the browser back stack.
+  - Do not add effects that watch the whole search string and then rewrite chat params on every query change; update only from explicit open/close, field blur, selection, or final submit events.
+  - The public widget remains state-display/input only. Query params must not become a source of reservation logic or backend support-case authority.

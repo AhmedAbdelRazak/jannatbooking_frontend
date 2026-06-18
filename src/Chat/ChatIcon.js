@@ -11,6 +11,12 @@ import socket from "./socket";
 import ReactGA from "react-ga4";
 import { useCartContext } from "../cart_context";
 import ReactPixel from "react-facebook-pixel";
+import { useHistory, useLocation } from "react-router-dom";
+import {
+	mergeChatQueryParams,
+	readChatQueryParams,
+	replaceSearchWithoutReload,
+} from "./chatQueryParams";
 
 const ChatIconWrapper = styled.div`
 	position: fixed;
@@ -134,45 +140,96 @@ const normalizeChatLanguage = (label) =>
 		: label;
 
 const ChatIcon = () => {
-	const [isOpen, setIsOpen] = useState(false);
+	const history = useHistory();
+	const location = useLocation();
+	const [isOpen, setIsOpen] = useState(
+		() => readChatQueryParams(window.location.search).isOpen
+	);
 	const [unseenCount, setUnseenCount] = useState(0);
 	const [hasInteracted, setHasInteracted] = useState(false);
 	const [selectedHotel, setSelectedHotel] = useState(null);
 	const seenIncomingRef = useRef(new Set());
 	const { chosenLanguage } = useCartContext();
+	const hotelNameSlugFromUrl = new URLSearchParams(location.search).get(
+		"hotelNameSlug"
+	);
+
+	const writeChatOpenToUrl = useCallback(
+		({ open, hotel } = {}) => {
+			const hotelFields = hotel
+				? {
+						hotelId: hotel._id,
+						hotelName: hotel.hotelName,
+				  }
+				: {};
+			const nextSearch = mergeChatQueryParams(
+				window.location.search,
+				hotelFields,
+				open
+					? { open: true }
+					: { close: true, clearFields: true }
+			);
+			replaceSearchWithoutReload(history, nextSearch);
+		},
+		[history]
+	);
+
+	const openChatWindow = useCallback(
+		({ hotel } = {}) => {
+			setIsOpen(true);
+			setUnseenCount(0);
+			writeChatOpenToUrl({ open: true, hotel: hotel || selectedHotel });
+		},
+		[selectedHotel, writeChatOpenToUrl]
+	);
+
+	const closeChatWindow = useCallback(() => {
+		setIsOpen(false);
+		writeChatOpenToUrl({ open: false });
+	}, [writeChatOpenToUrl]);
 
 	// Auto-detect hotel from URL
 	useEffect(() => {
-		const path = window.location.pathname;
+		const path = location.pathname;
 		if (path.includes("/single-hotel/")) {
 			const slug = path.split("/single-hotel/")[1];
 			if (slug) fetchHotel(slug);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [location.pathname]);
 
 	useEffect(() => {
-		const params = new URLSearchParams(window.location.search);
-		const hotelNameSlug = params.get("hotelNameSlug");
-
-		if (hotelNameSlug) {
-			fetchHotel(hotelNameSlug);
-			setIsOpen(true); // auto-open when slug is present
+		if (hotelNameSlugFromUrl) {
+			fetchHotel(hotelNameSlugFromUrl);
+			setIsOpen(true);
+			setUnseenCount(0);
+			writeChatOpenToUrl({ open: true }); // auto-open when slug is present
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [hotelNameSlugFromUrl, writeChatOpenToUrl]);
 
+	useEffect(() => {
+		const shouldOpen = readChatQueryParams(location.search).isOpen;
+		if (!shouldOpen && hotelNameSlugFromUrl) return;
+		setIsOpen((current) => (current === shouldOpen ? current : shouldOpen));
+		if (shouldOpen) setUnseenCount(0);
+	}, [hotelNameSlugFromUrl, location.search]);
+
+	useEffect(() => {
 		const handleSearchChange = () => {
 			const updatedParams = new URLSearchParams(window.location.search);
 			const updatedSlug = updatedParams.get("hotelNameSlug");
 			if (updatedSlug) {
 				fetchHotel(updatedSlug);
 				setIsOpen(true);
+				setUnseenCount(0);
+				writeChatOpenToUrl({ open: true });
 			}
 		};
 
 		window.addEventListener("searchChange", handleSearchChange);
 		return () => window.removeEventListener("searchChange", handleSearchChange);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [writeChatOpenToUrl]);
 
 	const fetchHotel = async (slug) => {
 		try {
@@ -196,9 +253,10 @@ const ChatIcon = () => {
 		});
 
 		const willOpen = !isOpen;
-		setIsOpen(willOpen);
 		if (willOpen) {
-			setUnseenCount(0);
+			openChatWindow();
+		} else {
+			closeChatWindow();
 		}
 	};
 
@@ -312,7 +370,7 @@ const ChatIcon = () => {
 
 			{isOpen && (
 				<ChatWindow
-					closeChatWindow={toggleChatWindow}
+					closeChatWindow={closeChatWindow}
 					selectedHotel={selectedHotel}
 					chosenLanguage={chosenLanguage}
 				/>

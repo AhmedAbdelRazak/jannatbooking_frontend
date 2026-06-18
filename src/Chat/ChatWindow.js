@@ -1,9 +1,16 @@
 // ChatWindow.jsx
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, {
+	useState,
+	useEffect,
+	useRef,
+	useLayoutEffect,
+	useCallback,
+} from "react";
 import { Button, Input, Select, Form, Upload, message } from "antd";
 import { UploadOutlined, CloseOutlined, SmileOutlined } from "@ant-design/icons";
 import styled, { keyframes } from "styled-components";
 import { isAuthenticated } from "../auth";
+import { useHistory } from "react-router-dom";
 import {
 	createNewSupportCase,
 	getSupportCaseById,
@@ -16,8 +23,15 @@ import EmojiPicker from "emoji-picker-react";
 import StarRatings from "react-star-ratings";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
+import {
+	mergeChatQueryParams,
+	readChatQueryParams,
+	replaceSearchWithoutReload,
+} from "./chatQueryParams";
 
 const { Option } = Select;
+const JANNAT_SUPPORT_HOTEL_ID = "674cf8997e3780f1f838d458";
+const JANNAT_SUPPORT_HOTEL_NAME = "Jannat Booking";
 
 /** ---------------- Language helpers ---------------- */
 const LANGUAGES = [
@@ -737,16 +751,46 @@ const RatingButtons = styled.div`
 
 /* ===== Component ===== */
 const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
+	const history = useHistory();
+	const initialChatQueryRef = useRef(
+		readChatQueryParams(window.location.search)
+	);
+	const initialHotelSlugRef = useRef(
+		new URLSearchParams(window.location.search).get("hotelNameSlug") ||
+			(window.location.pathname.includes("/single-hotel/")
+				? window.location.pathname.split("/single-hotel/")[1] || ""
+				: "")
+	);
+	const initialChatQuery = initialChatQueryRef.current;
+	const normalizedChosenLanguage = normalizePreferredLanguage(chosenLanguage);
+	const queryLanguage = normalizePreferredLanguage(initialChatQuery.language);
+	const defaultLang = I18N[queryLanguage]
+		? queryLanguage
+		: I18N[normalizedChosenLanguage]
+			? normalizedChosenLanguage
+			: "English";
+
 	/** ---------------- State ---------------- */
 	const [activeHotels, setActiveHotels] = useState([]);
-	const [customerName, setCustomerName] = useState("");
-	const [customerEmail, setCustomerEmail] = useState("");
+	const [customerName, setCustomerName] = useState(initialChatQuery.name || "");
+	const [customerEmail, setCustomerEmail] = useState(
+		initialChatQuery.contact || ""
+	);
 	const [orderNumber, setOrderNumber] = useState("");
 	const [productName, setProductName] = useState("");
-	const [otherInquiry, setOtherInquiry] = useState("");
-	const [reservationNumber, setReservationNumber] = useState("");
-	const [hotelId, setHotelId] = useState("674cf8997e3780f1f838d458");
-	const [inquiryAbout, setInquiryAbout] = useState("");
+	const [otherInquiry, setOtherInquiry] = useState(
+		initialChatQuery.inquiryDetails || ""
+	);
+	const [reservationNumber, setReservationNumber] = useState(
+		initialChatQuery.reservationNumber || ""
+	);
+	const [hotelId, setHotelId] = useState(
+		initialChatQuery.hotelId ||
+			(initialHotelSlugRef.current ? "" : JANNAT_SUPPORT_HOTEL_ID)
+	);
+	const [inquiryAbout, setInquiryAbout] = useState(
+		initialChatQuery.inquiry || "reserve_room"
+	);
 	const [submitted, setSubmitted] = useState(false);
 	const [messages, setMessages] = useState([]);
 	const [newMessage, setNewMessage] = useState("");
@@ -778,13 +822,93 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	// Dedup for optimistic echo
 	const seenTagsRef = useRef(new Set());
 
-	// i18n
-	const normalizedChosenLanguage = normalizePreferredLanguage(chosenLanguage);
-	const defaultLang = I18N[normalizedChosenLanguage]
-		? normalizedChosenLanguage
-		: "English";
 	const [preferredLanguage, setPreferredLanguage] = useState(defaultLang);
 	const T = I18N[preferredLanguage] || I18N.English;
+
+	const resolveHotelName = useCallback(
+		(nextHotelId = hotelId) => {
+			if (!nextHotelId) return "";
+			if (nextHotelId === JANNAT_SUPPORT_HOTEL_ID) {
+				return JANNAT_SUPPORT_HOTEL_NAME;
+			}
+			if (selectedHotel && String(selectedHotel._id) === String(nextHotelId)) {
+				return selectedHotel.hotelName || "";
+			}
+			const matchedHotel = (activeHotels || []).find(
+				(hotel) => String(hotel?._id) === String(nextHotelId)
+			);
+			if (matchedHotel?.hotelName) return matchedHotel.hotelName;
+			const initialQuery = initialChatQueryRef.current;
+			return initialQuery.hotelId &&
+				String(initialQuery.hotelId) === String(nextHotelId)
+				? initialQuery.hotelName
+				: "";
+		},
+		[activeHotels, hotelId, selectedHotel]
+	);
+
+	const detailsForInquiry = useCallback(
+		(nextInquiry = inquiryAbout, overrides = {}) => {
+			if (nextInquiry === "reservation") {
+				return overrides.reservationNumber ?? reservationNumber;
+			}
+			if (nextInquiry === "others" || nextInquiry === "hotel_complaint") {
+				return overrides.otherInquiry ?? otherInquiry;
+			}
+			return "";
+		},
+		[inquiryAbout, otherInquiry, reservationNumber]
+	);
+
+	const commitChatQueryFields = useCallback(
+		(fields = {}) => {
+			const nextSearch = mergeChatQueryParams(window.location.search, fields, {
+				open: true,
+			});
+			replaceSearchWithoutReload(history, nextSearch);
+		},
+		[history]
+	);
+
+	const commitChatQuerySnapshot = useCallback(
+		(overrides = {}) => {
+			const nextHotelId = overrides.hotelId ?? hotelId;
+			const nextInquiry = overrides.inquiryAbout ?? inquiryAbout;
+			const nextReservationNumber =
+				overrides.reservationNumber ?? reservationNumber;
+			const nextOtherInquiry = overrides.otherInquiry ?? otherInquiry;
+			const queryDetails = detailsForInquiry(nextInquiry, {
+				reservationNumber: nextReservationNumber,
+				otherInquiry: nextOtherInquiry,
+			});
+
+			commitChatQueryFields({
+				name: overrides.customerName ?? customerName,
+				contact: normalizeEmailOrPhoneInput(
+					overrides.customerEmail ?? customerEmail
+				),
+				hotelId: nextHotelId,
+				hotelName: overrides.hotelName ?? resolveHotelName(nextHotelId),
+				inquiry: nextInquiry,
+				inquiryDetails: queryDetails,
+				reservationNumber:
+					nextInquiry === "reservation" ? nextReservationNumber : "",
+				language: overrides.preferredLanguage ?? preferredLanguage,
+			});
+		},
+		[
+			commitChatQueryFields,
+			customerEmail,
+			customerName,
+			detailsForInquiry,
+			hotelId,
+			inquiryAbout,
+			otherInquiry,
+			preferredLanguage,
+			reservationNumber,
+			resolveHotelName,
+		]
+	);
 
 	useEffect(() => {
 		TRef.current = T;
@@ -847,19 +971,50 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 	useEffect(() => {
 		if (selectedHotel && selectedHotel.hotelName) {
 			setHotelId(selectedHotel._id);
-			setInquiryAbout("reserve_room");
+			const nextInquiry = initialChatQueryRef.current.inquiry || "reserve_room";
+			setInquiryAbout(nextInquiry);
+			commitChatQuerySnapshot({
+				hotelId: selectedHotel._id,
+				hotelName: selectedHotel.hotelName,
+				inquiryAbout: nextInquiry,
+			});
 		} else {
-			setHotelId("674cf8997e3780f1f838d458");
-			setInquiryAbout("reserve_room");
+			const initialQuery = initialChatQueryRef.current;
+			if (!initialQuery.hotelId && !initialHotelSlugRef.current) {
+				setHotelId(JANNAT_SUPPORT_HOTEL_ID);
+				commitChatQuerySnapshot({
+					hotelId: JANNAT_SUPPORT_HOTEL_ID,
+					hotelName: JANNAT_SUPPORT_HOTEL_NAME,
+				});
+			}
+			if (!initialQuery.inquiry) {
+				setInquiryAbout("reserve_room");
+				commitChatQueryFields({ inquiry: "reserve_room" });
+			}
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [selectedHotel]);
+
+	useEffect(() => {
+		const hotelName = resolveHotelName(hotelId);
+		if (hotelId && hotelName) {
+			commitChatQueryFields({ hotelId, hotelName });
+		}
+	}, [activeHotels, commitChatQueryFields, hotelId, resolveHotelName]);
 
 	/** ---------------- Prefill user & restore chat ---------------- */
 	useEffect(() => {
+		const query = initialChatQueryRef.current;
+		const restoredQueryFields = {};
+
 		if (isAuthenticated()) {
 			const { user } = isAuthenticated();
-			setCustomerName(user.name);
-			setCustomerEmail(normalizeEmailOrPhoneInput(user.email || user.phone));
+			const authName = user.name || "";
+			const authContact = normalizeEmailOrPhoneInput(user.email || user.phone);
+			setCustomerName(authName);
+			setCustomerEmail(authContact);
+			restoredQueryFields.customerName = authName;
+			restoredQueryFields.customerEmail = authContact;
 		}
 
 		const savedChat = JSON.parse(localStorage.getItem("currentChat"));
@@ -870,6 +1025,8 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 			setOrderNumber(savedChat.orderNumber || "");
 			setProductName(savedChat.productName || "");
 			setOtherInquiry(savedChat.otherInquiry || "");
+			setReservationNumber(savedChat.reservationNumber || "");
+			if (savedChat.hotelId) setHotelId(savedChat.hotelId);
 			setCaseId(savedChat.caseId || "");
 			setSubmitted(savedChat.submitted || false);
 			setMessages(savedChat.messages || []);
@@ -877,7 +1034,53 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 				setPreferredLanguage(
 					normalizePreferredLanguage(savedChat.preferredLanguage)
 				);
+			restoredQueryFields.customerName = savedChat.customerName || "";
+			restoredQueryFields.customerEmail = normalizeEmailOrPhoneInput(
+				savedChat.customerEmail || ""
+			);
+			restoredQueryFields.inquiryAbout = savedChat.inquiryAbout || "";
+			restoredQueryFields.otherInquiry = savedChat.otherInquiry || "";
+			restoredQueryFields.reservationNumber = savedChat.reservationNumber || "";
+			restoredQueryFields.hotelId = savedChat.hotelId || hotelId;
+			restoredQueryFields.preferredLanguage =
+				normalizePreferredLanguage(savedChat.preferredLanguage) ||
+				preferredLanguage;
 			fetchSupportCase(savedChat.caseId);
+		}
+
+		if (query.name) {
+			setCustomerName(query.name);
+			restoredQueryFields.customerName = query.name;
+		}
+		if (query.contact) {
+			const queryContact = normalizeEmailOrPhoneInput(query.contact);
+			setCustomerEmail(queryContact);
+			restoredQueryFields.customerEmail = queryContact;
+		}
+		if (query.hotelId) {
+			setHotelId(query.hotelId);
+			restoredQueryFields.hotelId = query.hotelId;
+			restoredQueryFields.hotelName = query.hotelName;
+		}
+		if (query.inquiry) {
+			setInquiryAbout(query.inquiry);
+			restoredQueryFields.inquiryAbout = query.inquiry;
+		}
+		if (query.inquiryDetails) {
+			setOtherInquiry(query.inquiryDetails);
+			restoredQueryFields.otherInquiry = query.inquiryDetails;
+		}
+		if (query.reservationNumber) {
+			setReservationNumber(query.reservationNumber);
+			restoredQueryFields.reservationNumber = query.reservationNumber;
+		}
+		if (query.language && I18N[normalizePreferredLanguage(query.language)]) {
+			const restoredLanguage = normalizePreferredLanguage(query.language);
+			setPreferredLanguage(restoredLanguage);
+			restoredQueryFields.preferredLanguage = restoredLanguage;
+		}
+		if (Object.keys(restoredQueryFields).length) {
+			commitChatQuerySnapshot(restoredQueryFields);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
@@ -1032,10 +1235,13 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 				orderNumber,
 				productName,
 				otherInquiry,
+				reservationNumber,
+				hotelId,
 				caseId,
 				messages,
 				submitted,
 				preferredLanguage,
+				preferredLanguageCode: langCodeOf(preferredLanguage),
 			};
 			localStorage.setItem("currentChat", JSON.stringify(saveChat));
 			markMessagesAsSeen(caseId);
@@ -1048,6 +1254,8 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		orderNumber,
 		productName,
 		otherInquiry,
+		reservationNumber,
+		hotelId,
 		messages,
 		submitted,
 		caseId,
@@ -1243,6 +1451,19 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 		const inquiryDetailsWithLanguage = `[Preferred Language: ${preferredLanguage} (${langCode})] ${
 			inquiryDetails ? inquiryDetails : `Inquiry To ${inquiryAbout}`
 		}`;
+
+		commitChatQuerySnapshot({
+			customerName,
+			customerEmail: emailRegex.test(normalizedCustomerEmail)
+				? normalizedCustomerEmail
+				: phoneCandidate,
+			hotelId,
+			hotelName: resolveHotelName(hotelId),
+			inquiryAbout,
+			otherInquiry,
+			reservationNumber,
+			preferredLanguage,
+		});
 
 		const data = {
 			customerName: customerName,
@@ -1599,7 +1820,10 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 					<Form.Item label={T.preferredLanguage} required>
 						<Select
 							value={preferredLanguage}
-							onChange={(val) => setPreferredLanguage(val)}
+							onChange={(val) => {
+								setPreferredLanguage(val);
+								commitChatQuerySnapshot({ preferredLanguage: val });
+							}}
 							dropdownMatchSelectWidth
 							style={{ textAlign: isRTL(preferredLanguage) ? "right" : "left" }}
 						>
@@ -1620,6 +1844,9 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 									: "FirstName LastName"
 							}
 							onChange={(e) => setCustomerName(e.target.value)}
+							onBlur={(e) =>
+								commitChatQueryFields({ name: e.target.value })
+							}
 							disabled={isAuthenticated()}
 						/>
 					</Form.Item>
@@ -1656,6 +1883,15 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 							onChange={(e) =>
 								setCustomerEmail(normalizeEmailOrPhoneInput(e.target.value))
 							}
+							onBlur={(e) => {
+								const normalizedValue = normalizeEmailOrPhoneInput(
+									e.target.value
+								);
+								if (normalizedValue !== customerEmail) {
+									setCustomerEmail(normalizedValue);
+								}
+								commitChatQueryFields({ contact: normalizedValue });
+							}}
 							disabled={isAuthenticated()}
 							dir='ltr'
 							inputMode='email'
@@ -1668,7 +1904,13 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 							placeholder={T.selectAHotel}
 							optionFilterProp='children'
 							value={hotelId || undefined}
-							onChange={(value) => setHotelId(value)}
+							onChange={(value) => {
+								setHotelId(value);
+								commitChatQuerySnapshot({
+									hotelId: value,
+									hotelName: resolveHotelName(value),
+								});
+							}}
 							filterOption={(input, option) =>
 								typeof option?.children === "string"
 									? option.children.toLowerCase().includes(input.toLowerCase())
@@ -1708,10 +1950,21 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 							value={inquiryAbout}
 							onChange={(value) => {
 								setInquiryAbout(value);
+								let nextOtherInquiry = otherInquiry;
+								let nextReservationNumber = reservationNumber;
 								if (value !== "others" && value !== "hotel_complaint") {
 									setOtherInquiry("");
+									nextOtherInquiry = "";
 								}
-								if (value !== "reservation") setReservationNumber("");
+								if (value !== "reservation") {
+									setReservationNumber("");
+									nextReservationNumber = "";
+								}
+								commitChatQuerySnapshot({
+									inquiryAbout: value,
+									otherInquiry: nextOtherInquiry,
+									reservationNumber: nextReservationNumber,
+								});
 							}}
 							style={{ textAlign: isRTL(preferredLanguage) ? "right" : "left" }}
 						>
@@ -1732,6 +1985,11 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 							<Input
 								value={otherInquiry}
 								onChange={(e) => setOtherInquiry(e.target.value)}
+								onBlur={(e) =>
+									commitChatQuerySnapshot({
+										otherInquiry: e.target.value,
+									})
+								}
 							/>
 						</Form.Item>
 					)}
@@ -1741,6 +1999,11 @@ const ChatWindow = ({ closeChatWindow, selectedHotel, chosenLanguage }) => {
 							<Input
 								value={reservationNumber}
 								onChange={(e) => setReservationNumber(e.target.value)}
+								onBlur={(e) =>
+									commitChatQuerySnapshot({
+										reservationNumber: e.target.value,
+									})
+								}
 							/>
 						</Form.Item>
 					)}
