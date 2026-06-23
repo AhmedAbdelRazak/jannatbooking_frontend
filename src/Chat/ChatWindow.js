@@ -136,7 +136,8 @@ const I18N = {
 		reservationNumber: "Reservation Confirmation Number",
 		startChat: "Start Chat",
 		preferredLanguage: "Preferred Language",
-		systemHold: "Jannat Booking support is reviewing your message now.",
+		systemHold:
+			"A hotel representative will be with you shortly. You are in the right place, and we will help from here.",
 		isTyping: "is typing…",
 		aiPaused:
 			"We’re temporarily away. A representative will assist you shortly.",
@@ -172,7 +173,8 @@ const I18N = {
 		reservationNumber: "رقم تأكيد الحجز",
 		startChat: "بدء المحادثة",
 		preferredLanguage: "اللغة المفضلة",
-		systemHold: "فريق Jannat Booking يراجع رسالتك الآن.",
+		systemHold:
+			"سيكون ممثل من الفندق معك بعد قليل. أنت في المكان الصحيح وسنساعدك من هنا.",
 		isTyping: "يكتب…",
 		aiPaused: "نحن غير متاحين مؤقتًا. سيتواصل معك ممثل قريبًا.",
 		v_fullName: "يرجى إدخال اسمك الكامل.",
@@ -207,7 +209,8 @@ const I18N = {
 		reservationNumber: "رقم تأكيد الحجز",
 		startChat: "بدء المحادثة",
 		preferredLanguage: "اللغة المفضلة",
-		systemHold: "فريق Jannat Booking يراجع رسالتك الآن.",
+		systemHold:
+			"سيكون ممثل من الفندق معك بعد قليل. أنت في المكان الصحيح وسنساعدك من هنا.",
 		isTyping: "يكتب…",
 		aiPaused: "نحن غير متاحين مؤقتًا. سيتواصل معك ممثل قريبًا.",
 		v_fullName: "يرجى إدخال اسمك الكامل.",
@@ -242,7 +245,8 @@ const I18N = {
 		reservationNumber: "Número de confirmación de reserva",
 		startChat: "Iniciar chat",
 		preferredLanguage: "Idioma preferido",
-		systemHold: "Un representante te atenderá en 3 a 5 minutos",
+		systemHold:
+			"Un representante del hotel te atenderá en breve. Estás en el lugar correcto y te ayudaremos desde aquí.",
 		isTyping: "está escribiendo…",
 		aiPaused: "Estamos temporalmente ausentes. Un agente te atenderá en breve.",
 		v_fullName: "Por favor, introduce tu nombre completo.",
@@ -277,7 +281,8 @@ const I18N = {
 		reservationNumber: "Numéro de confirmation de réservation",
 		startChat: "Démarrer le chat",
 		preferredLanguage: "Langue préférée",
-		systemHold: "Un agent sera avec vous dans 3 à 5 minutes",
+		systemHold:
+			"Un représentant de l'hôtel sera avec vous sous peu. Vous êtes au bon endroit et nous allons vous aider ici.",
 		isTyping: "est en train d’écrire…",
 		aiPaused: "Nous sommes momentanément indisponibles. Un agent arrive.",
 		v_fullName: "Veuillez saisir votre nom complet.",
@@ -312,7 +317,8 @@ const I18N = {
 		reservationNumber: "بکنگ کنفرمیشن نمبر",
 		startChat: "چیٹ شروع کریں",
 		preferredLanguage: "پسندیدہ زبان",
-		systemHold: "ایک نمائندہ 3 سے 5 منٹ میں آپ سے رابطہ کرے گا",
+		systemHold:
+			"ہوٹل کا نمائندہ جلد آپ کے ساتھ ہوگا۔ آپ صحیح جگہ پر ہیں، اور ہم یہیں سے آپ کی مدد کریں گے۔",
 		isTyping: "لکھ رہے ہیں…",
 		aiPaused: "ہم عارضی طور پر دستیاب نہیں۔ نمائندہ جلد رابطہ کرے گا۔",
 		v_fullName: "براہِ کرم اپنا پورا نام درج کریں.",
@@ -347,7 +353,8 @@ const I18N = {
 		reservationNumber: "आरक्षण पुष्टि संख्या",
 		startChat: "चैट शुरू करें",
 		preferredLanguage: "पसंदीदा भाषा",
-		systemHold: "एक प्रतिनिधि 3 से 5 मिनट में आपसे जुड़ेगा",
+		systemHold:
+			"होटल का एक प्रतिनिधि जल्द ही आपसे जुड़ जाएगा। आप सही जगह पर हैं, और हम यहीं से आपकी मदद करेंगे।",
 		isTyping: "टाइप कर रहे हैं…",
 		aiPaused: "हम अस्थायी रूप से उपलब्ध नहीं हैं। प्रतिनिधि शीघ्र ही जोड़ेगा।",
 		v_fullName: "कृपया अपना पूरा नाम दर्ज करें.",
