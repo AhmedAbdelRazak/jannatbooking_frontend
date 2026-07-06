@@ -26,6 +26,7 @@ import {
 	PayPalCVVField,
 	usePayPalCardFields,
 } from "@paypal/react-paypal-js";
+import { usePayPalCardFieldsStatus } from "../utils/paypalSdkReadiness";
 
 /* ───────── Helpers ───────── */
 function computeCommissionAndDeposit(pickedRoomsType = []) {
@@ -442,6 +443,7 @@ const PaymentLink = () => {
 			return undefined;
 		}
 
+		let cancelled = false;
 		const init = async () => {
 			try {
 				const tokenResp = await getPayPalClientToken();
@@ -462,6 +464,7 @@ const PaymentLink = () => {
 					);
 				}
 
+				if (cancelled) return;
 				setClientToken(token);
 				setIsLive(env === "live");
 
@@ -477,6 +480,7 @@ const PaymentLink = () => {
 					env,
 				);
 			} catch (e) {
+				if (cancelled) return;
 				// eslint-disable-next-line no-console
 				console.error("PayPal init failed:", e);
 				setTokenError(e);
@@ -484,6 +488,9 @@ const PaymentLink = () => {
 			}
 		};
 		init();
+		return () => {
+			cancelled = true;
+		};
 	}, [
 		guestAgreed,
 		effectiveDeposit,
@@ -538,6 +545,16 @@ const PaymentLink = () => {
 	/* Inner PayPal area */
 	const PayArea = () => {
 		const [{ isResolved, isRejected, options }] = usePayPalScriptReducer();
+		const paypalRenderKey = `${selectedOption || "none"}-${selectedUsdAmount}-${selectedSarAmount}-${walletOnly ? "wallet" : "full"}-${PAY_MODE}`;
+		const cardFieldsStatus = usePayPalCardFieldsStatus(
+			isResolved,
+			walletOnly,
+			`${paypalRenderKey}-${reloadKey}`,
+		);
+		const buttonsForceReRender = useMemo(
+			() => [paypalRenderKey],
+			[paypalRenderKey],
+		);
 
 		const requireSelectionAndTerms = () => {
 			if (!selectedOption) {
@@ -786,19 +803,6 @@ const PaymentLink = () => {
 
 		if (!isResolved) return <Spin />;
 
-		let supportsCardFields = false;
-		try {
-			supportsCardFields = !!window?.paypal?.CardFields;
-			if (
-				supportsCardFields &&
-				typeof window.paypal.CardFields.isEligible === "function"
-			) {
-				supportsCardFields = !!window.paypal.CardFields.isEligible();
-			}
-		} catch {
-			supportsCardFields = false;
-		}
-
 		return (
 			<>
 				<ButtonsBox>
@@ -806,6 +810,7 @@ const PaymentLink = () => {
 					<PayPalButtons
 						fundingSource='paypal'
 						style={{ layout: "vertical", label: "paypal" }}
+						forceReRender={buttonsForceReRender}
 						createOrder={createOrder}
 						onApprove={onApprove}
 						onError={onError}
@@ -815,6 +820,7 @@ const PaymentLink = () => {
 					<PayPalButtons
 						fundingSource='card'
 						style={{ layout: "vertical", label: "pay" }}
+						forceReRender={buttonsForceReRender}
 						createOrder={createOrder}
 						onApprove={onApprove}
 						onError={onError}
@@ -829,7 +835,7 @@ const PaymentLink = () => {
 						</BrandFootnote>
 						<Divider />
 						{/* Inline Card Fields — shown only if supported */}
-						{supportsCardFields ? (
+						{cardFieldsStatus === "ready" ? (
 							<CardBox
 								dir={isArabic ? "rtl" : "ltr"}
 								aria-disabled={!allowInteract}
@@ -841,6 +847,7 @@ const PaymentLink = () => {
 								</CardTitle>
 
 								<PayPalCardFieldsProvider
+									key={`card-fields-${paypalRenderKey}`}
 									createOrder={createOrder}
 									onApprove={onApprove}
 									onError={onError}
@@ -896,6 +903,20 @@ const PaymentLink = () => {
 									</div>
 								</PayPalCardFieldsProvider>
 							</CardBox>
+						) : cardFieldsStatus === "checking" ? (
+							<CardBox
+								dir={isArabic ? "rtl" : "ltr"}
+								aria-disabled={!allowInteract}
+							>
+								<CardTitle>
+									{isArabic
+										? "\u062c\u0627\u0631\u064a \u062a\u062c\u0647\u064a\u0632 \u062d\u0642\u0648\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0629 \u0627\u0644\u0622\u0645\u0646\u0629..."
+										: "Preparing secure card fields..."}
+								</CardTitle>
+								<Centered>
+									<Spin />
+								</Centered>
+							</CardBox>
 						) : (
 							<div style={{ marginTop: 10 }}>
 								<Alert
@@ -929,9 +950,13 @@ const PaymentLink = () => {
 		(isLive
 			? process.env.REACT_APP_PAYPAL_MERCHANT_ID_LIVE
 			: process.env.REACT_APP_PAYPAL_MERCHANT_ID_SANDBOX) || "";
-	const merchantIdOption = merchantId ? { "merchant-id": merchantId } : {};
+	const merchantIdOption = useMemo(
+		() => (merchantId ? { "merchant-id": merchantId } : {}),
+		[merchantId],
+	);
 
-	const primaryOptions =
+	const primaryOptions = useMemo(
+		() =>
 		clientToken && isLive != null && !walletOnly
 			? {
 					"client-id": feClientId,
@@ -945,9 +970,12 @@ const PaymentLink = () => {
 					locale,
 					...merchantIdOption,
 				}
-			: null;
+			: null,
+		[clientToken, feClientId, isLive, locale, merchantIdOption, PAY_MODE, walletOnly],
+	);
 
-	const fallbackOptions =
+	const fallbackOptions = useMemo(
+		() =>
 		isLive != null && walletOnly
 			? {
 					"client-id": feClientId,
@@ -960,9 +988,23 @@ const PaymentLink = () => {
 					locale,
 					...merchantIdOption,
 				}
-			: null;
+			: null,
+		[feClientId, isLive, locale, merchantIdOption, PAY_MODE, walletOnly],
+	);
 
 	const scriptOptions = primaryOptions || fallbackOptions;
+	const scriptOptionsKey = useMemo(() => {
+		if (!scriptOptions) return "paypal-pending";
+		return [
+			scriptOptions["client-id"] || "client",
+			idSig(scriptOptions["data-client-token"] || ""),
+			scriptOptions.components || "components",
+			scriptOptions.currency || "currency",
+			scriptOptions.intent || "intent",
+			scriptOptions.locale || "locale",
+			scriptOptions["merchant-id"] || "merchant",
+		].join("|");
+	}, [scriptOptions]);
 
 	return (
 		<PageWrapper dir={isArabic ? "rtl" : "ltr"}>
@@ -1173,7 +1215,7 @@ const PaymentLink = () => {
 									</Centered>
 								) : (
 									<ScriptShell
-										key={`${reloadKey}-${walletOnly ? "w" : "p"}-${PAY_MODE}`}
+										key={`${reloadKey}-${scriptOptionsKey}`}
 									>
 										<PayPalScriptProvider options={scriptOptions}>
 											<PayArea />

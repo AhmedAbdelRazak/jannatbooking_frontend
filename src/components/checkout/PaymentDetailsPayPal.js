@@ -21,6 +21,7 @@ import {
 	preparePayPalPendingReservation,
 	cancelPayPalPendingReservation,
 } from "../../apiCore";
+import { usePayPalCardFieldsStatus } from "../../utils/paypalSdkReadiness";
 
 // --- helpers ---
 const idSig = (s) => {
@@ -293,6 +294,7 @@ export default function PaymentDetailsPayPal({
 				);
 			} catch (e) {
 				console.error("PayPal init failed:", e);
+				if (!mounted) return;
 				setTokenError(e);
 				if (mounted) {
 					message.error(isArabic ? "فشل تهيئة PayPal" : "PayPal init failed.");
@@ -350,6 +352,16 @@ export default function PaymentDetailsPayPal({
 
 	const PayArea = () => {
 		const [{ isResolved, isRejected, options }] = usePayPalScriptReducer();
+		const paypalRenderKey = `${selectedPaymentOption || "none"}-${selectedUsdAmount}-${selectedSarAmount}-${walletOnly ? "wallet" : "full"}-${INTENT}`;
+		const cardFieldsStatus = usePayPalCardFieldsStatus(
+			isResolved,
+			walletOnly,
+			`${paypalRenderKey}-${reloadKey}`,
+		);
+		const buttonsForceReRender = useMemo(
+			() => [paypalRenderKey],
+			[paypalRenderKey],
+		);
 
 		const requireSelectionAndTerms = () => {
 			const optionOK =
@@ -667,20 +679,6 @@ export default function PaymentDetailsPayPal({
 
 		if (!isResolved) return <Spin />;
 
-		// Inline card fields eligibility
-		let supportsCardFields = false;
-		try {
-			supportsCardFields = !!window?.paypal?.CardFields;
-			if (
-				supportsCardFields &&
-				typeof window.paypal.CardFields.isEligible === "function"
-			) {
-				supportsCardFields = !!window.paypal.CardFields.isEligible();
-			}
-		} catch {
-			supportsCardFields = false;
-		}
-
 		return (
 			<>
 				{/* amount bar */}
@@ -707,6 +705,7 @@ export default function PaymentDetailsPayPal({
 					<PayPalButtons
 						fundingSource='paypal'
 						style={{ layout: "vertical", label: "paypal" }}
+						forceReRender={buttonsForceReRender}
 						createOrder={createOrder}
 						onApprove={onApprove}
 						onError={onError}
@@ -717,6 +716,7 @@ export default function PaymentDetailsPayPal({
 					<PayPalButtons
 						fundingSource='card'
 						style={{ layout: "vertical", label: "pay" }}
+						forceReRender={buttonsForceReRender}
 						createOrder={createOrder}
 						onApprove={onApprove}
 						onError={onError}
@@ -731,7 +731,7 @@ export default function PaymentDetailsPayPal({
 				<Divider />
 
 				{/* Inline card fields (if available) */}
-				{supportsCardFields && !walletOnly ? (
+				{!walletOnly && cardFieldsStatus === "ready" ? (
 					<CardBox
 						dir={isArabic ? "rtl" : "ltr"}
 						aria-disabled={!allowInteract}
@@ -740,6 +740,7 @@ export default function PaymentDetailsPayPal({
 							{isArabic ? "أو ادفع مباشرة بالبطاقة" : "Or pay directly by card"}
 						</CardTitle>
 						<PayPalCardFieldsProvider
+							key={`card-fields-${paypalRenderKey}`}
 							createOrder={createOrder}
 							onApprove={onApprove}
 							onError={onError}
@@ -793,6 +794,20 @@ export default function PaymentDetailsPayPal({
 								/>
 							</div>
 						</PayPalCardFieldsProvider>
+					</CardBox>
+				) : !walletOnly && cardFieldsStatus === "checking" ? (
+					<CardBox
+						dir={isArabic ? "rtl" : "ltr"}
+						aria-disabled={!allowInteract}
+					>
+						<CardTitle>
+							{isArabic
+								? "\u062c\u0627\u0631\u064a \u062a\u062c\u0647\u064a\u0632 \u062d\u0642\u0648\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0629 \u0627\u0644\u0622\u0645\u0646\u0629..."
+								: "Preparing secure card fields..."}
+						</CardTitle>
+						<Centered>
+							<Spin />
+						</Centered>
 					</CardBox>
 				) : (
 					<div style={{ marginTop: 10 }}>
@@ -874,6 +889,17 @@ export default function PaymentDetailsPayPal({
 			: null;
 
 	const paypalOptions = primaryOptions || fallbackOptions;
+	const paypalOptionsKey = (() => {
+		if (!paypalOptions) return "paypal-pending";
+		return [
+			paypalOptions["client-id"] || "client",
+			idSig(paypalOptions["data-client-token"] || ""),
+			paypalOptions.components || "components",
+			paypalOptions.currency || "currency",
+			paypalOptions.intent || "intent",
+			paypalOptions.locale || "locale",
+		].join("|");
+	})();
 	if (!paypalOptions)
 		return (
 			<Centered>
@@ -882,7 +908,7 @@ export default function PaymentDetailsPayPal({
 		);
 
 	return (
-		<ScriptShell key={`${reloadKey}-${walletOnly ? "w" : "p"}-${INTENT}`}>
+		<ScriptShell key={`${reloadKey}-${paypalOptionsKey}`}>
 			<PayPalScriptProvider options={paypalOptions}>
 				<PayArea />
 			</PayPalScriptProvider>
