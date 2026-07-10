@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
 import { useCartContext } from "../../cart_context";
 import dayjs from "dayjs";
-import { DatePicker, Button, Collapse, Select, message, Checkbox } from "antd";
+import { DatePicker, Button, Collapse, Select, message, Checkbox, Alert } from "antd";
 import { countryListWithAbbreviations, translations } from "../../Assets";
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import {
@@ -72,11 +72,24 @@ const normalizePhoneInput = (value = "") => {
 const checkoutPasswordFromPhone = (phone = "") =>
 	normalizePhoneInput(phone).replace(/\s+/g, "");
 
+const PAYPAL_PENDING_REVIEW_CODE = "PAYPAL_CAPTURE_PENDING_REVIEW";
+const isPayPalPendingReviewPayload = (payload) =>
+	Boolean(
+		payload?.paypalPendingReview ||
+			payload?.pendingReview ||
+			payload?.code === PAYPAL_PENDING_REVIEW_CODE
+	);
+const payPalPendingReviewMessage =
+	"PayPal is reviewing this payment. The reservation has not been marked as paid yet. Please do not retry or submit another payment. Jannat Booking will confirm once PayPal completes or declines the review.";
+
 const checkoutErrorMessage = (
 	error,
 	fallback = "Something went wrong. Please try again or contact Jannat Booking support.",
 ) => {
 	const response = error?.response || {};
+	if (isPayPalPendingReviewPayload(response || error)) {
+		return payPalPendingReviewMessage;
+	}
 	if (response?.code === "inventory_unavailable" || error?.status === 409) {
 		return (
 			response?.message ||
@@ -264,6 +277,7 @@ const CheckoutContent = ({
 		totalUSD: null,
 		totalRoomsPricePerNightUSD: null,
 	});
+	const [paypalPendingReview, setPaypalPendingReview] = useState(null);
 
 	const [checkIn, setCheckIn] = useState(null);
 	const [checkOut, setCheckOut] = useState(null);
@@ -1210,6 +1224,11 @@ const CheckoutContent = ({
 			};
 
 			const resp = await createReservationViaPayPal(body);
+			if (isPayPalPendingReviewPayload(resp)) {
+				setPaypalPendingReview(resp || {});
+				message.warning(payPalPendingReviewMessage, 8);
+				return;
+			}
 
 			message.success(resp?.message || "Reservation created successfully");
 			ReactGA.event({
@@ -1268,6 +1287,9 @@ const CheckoutContent = ({
 			redirectToConfirmation();
 		} catch (err) {
 			console.error("PayPal reservation create error:", err);
+			if (isPayPalPendingReviewPayload(err?.response || err)) {
+				setPaypalPendingReview(err?.response || {});
+			}
 			throw new Error(
 				checkoutErrorMessage(
 					err,
@@ -1604,7 +1626,24 @@ const CheckoutContent = ({
 							</Checkbox>
 						</TermsWrapper>
 
-						{selectedPaymentOption === "acceptReserveNowPayInHotel" ? (
+						{paypalPendingReview ? (
+							<Alert
+								type='warning'
+								showIcon
+								message='Payment Is Under PayPal Review'
+								description={
+									<>
+										{payPalPendingReviewMessage}
+										{paypalPendingReview.confirmation_number ? (
+											<strong style={{ marginLeft: 6 }}>
+												{paypalPendingReview.confirmation_number}
+											</strong>
+										) : null}
+									</>
+								}
+								style={{ marginTop: 20 }}
+							/>
+						) : selectedPaymentOption === "acceptReserveNowPayInHotel" ? (
 							<Button
 								type='primary'
 								onClick={createNewReservation}
@@ -1710,6 +1749,8 @@ const CheckoutContent = ({
 				checkOut={checkOut}
 				disabledCheckOutDate={disabledCheckOutDate}
 				handlePayPalApproved={handlePayPalApproved}
+				paypalPendingReview={paypalPendingReview}
+				payPalPendingReviewMessage={payPalPendingReviewMessage}
 				payMode='capture' // ✅ use capture
 			/>
 		</CheckoutContentWrapper>

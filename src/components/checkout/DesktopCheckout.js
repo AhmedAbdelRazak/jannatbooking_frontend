@@ -2,7 +2,7 @@ import React from "react";
 import styled from "styled-components";
 // eslint-disable-next-line
 import dayjs from "dayjs";
-import { DatePicker, Button, Collapse, Select, Checkbox } from "antd";
+import { DatePicker, Button, Collapse, Select, Checkbox, Alert } from "antd";
 // import PaymentDetails from "./PaymentDetails";
 import { CaretRightOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { FaMinus, FaPlus } from "react-icons/fa";
@@ -68,6 +68,8 @@ const DesktopCheckout = ({
 	checkOut,
 	disabledCheckOutDate,
 	handlePayPalApproved,
+	paypalPendingReview,
+	payPalPendingReviewMessage,
 	payMode = "capture",
 }) => {
 	return (
@@ -222,7 +224,24 @@ const DesktopCheckout = ({
 							{t.checkTerms}
 						</small>
 
-						{selectedPaymentOption === "acceptReserveNowPayInHotel" ? (
+						{paypalPendingReview ? (
+							<Alert
+								type='warning'
+								showIcon
+								message='Payment Is Under PayPal Review'
+								description={
+									<>
+										{payPalPendingReviewMessage}
+										{paypalPendingReview.confirmation_number ? (
+											<strong style={{ marginLeft: 6 }}>
+												{paypalPendingReview.confirmation_number}
+											</strong>
+										) : null}
+									</>
+								}
+								style={{ marginTop: 20 }}
+							/>
+						) : selectedPaymentOption === "acceptReserveNowPayInHotel" ? (
 							<Button
 								type='primary'
 								onClick={createNewReservation}
