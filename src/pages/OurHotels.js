@@ -10,6 +10,7 @@ import { Helmet } from "react-helmet";
 import favicon from "../favicon.ico";
 import { useCartContext } from "../cart_context";
 import SearchUpdate from "../components/OurHotels/SearchUpdate";
+import { prioritizeFeaturedHotels } from "../utils/featuredHotel";
 
 const roomTypesMapping = [
 	{ value: "standardRooms", label: "Standard Rooms" },
@@ -92,7 +93,7 @@ const OurHotels = () => {
 			return totalMinutes;
 		};
 
-		return [...activeHotels].sort((a, b) => {
+		const rankedHotels = [...activeHotels].sort((a, b) => {
 			if (sortOption === "closest") {
 				// Parse driving distances for sorting
 				const distanceA = parseDistance(a.distances?.drivingToElHaram);
@@ -111,6 +112,8 @@ const OurHotels = () => {
 
 			return 0; // No sorting
 		});
+
+		return prioritizeFeaturedHotels(rankedHotels);
 	}, [activeHotels, sortOption]);
 
 	return (

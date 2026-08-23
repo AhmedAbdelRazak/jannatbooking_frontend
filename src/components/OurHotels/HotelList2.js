@@ -13,6 +13,8 @@ import { FaCar, FaWalking } from "react-icons/fa";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import { useCartContext } from "../../cart_context";
+import FeaturedHotelBadge from "../FeaturedHotelBadge";
+import { isFeaturedHotel } from "../../utils/featuredHotel";
 
 // Helper function to format the address
 const formatAddress = (address) => {
@@ -73,6 +75,7 @@ const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 	const [mainSwiper, setMainSwiper] = useState(null); // Main swiper reference to control autoplay
 	const [showAllAmenities, setShowAllAmenities] = useState(false); // State to show/hide all amenities
 	const [convertedPrice, setConvertedPrice] = useState(null);
+	const featured = isFeaturedHotel(hotel);
 
 	const t = translations[chosenLanguage] || translations.English; // Get translations based on language
 
@@ -164,7 +167,10 @@ const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 	};
 
 	return (
-		<HotelCardWrapper isArabic={chosenLanguage === "Arabic"}>
+		<HotelCardWrapper
+			$featured={featured}
+			isArabic={chosenLanguage === "Arabic"}
+		>
 			{/* Image section with Swiper */}
 			<HotelImageWrapper>
 				<Swiper
@@ -243,6 +249,9 @@ const HotelCard = ({ hotel, currency, chosenLanguage }) => {
 			{/* Hotel details section */}
 			<HotelDetails isArabic={chosenLanguage === "Arabic"}>
 				<div>
+					{featured && (
+						<FeaturedHotelBadge chosenLanguage={chosenLanguage} compact />
+					)}
 					<HotelName
 						className='p-0 m-0'
 						style={{ textAlign: chosenLanguage === "Arabic" ? "center" : "" }}
@@ -490,17 +499,26 @@ const HotelListWrapper = styled.div`
 const HotelCardWrapper = styled.div`
 	display: grid;
 	grid-template-columns: 35% 45% 20%; /* Desktop layout */
-	background-color: var(--mainWhite);
-	border: 1px solid var(--border-color-light);
+	background: ${({ $featured }) =>
+		$featured
+			? "linear-gradient(100deg, #fffdf7 0%, #ffffff 42%)"
+			: "var(--mainWhite)"};
+	border: 1px solid
+		${({ $featured }) =>
+			$featured ? "rgba(180, 138, 53, 0.55)" : "var(--border-color-light)"};
 	border-radius: 10px;
-	box-shadow: var(--box-shadow-light);
+	box-shadow: ${({ $featured }) =>
+		$featured ? "0 8px 24px rgba(112, 82, 23, 0.14)" : "var(--box-shadow-light)"};
 	padding: 20px;
 	transition: var(--main-transition);
 	font-family: ${({ isArabic }) =>
 		isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
 
 	&:hover {
-		box-shadow: var(--box-shadow-dark);
+		box-shadow: ${({ $featured }) =>
+			$featured
+				? "0 12px 28px rgba(112, 82, 23, 0.2)"
+				: "var(--box-shadow-dark)"};
 	}
 
 	@media (max-width: 768px) {

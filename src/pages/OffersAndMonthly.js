@@ -16,6 +16,11 @@ import ReactPixel from "react-facebook-pixel";
 import { gettingHotelsWithOffersAndMonths } from "../apiCore";
 import { amenitiesList, viewsList, extraAmenitiesList } from "../Assets";
 import { useCartContext } from "../cart_context";
+import FeaturedHotelBadge from "../components/FeaturedHotelBadge";
+import {
+	isFeaturedHotel,
+	prioritizeFeaturedRoomCards,
+} from "../utils/featuredHotel";
 
 /* ============ i18n ============ */
 const tDict = {
@@ -240,7 +245,7 @@ const OffersAndMonthly = () => {
 					cards.push({ hotel: h, room: r, offers, monthly });
 			});
 		});
-		return cards;
+		return prioritizeFeaturedRoomCards(cards);
 	}, [hotels]);
 
 	const onSelectDeal = (roomId, deal) => {
@@ -403,6 +408,7 @@ const OffersAndMonthly = () => {
 				<CardsWrap>
 					{roomCards.map((card) => {
 						const { hotel, room, offers, monthly } = card;
+						const featured = isFeaturedHotel(hotel);
 						const rid = room._id;
 						const rtl = chosenLanguage === "Arabic";
 						const commission = toCommissionDecimal(room, hotel);
@@ -449,7 +455,7 @@ const OffersAndMonthly = () => {
 							start && end && end.isAfter(start) ? end.diff(start, "day") : 0;
 
 						return (
-							<Card rtl={rtl} key={rid}>
+							<Card $featured={featured} rtl={rtl} key={rid}>
 								{/* Media column */}
 								<MediaCol>
 									<MediaBox>
@@ -487,6 +493,12 @@ const OffersAndMonthly = () => {
 
 								{/* Info column */}
 								<InfoCol>
+									{featured && (
+										<FeaturedHotelBadge
+											chosenLanguage={chosenLanguage}
+											compact
+										/>
+									)}
 									<HotelName
 										dir={rtl ? "rtl" : "ltr"}
 										style={{ textAlign: rtl ? "center" : "" }}
@@ -779,17 +791,26 @@ const CardsWrap = styled.div`
 `;
 
 const Card = styled.div`
-	background-color: var(--mainWhite);
-	border: 1px solid var(--border-color-light);
+	background: ${({ $featured }) =>
+		$featured
+			? "linear-gradient(100deg, #fffdf7 0%, #ffffff 42%)"
+			: "var(--mainWhite)"};
+	border: 1px solid
+		${({ $featured }) =>
+			$featured ? "rgba(180, 138, 53, 0.55)" : "var(--border-color-light)"};
 	border-radius: 10px;
-	box-shadow: var(--box-shadow-light);
+	box-shadow: ${({ $featured }) =>
+		$featured ? "0 8px 24px rgba(112, 82, 23, 0.14)" : "var(--box-shadow-light)"};
 	padding: clamp(12px, 1.2vw, 18px);
 	display: flex;
 	gap: clamp(10px, 2vw, 20px);
 	flex-direction: ${({ rtl }) => (rtl ? "row-reverse" : "row")};
 
 	&:hover {
-		box-shadow: var(--box-shadow-dark);
+		box-shadow: ${({ $featured }) =>
+			$featured
+				? "0 12px 28px rgba(112, 82, 23, 0.2)"
+				: "var(--box-shadow-dark)"};
 	}
 
 	@media (max-width: 900px) {
