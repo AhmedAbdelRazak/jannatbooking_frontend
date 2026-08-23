@@ -31,6 +31,11 @@ import {
 	getRoomAvailability,
 	roomHasEnoughAvailability,
 } from "../utils/inventoryAvailability";
+import FeaturedHotelBadge from "../components/FeaturedHotelBadge";
+import {
+	isFeaturedHotel,
+	prioritizeFeaturedHotels,
+} from "../utils/featuredHotel";
 
 //Rooms to our hotels
 //Sliders shouldn't be auto.
@@ -450,7 +455,7 @@ const OurHotelRooms2 = () => {
 			return 0;
 		});
 
-		return sortedHotels;
+		return prioritizeFeaturedHotels(sortedHotels);
 	}, [roomData, sortOption, currency, queryParams]);
 
 	const t = translations[chosenLanguage] || translations.English;
@@ -606,6 +611,7 @@ const RoomCard = ({
 }) => {
 	// eslint-disable-next-line
 	const [thumbsSwiper, setThumbsSwiper] = useState(null);
+	const featured = isFeaturedHotel(hotel);
 
 	// Calculate commission rate
 	const roomCommission =
@@ -725,7 +731,7 @@ const RoomCard = ({
 			room.roomType === "individualBed" ||
 			room.roomType === "individualBeds" ? null : (
 				<>
-					<RoomCardWrapper>
+					<RoomCardWrapper $featured={featured}>
 						<RoomImageWrapper>
 							<Swiper
 								modules={[Pagination, Thumbs]}
@@ -769,6 +775,12 @@ const RoomCard = ({
 						</RoomImageWrapper>
 
 						<RoomDetails>
+							{featured && (
+								<FeaturedHotelBadge
+									chosenLanguage={chosenLanguage}
+									compact
+								/>
+							)}
 							<HotelName
 								dir={chosenLanguage === "Arabic" ? "rtl" : "ltr"}
 								style={{
@@ -1069,15 +1081,24 @@ const RoomListWrapper = styled.div`
 const RoomCardWrapper = styled.div`
 	display: grid;
 	grid-template-columns: 35% 45% 20%; /* Desktop layout */
-	background-color: var(--mainWhite);
-	border: 1px solid var(--border-color-light);
+	background: ${({ $featured }) =>
+		$featured
+			? "linear-gradient(100deg, #fffdf7 0%, #ffffff 42%)"
+			: "var(--mainWhite)"};
+	border: 1px solid
+		${({ $featured }) =>
+			$featured ? "rgba(180, 138, 53, 0.55)" : "var(--border-color-light)"};
 	border-radius: 10px;
-	box-shadow: var(--box-shadow-light);
+	box-shadow: ${({ $featured }) =>
+		$featured ? "0 8px 24px rgba(112, 82, 23, 0.14)" : "var(--box-shadow-light)"};
 	padding: 20px;
 	transition: var(--main-transition);
 
 	&:hover {
-		box-shadow: var(--box-shadow-dark);
+		box-shadow: ${({ $featured }) =>
+			$featured
+				? "0 12px 28px rgba(112, 82, 23, 0.2)"
+				: "var(--box-shadow-dark)"};
 	}
 
 	@media (max-width: 768px) {

@@ -24,6 +24,8 @@ import {
 	getRoomAvailability,
 	roomHasEnoughAvailability,
 } from "../../utils/inventoryAvailability";
+import FeaturedHotelBadge from "../FeaturedHotelBadge";
+import { isFeaturedHotel } from "../../utils/featuredHotel";
 
 const { RangePicker } = DatePicker;
 
@@ -170,6 +172,7 @@ const getCommissionRate = (roomCommission, hotelCommission) => {
 const SingleHotel = ({ selectedHotel }) => {
 	const history = useHistory();
 	const location = useLocation();
+	const featured = isFeaturedHotel(selectedHotel);
 
 	// eslint-disable-next-line
 	const [thumbsSwiper, setThumbsSwiper] = useState(null);
@@ -461,7 +464,7 @@ const SingleHotel = ({ selectedHotel }) => {
 				: null}
 
 			{/* Hero */}
-			<HeroSection dir='ltr'>
+			<HeroSection $featured={featured} dir='ltr'>
 				<Swiper
 					modules={[Pagination, Autoplay, Thumbs]}
 					spaceBetween={10}
@@ -510,6 +513,7 @@ const SingleHotel = ({ selectedHotel }) => {
 
 			{/* Overview */}
 			<HotelInfo
+				$featured={featured}
 				ref={overviewRef}
 				id='overview'
 				isArabic={chosenLanguage === "Arabic"}
@@ -519,6 +523,9 @@ const SingleHotel = ({ selectedHotel }) => {
 					marginRight: chosenLanguage === "Arabic" ? "10px" : "",
 				}}
 			>
+				{featured && (
+					<FeaturedHotelBadge chosenLanguage={chosenLanguage} />
+				)}
 				<h1>
 					{chosenLanguage === "Arabic"
 						? selectedHotel.hotelName_OtherLanguage || selectedHotel.hotelName
@@ -672,7 +679,7 @@ const SingleHotel = ({ selectedHotel }) => {
 					const pricePerNight = total / nights;
 
 					return (
-						<RoomCardWrapper key={room._id || index}>
+						<RoomCardWrapper $featured={featured} key={room._id || index}>
 							<RoomImageWrapper dir='ltr'>
 								<Swiper
 									modules={[Pagination, Autoplay, Thumbs]}
@@ -883,6 +890,13 @@ const HeroSection = styled.div`
 	width: 100%;
 	max-width: 1200px;
 	margin: 20px 0;
+	border: 1px solid
+		${({ $featured }) =>
+			$featured ? "rgba(180, 138, 53, 0.52)" : "transparent"};
+	border-radius: 12px;
+	box-shadow: ${({ $featured }) =>
+		$featured ? "0 10px 30px rgba(112, 82, 23, 0.14)" : "none"};
+	overflow: hidden;
 	.hotel-image {
 		width: 100%;
 		height: 700px;
@@ -900,6 +914,13 @@ const HeroSection = styled.div`
 
 const HotelInfo = styled.div`
 	margin: 20px 0;
+	background: ${({ $featured }) =>
+		$featured
+			? "linear-gradient(100deg, #fffaf0 0%, rgba(255, 255, 255, 0) 65%)"
+			: "transparent"};
+	border-inline-start: ${({ $featured }) =>
+		$featured ? "3px solid rgba(180, 138, 53, 0.72)" : "0"};
+	border-radius: ${({ $featured }) => ($featured ? "8px" : "0")};
 	text-align: left;
 	text-transform: capitalize;
 	width: 100%;
@@ -907,6 +928,7 @@ const HotelInfo = styled.div`
 	margin-left: 0;
 	font-family: ${({ isArabic }) =>
 		isArabic ? `"Droid Arabic Kufi", sans-serif` : ""};
+	padding: ${({ $featured }) => ($featured ? "14px 16px" : "0")};
 	h1 {
 		font-size: 36px;
 		color: var(--primaryBlue);
@@ -1043,10 +1065,16 @@ const RoomsSection = styled.div`
 const RoomCardWrapper = styled.div`
 	display: grid;
 	grid-template-columns: 35% 45% 20%;
-	background: var(--mainWhite);
-	border: 1px solid var(--border-color-light);
+	background: ${({ $featured }) =>
+		$featured
+			? "linear-gradient(100deg, #fffdf7 0%, #ffffff 42%)"
+			: "var(--mainWhite)"};
+	border: 1px solid
+		${({ $featured }) =>
+			$featured ? "rgba(180, 138, 53, 0.42)" : "var(--border-color-light)"};
 	border-radius: 10px;
-	box-shadow: var(--box-shadow-light);
+	box-shadow: ${({ $featured }) =>
+		$featured ? "0 7px 20px rgba(112, 82, 23, 0.11)" : "var(--box-shadow-light)"};
 	padding: 20px;
 	margin-bottom: 20px;
 	transition: var(--main-transition);

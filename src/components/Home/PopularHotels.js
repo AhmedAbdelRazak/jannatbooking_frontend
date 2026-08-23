@@ -10,9 +10,15 @@ import { amenitiesList } from "../../Assets"; // Assuming amenitiesList is impor
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import { useCartContext } from "../../cart_context";
+import FeaturedHotelBadge from "../FeaturedHotelBadge";
+import {
+	isFeaturedHotel,
+	prioritizeFeaturedHotels,
+} from "../../utils/featuredHotel";
 
 const PopularHotels = ({ activeHotels }) => {
 	const { chosenLanguage } = useCartContext();
+	const orderedHotels = prioritizeFeaturedHotels(activeHotels);
 
 	const settings = {
 		dots: true,
@@ -88,9 +94,10 @@ const PopularHotels = ({ activeHotels }) => {
 					: "OUR MOST POPULAR HOTELS!"}{" "}
 			</SectionTitle>
 			<Slider {...settings}>
-				{activeHotels.map((hotel) => (
+				{orderedHotels.map((hotel) => (
 					<div key={hotel._id} className='slide'>
 						<HotelCard
+							$featured={isFeaturedHotel(hotel)}
 							hoverable
 							onClick={() => {
 								ReactGA.event({
@@ -121,6 +128,12 @@ const PopularHotels = ({ activeHotels }) => {
 									textAlign: chosenLanguage === "Arabic" ? "right" : "",
 								}}
 							>
+								{isFeaturedHotel(hotel) && (
+									<FeaturedHotelBadge
+										chosenLanguage={chosenLanguage}
+										compact
+									/>
+								)}
 								<h3>
 									{chosenLanguage === "Arabic" && hotel.hotelName_OtherLanguage
 										? hotel.hotelName_OtherLanguage
@@ -195,9 +208,19 @@ const SectionTitle = styled.h2`
 `;
 
 const HotelCard = styled(Card)`
+	background: ${({ $featured }) =>
+		$featured
+			? "linear-gradient(180deg, #fffdf7 0%, #ffffff 35%)"
+			: "var(--mainWhite)"};
+	border: 1px solid
+		${({ $featured }) =>
+			$featured ? "rgba(180, 138, 53, 0.55)" : "var(--border-color-light)"};
 	border-radius: 10px;
 	overflow: hidden;
-	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	box-shadow: ${({ $featured }) =>
+		$featured
+			? "0 8px 24px rgba(112, 82, 23, 0.16)"
+			: "0 4px 6px rgba(0, 0, 0, 0.1)"};
 	transition:
 		transform 0.3s ease,
 		box-shadow 0.3s ease;
