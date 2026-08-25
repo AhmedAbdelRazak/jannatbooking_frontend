@@ -12,6 +12,10 @@ import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import { useCartContext } from "../../cart_context";
 import { roomTypesWithTranslations } from "../../Assets";
+import {
+	isInvalidHotelCheckoutDate,
+	isPastHotelCheckInDate,
+} from "../../utils/bookingDatePolicy";
 
 const { Option } = Select;
 
@@ -104,18 +108,11 @@ const SearchUpdate = ({
 
 	// ---- Date disabling logic ----
 	const disabledDateCheckIn = (current) => {
-		// Disallow any date before today's endOf("day")
-		return current && current < dayjs().endOf("day");
+		return isPastHotelCheckInDate(current);
 	};
 
 	const disabledDateCheckOut = (current) => {
-		// If there's no checkIn, just disallow anything before today
-		if (!searchParams.checkIn) {
-			return current && current < dayjs().endOf("day");
-		}
-		// Must be at least 1 day after checkIn
-		const minCheckOut = searchParams.checkIn.clone().add(1, "day");
-		return current && current < minCheckOut;
+		return isInvalidHotelCheckoutDate(current, searchParams.checkIn);
 	};
 
 	// Validate required fields (destination, checkIn, checkOut, roomType, adults)

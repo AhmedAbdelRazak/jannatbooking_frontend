@@ -17,6 +17,10 @@ import {
 	getRoomAvailability,
 	roomHasEnoughAvailability,
 } from "../../utils/inventoryAvailability";
+import {
+	isInvalidHotelCheckoutDate,
+	isPastHotelCheckInDate,
+} from "../../utils/bookingDatePolicy";
 
 // Extend Day.js with the plugin
 dayjs.extend(isSameOrAfter);
@@ -319,7 +323,15 @@ const SidebarCartDrawer = () => {
 			return false;
 		}
 
-		if (!checkIn.isBefore(checkOut)) {
+		if (
+			isPastHotelCheckInDate(checkIn) ||
+			isInvalidHotelCheckoutDate(checkOut, checkIn)
+		) {
+			toast.error(
+				chosenLanguage === "Arabic"
+					? "يرجى اختيار تاريخ وصول من اليوم أو بعده، وتاريخ مغادرة بعد الوصول."
+					: "Choose a check-in date from today onward and a checkout date after check-in.",
+			);
 			return false;
 		}
 
@@ -484,12 +496,11 @@ const SidebarCartDrawer = () => {
 	};
 
 	const disabledCheckInDate = (current) => {
-		return current && current < dayjs().endOf("day");
+		return isPastHotelCheckInDate(current);
 	};
 
 	const disabledCheckOutDate = (current) => {
-		if (!checkIn) return current && current < dayjs().endOf("day");
-		return current && current <= checkIn.endOf("day");
+		return isInvalidHotelCheckoutDate(current, checkIn);
 	};
 
 	const t = translations[chosenLanguage] || translations.English;

@@ -19,6 +19,7 @@ import ReactPixel from "react-facebook-pixel";
 import SingleHotelOffers from "./SingleHotelOffers";
 import { useHistory, useLocation } from "react-router-dom";
 import { getHotelInventoryAvailability } from "../../apiCore";
+import { isPastHotelCheckInDate } from "../../utils/bookingDatePolicy";
 import {
 	buildAvailabilityLookup,
 	getRoomAvailability,
@@ -636,9 +637,7 @@ const SingleHotel = ({ selectedHotel }) => {
 						format='YYYY-MM-DD'
 						value={dateRange}
 						onChange={handleDateChange}
-						disabledDate={(current) =>
-							current && current < dayjs().endOf("day")
-						}
+						disabledDate={isPastHotelCheckInDate}
 						panelRender={panelRender}
 						inputReadOnly
 					/>

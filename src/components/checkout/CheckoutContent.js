@@ -20,6 +20,10 @@ import DesktopCheckout from "./DesktopCheckout";
 import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import { toast } from "react-toastify";
+import {
+	isInvalidHotelCheckoutDate,
+	isPastHotelCheckInDate,
+} from "../../utils/bookingDatePolicy";
 import PaymentDetailsPayPal from "./PaymentDetailsPayPal";
 import PaymentOptionsPayPal from "./PaymentOptionsPayPal";
 import {
@@ -317,6 +321,19 @@ const CheckoutContent = ({
 		({ requirePaymentOption = false } = {}) => {
 			if (!roomCart || roomCart.length === 0) {
 				message.error("Your cart is empty. Please choose a room first.");
+				return null;
+			}
+
+			if (
+				roomCart.some(
+					(room) =>
+						isPastHotelCheckInDate(room.startDate) ||
+						isInvalidHotelCheckoutDate(room.endDate, room.startDate),
+				)
+			) {
+				message.error(
+					"Choose a check-in date from today onward and a checkout date after check-in.",
+				);
 				return null;
 			}
 
@@ -782,13 +799,10 @@ const CheckoutContent = ({
 		}
 	};
 
-	const disabledCheckInDate = (current) =>
-		current && current < dayjs().endOf("day");
-	const disabledCheckOutDate = (current) => {
-		if (!checkIn) return current && current < dayjs().endOf("day");
-		return current && current <= checkIn.endOf("day");
-	};
-	const disabledDate = (current) => current && current < dayjs().endOf("day");
+	const disabledCheckInDate = isPastHotelCheckInDate;
+	const disabledCheckOutDate = (current) =>
+		isInvalidHotelCheckoutDate(current, checkIn);
+	const disabledDate = isPastHotelCheckInDate;
 
 	const createUncompletedDocument = async (from) => {
 		try {

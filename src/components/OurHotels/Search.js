@@ -13,6 +13,7 @@ import ReactGA from "react-ga4";
 import ReactPixel from "react-facebook-pixel";
 import { roomTypesWithTranslations } from "../../Assets";
 import { useCartContext } from "../../cart_context";
+import { isPastHotelCheckInDate } from "../../utils/bookingDatePolicy";
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -117,7 +118,7 @@ const Search = ({
 	};
 
 	const disabledDate = (current) => {
-		return current && current < dayjs().endOf("day");
+		return isPastHotelCheckInDate(current);
 	};
 
 	const panelRender = (panelNode) => (
